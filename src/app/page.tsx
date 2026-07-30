@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { listMatters } from "@/lib/matters";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const matters = await listMatters();
   const openCount = matters.filter((m) => m.status === "open").length;

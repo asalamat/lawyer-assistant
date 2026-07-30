@@ -52,6 +52,9 @@ export async function POST(
         { status: err.status ?? 502 },
       );
     }
+    if (err instanceof Error && err.message.includes("No Anthropic API key")) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
     throw err;
   }
 }

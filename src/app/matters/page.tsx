@@ -1,6 +1,8 @@
 import { listMatters } from "@/lib/matters";
 import MatterList from "@/components/MatterList";
 
+export const dynamic = "force-dynamic";
+
 export default async function MattersPage() {
   const matters = await listMatters();
 
