@@ -15,3 +15,11 @@ export interface Document {
   uploadedAt: string;
   storagePath: string;
 }
+
+export interface ChatMessage {
+  id: string;
+  matterId: string;
+  role: "user" | "assistant";
+  content: string;
+  createdAt: string;
+}

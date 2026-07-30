@@ -3,7 +3,6 @@ import Link from "next/link";
 const LINKS = [
   { href: "/", label: "Dashboard" },
   { href: "/matters", label: "Matters" },
-  { href: "/chat", label: "Chat" },
 ];
 
 export default function Nav() {

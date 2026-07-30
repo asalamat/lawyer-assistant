@@ -22,9 +22,6 @@ export default async function Home() {
         <Link href="/matters" className="underline">
           View all matters
         </Link>
-        <Link href="/chat" className="underline">
-          Ask a question
-        </Link>
       </div>
     </main>
   );

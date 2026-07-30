@@ -1,15 +1,17 @@
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
-import type { Document, Matter } from "./types";
+import type { ChatMessage, Document, Matter } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const DB_PATH = path.join(DATA_DIR, "db.json");
 const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
+const TEXT_EXTENSIONS = [".txt", ".md"];
 
 interface Db {
   matters: Matter[];
   documents: Document[];
+  chatMessages: ChatMessage[];
 }
 
 async function ensureDataDir() {
@@ -18,9 +20,14 @@ async function ensureDataDir() {
 
 async function readDb(): Promise<Db> {
   await ensureDataDir();
-  if (!existsSync(DB_PATH)) return { matters: [], documents: [] };
+  if (!existsSync(DB_PATH)) return { matters: [], documents: [], chatMessages: [] };
   const raw = await readFile(DB_PATH, "utf-8");
-  return JSON.parse(raw) as Db;
+  const db = JSON.parse(raw) as Partial<Db>;
+  return {
+    matters: db.matters ?? [],
+    documents: db.documents ?? [],
+    chatMessages: db.chatMessages ?? [],
+  };
 }
 
 async function writeDb(db: Db): Promise<void> {
@@ -88,4 +95,44 @@ export async function addDocument(
   db.documents.push(document);
   await writeDb(db);
   return document;
+}
+
+export async function listChatMessages(matterId: string): Promise<ChatMessage[]> {
+  const db = await readDb();
+  return db.chatMessages
+    .filter((m) => m.matterId === matterId)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+export async function addChatMessage(
+  matterId: string,
+  role: ChatMessage["role"],
+  content: string,
+): Promise<ChatMessage> {
+  const db = await readDb();
+  const message: ChatMessage = {
+    id: crypto.randomUUID(),
+    matterId,
+    role,
+    content,
+    createdAt: new Date().toISOString(),
+  };
+  db.chatMessages.push(message);
+  await writeDb(db);
+  return message;
+}
+
+export async function getMatterTextContext(matterId: string): Promise<string> {
+  const documents = await listDocuments(matterId);
+  const textDocuments = documents.filter((doc) =>
+    TEXT_EXTENSIONS.some((ext) => doc.fileName.toLowerCase().endsWith(ext)),
+  );
+
+  const sections = await Promise.all(
+    textDocuments.map(async (doc) => {
+      const text = await readFile(doc.storagePath, "utf-8");
+      return `--- ${doc.fileName} ---\n${text}`;
+    }),
+  );
+  return sections.join("\n\n");
 }
