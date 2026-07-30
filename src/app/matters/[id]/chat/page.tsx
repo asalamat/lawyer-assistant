@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getMatter, listChatMessages } from "@/lib/matters";
+import { getMatter, listChatMessages, listDocuments } from "@/lib/matters";
 import ChatMessages from "@/components/ChatMessages";
 
 export default async function MatterChatPage({
@@ -12,6 +12,8 @@ export default async function MatterChatPage({
   if (!matter) notFound();
 
   const messages = await listChatMessages(id);
+  const documents = await listDocuments(id);
+  const knownFilenames = documents.map((doc) => doc.fileName);
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-10">
@@ -22,7 +24,11 @@ export default async function MatterChatPage({
           (text, PDF, Word, and scanned images — audio/video not yet supported).
         </p>
       </div>
-      <ChatMessages matterId={matter.id} initialMessages={messages} />
+      <ChatMessages
+        matterId={matter.id}
+        initialMessages={messages}
+        knownFilenames={knownFilenames}
+      />
     </main>
   );
 }

@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { verifyCitations } from "@/lib/citationCheck";
 import type { ChatMessage } from "@/lib/types";
 
 export default function ChatMessages({
   matterId,
   initialMessages,
+  knownFilenames,
 }: {
   matterId: string;
   initialMessages: ChatMessage[];
+  knownFilenames: string[];
 }) {
   const [messages, setMessages] = useState(initialMessages);
   const [question, setQuestion] = useState("");
@@ -57,18 +60,31 @@ export default function ChatMessages({
             Ask a question about this matter&apos;s uploaded documents.
           </p>
         ) : (
-          messages.map((message) => (
-            <div
-              key={message.id}
-              className={`max-w-[80%] rounded-lg px-4 py-2 text-sm whitespace-pre-wrap ${
-                message.role === "assistant"
-                  ? "self-start bg-black/5 dark:bg-white/10"
-                  : "self-end bg-foreground text-background"
-              }`}
-            >
-              {message.content}
-            </div>
-          ))
+          messages.map((message) => {
+            const unverified =
+              message.role === "assistant"
+                ? verifyCitations(message.content, knownFilenames).filter((c) => !c.verified)
+                : [];
+            return (
+              <div
+                key={message.id}
+                className={`max-w-[80%] rounded-lg px-4 py-2 text-sm whitespace-pre-wrap ${
+                  message.role === "assistant"
+                    ? "self-start bg-black/5 dark:bg-white/10"
+                    : "self-end bg-foreground text-background"
+                }`}
+              >
+                {message.content}
+                {unverified.length > 0 && (
+                  <p className="mt-2 text-xs text-red-600">
+                    ⚠ Cites {unverified.map((c) => c.filename).join(", ")}, which{" "}
+                    {unverified.length === 1 ? "isn't" : "aren't"} among this matter&apos;s
+                    uploaded documents — verify before relying on this.
+                  </p>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
 
