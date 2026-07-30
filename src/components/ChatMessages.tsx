@@ -4,19 +4,37 @@ import { useState } from "react";
 import { verifyCitations } from "@/lib/citationCheck";
 import type { ChatMessage } from "@/lib/types";
 
+type Rating = "up" | "down";
+
 export default function ChatMessages({
   matterId,
   initialMessages,
   knownFilenames,
+  initialFeedback,
 }: {
   matterId: string;
   initialMessages: ChatMessage[];
   knownFilenames: string[];
+  initialFeedback: Record<string, Rating>;
 }) {
   const [messages, setMessages] = useState(initialMessages);
   const [question, setQuestion] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState(initialFeedback);
+
+  async function handleRate(messageId: string, rating: Rating) {
+    setFeedback((prev) => ({ ...prev, [messageId]: rating }));
+    try {
+      await fetch(`/api/chat-messages/${messageId}/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rating }),
+      });
+    } catch {
+      // best-effort — the optimistic UI state is harmless if this fails
+    }
+  }
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -81,6 +99,28 @@ export default function ChatMessages({
                     {unverified.length === 1 ? "isn't" : "aren't"} among this matter&apos;s
                     uploaded documents — verify before relying on this.
                   </p>
+                )}
+                {message.role === "assistant" && (
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      onClick={() => handleRate(message.id, "up")}
+                      aria-label="Approve this answer"
+                      className={`text-xs ${
+                        feedback[message.id] === "up" ? "opacity-100" : "opacity-40 hover:opacity-70"
+                      }`}
+                    >
+                      👍
+                    </button>
+                    <button
+                      onClick={() => handleRate(message.id, "down")}
+                      aria-label="Flag this answer"
+                      className={`text-xs ${
+                        feedback[message.id] === "down" ? "opacity-100" : "opacity-40 hover:opacity-70"
+                      }`}
+                    >
+                      👎
+                    </button>
+                  </div>
                 )}
               </div>
             );

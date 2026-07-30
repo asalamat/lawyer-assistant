@@ -4,7 +4,7 @@ import path from "path";
 import { recordAuditEvent } from "./auditLog";
 import db, { toPlain } from "./db";
 import { extractDocumentText, isExtractableDocument } from "./textExtraction";
-import type { ChatMessage, Document, Matter, MatterDigest } from "./types";
+import type { ChatMessage, Document, Matter, MatterDigest, MessageFeedback } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
@@ -115,6 +115,47 @@ export async function addChatMessage(
     await recordAuditEvent("chat_question_asked", matterId, content.slice(0, 200));
   }
   return message;
+}
+
+export async function setMessageFeedback(
+  chatMessageId: string,
+  rating: MessageFeedback["rating"],
+): Promise<MessageFeedback> {
+  const newId = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO message_feedback (id, chatMessageId, rating, createdAt) VALUES (?, ?, ?, ?)
+     ON CONFLICT(chatMessageId) DO UPDATE SET rating = excluded.rating, createdAt = excluded.createdAt`,
+  ).run(newId, chatMessageId, rating, createdAt);
+
+  const owningMessage = db
+    .prepare("SELECT matterId FROM chat_messages WHERE id = ?")
+    .get(chatMessageId) as unknown as { matterId: string } | undefined;
+  await recordAuditEvent(
+    "chat_feedback_recorded",
+    owningMessage?.matterId ?? null,
+    `Marked an answer as ${rating === "up" ? "approved" : "flagged"}`,
+  );
+
+  const stored = db
+    .prepare("SELECT * FROM message_feedback WHERE chatMessageId = ?")
+    .get(chatMessageId);
+  return toPlain<MessageFeedback>(stored);
+}
+
+export async function getFeedbackForMatter(
+  matterId: string,
+): Promise<Record<string, MessageFeedback["rating"]>> {
+  const rows = db
+    .prepare(
+      `SELECT f.chatMessageId as chatMessageId, f.rating as rating
+       FROM message_feedback f
+       JOIN chat_messages m ON m.id = f.chatMessageId
+       WHERE m.matterId = ?`,
+    )
+    .all(matterId) as unknown as { chatMessageId: string; rating: MessageFeedback["rating"] }[];
+
+  return Object.fromEntries(rows.map((row) => [row.chatMessageId, row.rating]));
 }
 
 export async function listDigests(matterId: string): Promise<MatterDigest[]> {

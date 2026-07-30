@@ -38,3 +38,10 @@ export interface MatterDigest {
   content: string;
   createdAt: string;
 }
+
+export interface MessageFeedback {
+  id: string;
+  chatMessageId: string;
+  rating: "up" | "down";
+  createdAt: string;
+}

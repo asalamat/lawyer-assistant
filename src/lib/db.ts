@@ -10,12 +10,31 @@ if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
 const db = new DatabaseSync(DB_PATH);
 
 // Multiple Next.js build/dev worker processes can open this file at once.
-// WAL mode allows concurrent readers alongside a writer, and busy_timeout
-// makes a connection wait for a lock instead of throwing SQLITE_BUSY.
-db.exec("PRAGMA journal_mode = WAL;");
-db.exec("PRAGMA busy_timeout = 5000;");
+// busy_timeout alone doesn't cover every race on a brand-new file — the
+// WAL-mode switch itself and the initial schema creation can both throw
+// SQLITE_BUSY immediately if another process is mid-initializing the same
+// file. Retry each of those with a short synchronous backoff.
+function isBusyError(err: unknown): boolean {
+  const text = String(err) + String((err as { cause?: unknown })?.cause ?? "");
+  return text.includes("database is locked") || text.includes("SQLITE_BUSY");
+}
 
-db.exec(`
+function execWithRetry(sql: string, attempts = 10): void {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      db.exec(sql);
+      return;
+    } catch (err) {
+      if (!isBusyError(err) || attempt === attempts - 1) throw err;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100 * (attempt + 1));
+    }
+  }
+}
+
+execWithRetry("PRAGMA journal_mode = WAL;");
+execWithRetry("PRAGMA busy_timeout = 5000;");
+
+execWithRetry(`
   CREATE TABLE IF NOT EXISTS matters (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
@@ -58,6 +77,14 @@ db.exec(`
     content TEXT NOT NULL,
     createdAt TEXT NOT NULL,
     FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS message_feedback (
+    id TEXT PRIMARY KEY,
+    chatMessageId TEXT NOT NULL UNIQUE,
+    rating TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (chatMessageId) REFERENCES chat_messages(id)
   );
 
   CREATE INDEX IF NOT EXISTS idx_documents_matterId ON documents(matterId);

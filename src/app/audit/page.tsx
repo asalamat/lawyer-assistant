@@ -8,6 +8,7 @@ const ACTION_LABELS: Record<string, string> = {
   document_uploaded: "Document uploaded",
   chat_question_asked: "Chat question asked",
   digest_generated: "Matter digest generated",
+  chat_feedback_recorded: "Chat feedback recorded",
 };
 
 export default async function AuditPage() {
