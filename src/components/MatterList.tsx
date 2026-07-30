@@ -5,6 +5,8 @@ import { useState } from "react";
 import type { Matter } from "@/lib/types";
 import MatterCard from "./MatterCard";
 
+type StatusFilter = "all" | "open" | "closed";
+
 export default function MatterList({ matters }: { matters: Matter[] }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
@@ -12,6 +14,15 @@ export default function MatterList({ matters }: { matters: Matter[] }) {
   const [matterType, setMatterType] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+
+  const filteredMatters = matters.filter((matter) => {
+    if (statusFilter !== "all" && matter.status !== statusFilter) return false;
+    if (!query.trim()) return true;
+    const haystack = `${matter.title} ${matter.clientName} ${matter.matterType}`.toLowerCase();
+    return haystack.includes(query.trim().toLowerCase());
+  });
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -78,11 +89,35 @@ export default function MatterList({ matters }: { matters: Matter[] }) {
       {matters.length === 0 ? (
         <p className="text-sm text-zinc-500">No matters yet.</p>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {matters.map((matter) => (
-            <MatterCard key={matter.id} matter={matter} />
-          ))}
-        </div>
+        <>
+          <div className="flex gap-3">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search title, client, or type…"
+              className="flex-1 rounded border border-black/10 px-3 py-2 text-sm dark:border-white/10 dark:bg-transparent"
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+              className="rounded border border-black/10 px-3 py-2 text-sm dark:border-white/10 dark:bg-transparent"
+            >
+              <option value="all">All statuses</option>
+              <option value="open">Open</option>
+              <option value="closed">Closed</option>
+            </select>
+          </div>
+
+          {filteredMatters.length === 0 ? (
+            <p className="text-sm text-zinc-500">No matters match your search.</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {filteredMatters.map((matter) => (
+                <MatterCard key={matter.id} matter={matter} />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
