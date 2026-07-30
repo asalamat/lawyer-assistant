@@ -1,48 +1,23 @@
-import { mkdir, readFile, writeFile } from "fs/promises";
+import { mkdir, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
+import db, { toPlain } from "./db";
 import { extractDocumentText, isExtractableDocument } from "./textExtraction";
 import type { ChatMessage, Document, Matter } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
-const DB_PATH = path.join(DATA_DIR, "db.json");
 const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
 
-interface Db {
-  matters: Matter[];
-  documents: Document[];
-  chatMessages: ChatMessage[];
-}
-
-async function ensureDataDir() {
-  if (!existsSync(DATA_DIR)) await mkdir(DATA_DIR, { recursive: true });
-}
-
-async function readDb(): Promise<Db> {
-  await ensureDataDir();
-  if (!existsSync(DB_PATH)) return { matters: [], documents: [], chatMessages: [] };
-  const raw = await readFile(DB_PATH, "utf-8");
-  const db = JSON.parse(raw) as Partial<Db>;
-  return {
-    matters: db.matters ?? [],
-    documents: db.documents ?? [],
-    chatMessages: db.chatMessages ?? [],
-  };
-}
-
-async function writeDb(db: Db): Promise<void> {
-  await ensureDataDir();
-  await writeFile(DB_PATH, JSON.stringify(db, null, 2), "utf-8");
-}
-
 export async function listMatters(): Promise<Matter[]> {
-  const db = await readDb();
-  return db.matters.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return db
+    .prepare("SELECT * FROM matters ORDER BY createdAt DESC")
+    .all()
+    .map((row) => toPlain<Matter>(row));
 }
 
 export async function getMatter(id: string): Promise<Matter | null> {
-  const db = await readDb();
-  return db.matters.find((m) => m.id === id) ?? null;
+  const row = db.prepare("SELECT * FROM matters WHERE id = ?").get(id);
+  return row ? toPlain<Matter>(row) : null;
 }
 
 export async function createMatter(input: {
@@ -50,7 +25,6 @@ export async function createMatter(input: {
   clientName: string;
   matterType: string;
 }): Promise<Matter> {
-  const db = await readDb();
   const matter: Matter = {
     id: crypto.randomUUID(),
     title: input.title,
@@ -59,23 +33,30 @@ export async function createMatter(input: {
     status: "open",
     createdAt: new Date().toISOString(),
   };
-  db.matters.push(matter);
-  await writeDb(db);
+  db.prepare(
+    "INSERT INTO matters (id, title, clientName, matterType, status, createdAt) VALUES (?, ?, ?, ?, ?, ?)",
+  ).run(
+    matter.id,
+    matter.title,
+    matter.clientName,
+    matter.matterType,
+    matter.status,
+    matter.createdAt,
+  );
   return matter;
 }
 
 export async function listDocuments(matterId: string): Promise<Document[]> {
-  const db = await readDb();
-  return db.documents
-    .filter((d) => d.matterId === matterId)
-    .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
+  return db
+    .prepare("SELECT * FROM documents WHERE matterId = ? ORDER BY uploadedAt DESC")
+    .all(matterId)
+    .map((row) => toPlain<Document>(row));
 }
 
 export async function addDocument(
   matterId: string,
   file: File,
 ): Promise<Document> {
-  const db = await readDb();
   const matterDir = path.join(UPLOADS_DIR, matterId);
   if (!existsSync(matterDir)) await mkdir(matterDir, { recursive: true });
 
@@ -92,16 +73,24 @@ export async function addDocument(
     uploadedAt: new Date().toISOString(),
     storagePath,
   };
-  db.documents.push(document);
-  await writeDb(db);
+  db.prepare(
+    "INSERT INTO documents (id, matterId, fileName, sizeBytes, uploadedAt, storagePath) VALUES (?, ?, ?, ?, ?, ?)",
+  ).run(
+    document.id,
+    document.matterId,
+    document.fileName,
+    document.sizeBytes,
+    document.uploadedAt,
+    document.storagePath,
+  );
   return document;
 }
 
 export async function listChatMessages(matterId: string): Promise<ChatMessage[]> {
-  const db = await readDb();
-  return db.chatMessages
-    .filter((m) => m.matterId === matterId)
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  return db
+    .prepare("SELECT * FROM chat_messages WHERE matterId = ? ORDER BY createdAt ASC")
+    .all(matterId)
+    .map((row) => toPlain<ChatMessage>(row));
 }
 
 export async function addChatMessage(
@@ -109,7 +98,6 @@ export async function addChatMessage(
   role: ChatMessage["role"],
   content: string,
 ): Promise<ChatMessage> {
-  const db = await readDb();
   const message: ChatMessage = {
     id: crypto.randomUUID(),
     matterId,
@@ -117,8 +105,9 @@ export async function addChatMessage(
     content,
     createdAt: new Date().toISOString(),
   };
-  db.chatMessages.push(message);
-  await writeDb(db);
+  db.prepare(
+    "INSERT INTO chat_messages (id, matterId, role, content, createdAt) VALUES (?, ?, ?, ?, ?)",
+  ).run(message.id, message.matterId, message.role, message.content, message.createdAt);
   return message;
 }
 
