@@ -39,12 +39,11 @@ see git log for exact history.
 - [x] Audit log table (matter created / document uploaded / chat question asked),
       viewable at `/audit`
 
-## Phase 2 — Legal research (needs an external decision before most of it can start)
+## Phase 2 — Legal research
 
-- [ ] Matter search/filter on the matters list (no external dependency — can build now)
-- [ ] Citation formatting/verification pass on chat answers (partially done — Claude
-      cites filenames; a real verification step needs deterministic parsing, doable
-      without new accounts)
+- [x] Matter search/filter on the matters list
+- [x] Citation verification on chat answers (`src/lib/citationCheck.ts` — flags any
+      cited filename that isn't an actual uploaded document)
 - [ ] CanLII / Justice Laws integration — **blocked on API access**. CanLII's API
       requires a developer agreement; flag to user when ready to pursue.
 - [ ] Case-law citation lookup and "note-up" (subsequent treatment) — **blocked on
@@ -52,8 +51,8 @@ see git log for exact history.
 
 ## Phase 3 — Evidence and Crown analysis
 
-- [ ] Matter digest / executive summary generation (buildable now, on top of
-      whatever documents are uploaded — no new accounts needed)
+- [x] Matter digest / executive summary generation (`generateMatterDigest()`,
+      `matter_digests` table, panel on the matter detail page)
 - [ ] Elements-of-offence matrix, evidence-to-element mapping (buildable now as a
       structured-output prompt over uploaded docs)
 - [ ] Independent second-model review — **needs a second model provider account**
@@ -70,10 +69,18 @@ see git log for exact history.
 
 ## Phase 5 — Institutional learning
 
-- [ ] Lawyer approval/correction workflow on chat answers (buildable now — a
-      thumbs up/down + edit on each answer, stored for later review)
+- [x] Lawyer approval/correction workflow on chat answers (thumbs up/down,
+      `message_feedback` table, recorded in the audit log)
 - [ ] Everything past that (precedent library, formal eval sets, fine-tuning) is
       premature before there's real usage data to learn from
+
+## Also built, not in the original phase list
+
+- [x] `/audit` — audit log of matter/document/chat/digest/feedback actions
+- [x] Dashboard system-info panel (app version, git commit, Node/Next versions,
+      SQLite row counts)
+- [x] `npm run reset-password` for a forgotten single-user password (no in-app
+      recovery flow by design — that would be a bypass path, not a safety net)
 
 ## Decisions that need the account owner, not a default
 
