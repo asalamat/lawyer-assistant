@@ -23,3 +23,11 @@ export interface ChatMessage {
   content: string;
   createdAt: string;
 }
+
+export interface AuditEntry {
+  id: string;
+  action: string;
+  matterId: string | null;
+  detail: string;
+  createdAt: string;
+}

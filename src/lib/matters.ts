@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
+import { recordAuditEvent } from "./auditLog";
 import db, { toPlain } from "./db";
 import { extractDocumentText, isExtractableDocument } from "./textExtraction";
 import type { ChatMessage, Document, Matter } from "./types";
@@ -43,6 +44,7 @@ export async function createMatter(input: {
     matter.status,
     matter.createdAt,
   );
+  await recordAuditEvent("matter_created", matter.id, `Created matter "${matter.title}"`);
   return matter;
 }
 
@@ -83,6 +85,7 @@ export async function addDocument(
     document.uploadedAt,
     document.storagePath,
   );
+  await recordAuditEvent("document_uploaded", matterId, `Uploaded "${document.fileName}"`);
   return document;
 }
 
@@ -108,6 +111,9 @@ export async function addChatMessage(
   db.prepare(
     "INSERT INTO chat_messages (id, matterId, role, content, createdAt) VALUES (?, ?, ?, ?, ?)",
   ).run(message.id, message.matterId, message.role, message.content, message.createdAt);
+  if (role === "user") {
+    await recordAuditEvent("chat_question_asked", matterId, content.slice(0, 200));
+  }
   return message;
 }
 
