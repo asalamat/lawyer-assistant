@@ -18,7 +18,8 @@ export default async function MatterChatPage({
       <div>
         <h1 className="text-2xl font-semibold">Chat — {matter.title}</h1>
         <p className="text-sm text-zinc-500">
-          Answers are grounded only in this matter&apos;s uploaded .txt/.md documents.
+          Answers are grounded only in this matter&apos;s uploaded documents
+          (text, PDF, Word, and scanned images — audio/video not yet supported).
         </p>
       </div>
       <ChatMessages matterId={matter.id} initialMessages={messages} />

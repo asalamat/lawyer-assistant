@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getMatter, listDocuments } from "@/lib/matters";
+import { isExtractableDocument } from "@/lib/textExtraction";
 import UploadDropzone from "@/components/UploadDropzone";
 
 export default async function MatterDetailPage({
@@ -46,7 +47,16 @@ export default async function MatterDetailPage({
                 className="flex items-center justify-between rounded border border-black/10 px-3 py-2 text-sm dark:border-white/10"
               >
                 <span>{doc.fileName}</span>
-                <span className="text-zinc-500">
+                <span className="flex items-center gap-3 text-zinc-500">
+                  {isExtractableDocument(doc.fileName) ? (
+                    <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs dark:bg-white/10">
+                      chat-readable
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs dark:bg-white/10">
+                      not used in chat
+                    </span>
+                  )}
                   {(doc.sizeBytes / 1024).toFixed(1)} KB
                 </span>
               </li>

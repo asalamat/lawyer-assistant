@@ -46,3 +46,6 @@ next-env.d.ts
 /.claude-flow
 .claude/settings.local.json
 
+# tesseract.js downloads OCR language data into the cwd at runtime
+*.traineddata
+

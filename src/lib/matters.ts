@@ -1,12 +1,12 @@
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
+import { extractDocumentText, isExtractableDocument } from "./textExtraction";
 import type { ChatMessage, Document, Matter } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const DB_PATH = path.join(DATA_DIR, "db.json");
 const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
-const TEXT_EXTENSIONS = [".txt", ".md"];
 
 interface Db {
   matters: Matter[];
@@ -124,15 +124,17 @@ export async function addChatMessage(
 
 export async function getMatterTextContext(matterId: string): Promise<string> {
   const documents = await listDocuments(matterId);
-  const textDocuments = documents.filter((doc) =>
-    TEXT_EXTENSIONS.some((ext) => doc.fileName.toLowerCase().endsWith(ext)),
-  );
+  const extractable = documents.filter((doc) => isExtractableDocument(doc.fileName));
 
   const sections = await Promise.all(
-    textDocuments.map(async (doc) => {
-      const text = await readFile(doc.storagePath, "utf-8");
-      return `--- ${doc.fileName} ---\n${text}`;
+    extractable.map(async (doc) => {
+      try {
+        const text = await extractDocumentText(doc.fileName, doc.storagePath);
+        return text ? `--- ${doc.fileName} ---\n${text}` : null;
+      } catch {
+        return `--- ${doc.fileName} ---\n[Could not extract text from this file]`;
+      }
     }),
   );
-  return sections.join("\n\n");
+  return sections.filter((section) => section !== null).join("\n\n");
 }
