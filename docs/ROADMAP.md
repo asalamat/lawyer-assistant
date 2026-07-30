@@ -30,21 +30,14 @@ see git log for exact history.
 - [x] Settings page (API key management, no restart required)
 - [x] Git-based update checker
 
-## Phase 1.5 — Make the data layer real (next)
+## Phase 1.5 — Make the data layer real (done)
 
-The local JSON file (`data/db.json`) works but has no transactions, no concurrent-write
-safety, and no query capability beyond "load everything into memory." Before adding
-more features on top of it:
-
-- [ ] Migrate `src/lib/matters.ts` to `node:sqlite` (same async function signatures —
-      `listMatters`, `getMatter`, `createMatter`, etc. — so nothing above the data
-      layer changes)
-- [ ] Add basic auth: a single-user password gate (session cookie), since this will
-      eventually hold real client data. Not Entra ID/SSO — that's a firm-scale
-      decision, not a default.
-- [ ] Add an audit log table (who/what/when for create/update/delete actions) — the
-      doc's "immutable audit logging" requirement, scoped down to something a local
-      SQLite table can actually do.
+- [x] Migrated `src/lib/matters.ts` to `node:sqlite` — same exported function
+      signatures, nothing above the data layer changed
+- [x] Single-user password auth gate (session cookie via `src/proxy.ts`,
+      first-run password creation, scrypt-hashed at rest)
+- [x] Audit log table (matter created / document uploaded / chat question asked),
+      viewable at `/audit`
 
 ## Phase 2 — Legal research (needs an external decision before most of it can start)
 
