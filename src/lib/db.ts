@@ -9,6 +9,12 @@ if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
 
 const db = new DatabaseSync(DB_PATH);
 
+// Multiple Next.js build/dev worker processes can open this file at once.
+// WAL mode allows concurrent readers alongside a writer, and busy_timeout
+// makes a connection wait for a lock instead of throwing SQLITE_BUSY.
+db.exec("PRAGMA journal_mode = WAL;");
+db.exec("PRAGMA busy_timeout = 5000;");
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS matters (
     id TEXT PRIMARY KEY,

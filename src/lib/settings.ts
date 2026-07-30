@@ -1,26 +1,17 @@
-import { mkdir, readFile, writeFile } from "fs/promises";
-import { existsSync } from "fs";
-import path from "path";
+import { readSecureJson, writeSecureJson } from "./secureStore";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const SETTINGS_PATH = path.join(DATA_DIR, "settings.json");
+const SETTINGS_FILE = "settings.json";
 
 interface Settings {
   anthropicApiKey?: string;
 }
 
 async function readSettings(): Promise<Settings> {
-  if (!existsSync(SETTINGS_PATH)) return {};
-  const raw = await readFile(SETTINGS_PATH, "utf-8");
-  return JSON.parse(raw) as Settings;
+  return readSecureJson<Settings>(SETTINGS_FILE, {});
 }
 
 async function writeSettings(settings: Settings): Promise<void> {
-  if (!existsSync(DATA_DIR)) await mkdir(DATA_DIR, { recursive: true });
-  await writeFile(SETTINGS_PATH, JSON.stringify(settings, null, 2), {
-    encoding: "utf-8",
-    mode: 0o600,
-  });
+  await writeSecureJson(SETTINGS_FILE, settings);
 }
 
 export async function getAnthropicApiKey(): Promise<string | undefined> {
