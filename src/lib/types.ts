@@ -31,3 +31,10 @@ export interface AuditEntry {
   detail: string;
   createdAt: string;
 }
+
+export interface MatterDigest {
+  id: string;
+  matterId: string;
+  content: string;
+  createdAt: string;
+}

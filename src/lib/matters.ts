@@ -4,7 +4,7 @@ import path from "path";
 import { recordAuditEvent } from "./auditLog";
 import db, { toPlain } from "./db";
 import { extractDocumentText, isExtractableDocument } from "./textExtraction";
-import type { ChatMessage, Document, Matter } from "./types";
+import type { ChatMessage, Document, Matter, MatterDigest } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
@@ -115,6 +115,27 @@ export async function addChatMessage(
     await recordAuditEvent("chat_question_asked", matterId, content.slice(0, 200));
   }
   return message;
+}
+
+export async function listDigests(matterId: string): Promise<MatterDigest[]> {
+  return db
+    .prepare("SELECT * FROM matter_digests WHERE matterId = ? ORDER BY createdAt DESC")
+    .all(matterId)
+    .map((row) => toPlain<MatterDigest>(row));
+}
+
+export async function addDigest(matterId: string, content: string): Promise<MatterDigest> {
+  const digest: MatterDigest = {
+    id: crypto.randomUUID(),
+    matterId,
+    content,
+    createdAt: new Date().toISOString(),
+  };
+  db.prepare(
+    "INSERT INTO matter_digests (id, matterId, content, createdAt) VALUES (?, ?, ?, ?)",
+  ).run(digest.id, digest.matterId, digest.content, digest.createdAt);
+  await recordAuditEvent("digest_generated", matterId, "Generated matter digest");
+  return digest;
 }
 
 export async function getMatterTextContext(matterId: string): Promise<string> {

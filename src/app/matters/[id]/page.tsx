@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getMatter, listDocuments } from "@/lib/matters";
+import { getMatter, listDigests, listDocuments } from "@/lib/matters";
 import { isExtractableDocument } from "@/lib/textExtraction";
+import MatterDigestPanel from "@/components/MatterDigestPanel";
 import UploadDropzone from "@/components/UploadDropzone";
 
 export default async function MatterDetailPage({
@@ -14,6 +15,7 @@ export default async function MatterDetailPage({
   if (!matter) notFound();
 
   const documents = await listDocuments(id);
+  const digests = await listDigests(id);
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-10">
@@ -34,6 +36,8 @@ export default async function MatterDetailPage({
       </div>
 
       <UploadDropzone matterId={matter.id} />
+
+      <MatterDigestPanel matterId={matter.id} initialDigest={digests[0] ?? null} />
 
       <div>
         <h2 className="mb-2 font-medium">Documents</h2>

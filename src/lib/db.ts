@@ -52,8 +52,17 @@ db.exec(`
     createdAt TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS matter_digests (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    content TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_documents_matterId ON documents(matterId);
   CREATE INDEX IF NOT EXISTS idx_chat_messages_matterId ON chat_messages(matterId);
+  CREATE INDEX IF NOT EXISTS idx_matter_digests_matterId ON matter_digests(matterId);
 `);
 
 export default db;
