@@ -1,6 +1,21 @@
 import db, { toPlain } from "./db";
 import type { AuditEntry } from "./types";
 
+export const ACTION_LABELS: Record<string, string> = {
+  matter_created: "Matter created",
+  document_uploaded: "Document uploaded",
+  duplicate_document_uploaded: "Duplicate document uploaded",
+  chat_question_asked: "Chat question asked",
+  chat_feedback_recorded: "Chat feedback recorded",
+  digest_generated: "Matter digest generated",
+  deadlines_extracted: "Deadlines extracted",
+  draft_generated: "Draft generated",
+  evidence_matrix_generated: "Evidence matrix generated",
+  matter_status_changed: "Matter status changed",
+  email_account_connected: "Email account connected",
+  email_account_disconnected: "Email account disconnected",
+};
+
 export async function recordAuditEvent(
   action: string,
   matterId: string | null,
@@ -15,5 +30,12 @@ export async function listAuditLog(limit = 200): Promise<AuditEntry[]> {
   return db
     .prepare("SELECT * FROM audit_log ORDER BY createdAt DESC LIMIT ?")
     .all(limit)
+    .map((row) => toPlain<AuditEntry>(row));
+}
+
+export async function listAuditLogForMatter(matterId: string): Promise<AuditEntry[]> {
+  return db
+    .prepare("SELECT * FROM audit_log WHERE matterId = ? ORDER BY createdAt DESC")
+    .all(matterId)
     .map((row) => toPlain<AuditEntry>(row));
 }

@@ -1,22 +1,7 @@
-import Link from "next/link";
 import { listAuditLog } from "@/lib/auditLog";
+import AuditEntryItem from "@/components/AuditEntryItem";
 
 export const dynamic = "force-dynamic";
-
-const ACTION_LABELS: Record<string, string> = {
-  matter_created: "Matter created",
-  document_uploaded: "Document uploaded",
-  chat_question_asked: "Chat question asked",
-  digest_generated: "Matter digest generated",
-  chat_feedback_recorded: "Chat feedback recorded",
-  deadlines_extracted: "Deadlines extracted",
-  draft_generated: "Draft generated",
-  evidence_matrix_generated: "Evidence matrix generated",
-  matter_status_changed: "Matter status changed",
-  duplicate_document_uploaded: "Duplicate document uploaded",
-  email_account_connected: "Email account connected",
-  email_account_disconnected: "Email account disconnected",
-};
 
 export default async function AuditPage() {
   const entries = await listAuditLog();
@@ -29,25 +14,7 @@ export default async function AuditPage() {
       ) : (
         <ul className="flex flex-col gap-2">
           {entries.map((entry) => (
-            <li
-              key={entry.id}
-              className="flex flex-col gap-1 rounded border border-black/10 px-3 py-2 text-sm dark:border-white/10"
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-medium">
-                  {ACTION_LABELS[entry.action] ?? entry.action}
-                </span>
-                <span className="text-xs text-zinc-500">
-                  {new Date(entry.createdAt).toLocaleString()}
-                </span>
-              </div>
-              <p className="text-zinc-600 dark:text-zinc-400">{entry.detail}</p>
-              {entry.matterId && (
-                <Link href={`/matters/${entry.matterId}`} className="text-xs underline">
-                  View matter
-                </Link>
-              )}
-            </li>
+            <AuditEntryItem key={entry.id} entry={entry} />
           ))}
         </ul>
       )}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { listAuditLogForMatter } from "@/lib/auditLog";
 import {
   annotateDuplicates,
   getMatter,
@@ -10,6 +11,7 @@ import {
   listEvidenceMatrices,
 } from "@/lib/matters";
 import { isExtractableDocument } from "@/lib/textExtraction";
+import AuditEntryItem from "@/components/AuditEntryItem";
 import DeadlinesPanel from "@/components/DeadlinesPanel";
 import DraftsPanel from "@/components/DraftsPanel";
 import GeneratedDocPanel from "@/components/GeneratedDocPanel";
@@ -30,6 +32,7 @@ export default async function MatterDetailPage({
   const deadlines = await listDeadlines(id);
   const drafts = await listDrafts(id);
   const evidenceMatrices = await listEvidenceMatrices(id);
+  const timeline = await listAuditLogForMatter(id);
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-10">
@@ -103,6 +106,19 @@ export default async function MatterDetailPage({
                   {(doc.sizeBytes / 1024).toFixed(1)} KB
                 </span>
               </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div>
+        <h2 className="mb-2 font-medium">Activity timeline</h2>
+        {timeline.length === 0 ? (
+          <p className="text-sm text-zinc-500">No activity recorded yet.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {timeline.map((entry) => (
+              <AuditEntryItem key={entry.id} entry={entry} showMatterLink={false} />
             ))}
           </ul>
         )}
