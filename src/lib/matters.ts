@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "fs/promises";
 import { existsSync } from "fs";
+import { createHash } from "crypto";
 import path from "path";
 import { recordAuditEvent } from "./auditLog";
 import db, { toPlain } from "./db";
@@ -88,6 +89,7 @@ export async function addDocument(
   const id = crypto.randomUUID();
   const storagePath = path.join(matterDir, `${id}-${file.name}`);
   const bytes = Buffer.from(await file.arrayBuffer());
+  const contentHash = createHash("sha256").update(bytes).digest("hex");
   await writeFile(storagePath, bytes);
 
   const document: Document = {
@@ -97,9 +99,10 @@ export async function addDocument(
     sizeBytes: file.size,
     uploadedAt: new Date().toISOString(),
     storagePath,
+    contentHash,
   };
   db.prepare(
-    "INSERT INTO documents (id, matterId, fileName, sizeBytes, uploadedAt, storagePath) VALUES (?, ?, ?, ?, ?, ?)",
+    "INSERT INTO documents (id, matterId, fileName, sizeBytes, uploadedAt, storagePath, contentHash) VALUES (?, ?, ?, ?, ?, ?, ?)",
   ).run(
     document.id,
     document.matterId,
@@ -107,9 +110,42 @@ export async function addDocument(
     document.sizeBytes,
     document.uploadedAt,
     document.storagePath,
+    document.contentHash,
   );
-  await recordAuditEvent("document_uploaded", matterId, `Uploaded "${document.fileName}"`);
+
+  const existingMatch = db
+    .prepare(
+      "SELECT fileName FROM documents WHERE matterId = ? AND contentHash = ? AND id != ? ORDER BY uploadedAt ASC LIMIT 1",
+    )
+    .get(matterId, contentHash, id) as unknown as { fileName: string } | undefined;
+
+  if (existingMatch) {
+    await recordAuditEvent(
+      "duplicate_document_uploaded",
+      matterId,
+      `Uploaded "${document.fileName}", identical content to "${existingMatch.fileName}"`,
+    );
+  } else {
+    await recordAuditEvent("document_uploaded", matterId, `Uploaded "${document.fileName}"`);
+  }
   return document;
+}
+
+export function annotateDuplicates(
+  documents: Document[],
+): (Document & { duplicateOfFileName: string | null })[] {
+  const firstSeenByHash = new Map<string, Document>();
+  // Iterate oldest-first so the earliest upload per hash is treated as the original.
+  for (const doc of [...documents].sort((a, b) => a.uploadedAt.localeCompare(b.uploadedAt))) {
+    if (!firstSeenByHash.has(doc.contentHash)) firstSeenByHash.set(doc.contentHash, doc);
+  }
+  return documents.map((doc) => {
+    const original = firstSeenByHash.get(doc.contentHash);
+    return {
+      ...doc,
+      duplicateOfFileName: original && original.id !== doc.id ? original.fileName : null,
+    };
+  });
 }
 
 export async function listChatMessages(matterId: string): Promise<ChatMessage[]> {

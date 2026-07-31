@@ -51,6 +51,7 @@ execWithRetry(`
     sizeBytes INTEGER NOT NULL,
     uploadedAt TEXT NOT NULL,
     storagePath TEXT NOT NULL,
+    contentHash TEXT NOT NULL,
     FOREIGN KEY (matterId) REFERENCES matters(id)
   );
 
@@ -115,6 +116,7 @@ execWithRetry(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_documents_matterId ON documents(matterId);
+  CREATE INDEX IF NOT EXISTS idx_documents_contentHash ON documents(matterId, contentHash);
   CREATE INDEX IF NOT EXISTS idx_chat_messages_matterId ON chat_messages(matterId);
   CREATE INDEX IF NOT EXISTS idx_matter_digests_matterId ON matter_digests(matterId);
   CREATE INDEX IF NOT EXISTS idx_matter_deadlines_matterId ON matter_deadlines(matterId);

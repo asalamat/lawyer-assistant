@@ -14,6 +14,7 @@ export interface Document {
   sizeBytes: number;
   uploadedAt: string;
   storagePath: string;
+  contentHash: string;
 }
 
 export interface ChatMessage {

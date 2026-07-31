@@ -13,6 +13,7 @@ const ACTION_LABELS: Record<string, string> = {
   draft_generated: "Draft generated",
   evidence_matrix_generated: "Evidence matrix generated",
   matter_status_changed: "Matter status changed",
+  duplicate_document_uploaded: "Duplicate document uploaded",
 };
 
 export default async function AuditPage() {

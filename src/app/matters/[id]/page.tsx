@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  annotateDuplicates,
   getMatter,
   listDeadlines,
   listDigests,
@@ -24,7 +25,7 @@ export default async function MatterDetailPage({
   const matter = await getMatter(id);
   if (!matter) notFound();
 
-  const documents = await listDocuments(id);
+  const documents = annotateDuplicates(await listDocuments(id));
   const digests = await listDigests(id);
   const deadlines = await listDeadlines(id);
   const drafts = await listDrafts(id);
@@ -81,7 +82,14 @@ export default async function MatterDetailPage({
                 key={doc.id}
                 className="flex items-center justify-between rounded border border-black/10 px-3 py-2 text-sm dark:border-white/10"
               >
-                <span>{doc.fileName}</span>
+                <span>
+                  {doc.fileName}
+                  {doc.duplicateOfFileName && (
+                    <span className="ml-2 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-400">
+                      duplicate of {doc.duplicateOfFileName}
+                    </span>
+                  )}
+                </span>
                 <span className="flex items-center gap-3 text-zinc-500">
                   {isExtractableDocument(doc.fileName) ? (
                     <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs dark:bg-white/10">
