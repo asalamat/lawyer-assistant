@@ -2,11 +2,13 @@ import { readFile } from "fs/promises";
 import mammoth from "mammoth";
 import { PDFParse } from "pdf-parse";
 import { recognize } from "tesseract.js";
+import { read, utils } from "xlsx";
 
 const PLAIN_TEXT_EXTENSIONS = [".txt", ".md"];
 const PDF_EXTENSIONS = [".pdf"];
 const DOCX_EXTENSIONS = [".docx"];
 const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp"];
+const SPREADSHEET_EXTENSIONS = [".csv", ".xlsx", ".xls"];
 
 function hasExtension(fileName: string, extensions: string[]): boolean {
   const lower = fileName.toLowerCase();
@@ -19,6 +21,7 @@ export function isExtractableDocument(fileName: string): boolean {
     ...PDF_EXTENSIONS,
     ...DOCX_EXTENSIONS,
     ...IMAGE_EXTENSIONS,
+    ...SPREADSHEET_EXTENSIONS,
   ].some((ext) => fileName.toLowerCase().endsWith(ext));
 }
 
@@ -51,6 +54,16 @@ export async function extractDocumentText(
     const buffer = await readFile(storagePath);
     const { data } = await recognize(buffer, "eng");
     return data.text;
+  }
+
+  if (hasExtension(fileName, SPREADSHEET_EXTENSIONS)) {
+    const buffer = await readFile(storagePath);
+    const workbook = read(buffer, { type: "buffer" });
+    return workbook.SheetNames.map((sheetName) => {
+      const sheet = workbook.Sheets[sheetName];
+      const csv = utils.sheet_to_csv(sheet);
+      return `Sheet: ${sheetName}\n${csv}`;
+    }).join("\n\n");
   }
 
   return null;
