@@ -79,11 +79,32 @@ see git log for exact history.
 
 ## Also built, not in the original phase list
 
-- [x] `/audit` — audit log of matter/document/chat/digest/feedback actions
+- [x] `/audit` — audit log of matter/document/chat/digest/feedback/status/email
+      actions
 - [x] Dashboard system-info panel (app version, git commit, Node/Next versions,
       SQLite row counts)
 - [x] `npm run reset-password` for a forgotten single-user password (no in-app
       recovery flow by design — that would be a bypass path, not a safety net)
+- [x] Matter status toggle (open/close/reopen)
+- [x] Duplicate document detection (SHA-256 content hash per upload)
+- [x] Dark mode (Light/Dark/System), sectioned Settings page with icons,
+      `/help` page kept current as features land
+- [x] In-app change-password (Settings > Security), on top of the CLI reset
+- [x] Login rate limiting (5 failed attempts → 15 min lockout) on both the
+      login and change-password endpoints
+- [ ] **Email integration (Gmail / Microsoft — covers Outlook.com, Hotmail, and
+      Office 365 / Yahoo)** — OAuth 2.0 flow fully built
+      (`src/lib/emailIntegration.ts`, Settings > Integrations) but **not
+      functional yet**: needs an OAuth app registered with each provider you
+      want to use (Google Cloud Console / Microsoft Entra ID / Yahoo Developer
+      Network), with redirect URI `{this app's URL}/api/integrations/{provider}/callback`
+      authorized, and the resulting Client ID + Secret entered in Settings.
+      Verified everything up to that boundary (credential save, the /connect
+      redirect building a correct real Google authorize URL, CSRF state
+      rejection on /callback) — cannot verify the token exchange without a
+      real provider round-trip.
+- [ ] Unified per-matter activity timeline (combining documents/chat/digests/
+      deadlines/drafts/evidence-matrix chronologically) — not started
 
 ## Decisions that need the account owner, not a default
 
@@ -99,3 +120,8 @@ they're not silently skipped or silently guessed:
    balance since Phase 2 was built; resolve when ready to actually use chat.
 5. **Production hosting**, if this ever needs to run somewhere other than one
    local machine — changes the database and auth answers above.
+6. **Email OAuth app registrations** — Google Cloud Console (Gmail), Microsoft
+   Entra ID app registration (covers Outlook.com/Hotmail/Office 365 in one
+   app), and/or Yahoo Developer Network, each yielding a Client ID + Secret
+   to enter in Settings > Integrations. The code is ready; nothing will
+   connect until at least one of these exists.
