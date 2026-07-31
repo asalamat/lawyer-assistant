@@ -122,8 +122,8 @@ they're not silently skipped or silently guessed:
 2. **CanLII/legal-research API access** — requires signing up and getting a key.
 3. **A second AI provider** for independent review (Phase 3) — which provider, and
    is the cost justified yet at this stage of usage.
-4. **Anthropic account billing** — chat has been blocked on insufficient credit
-   balance since Phase 2 was built; resolve when ready to actually use chat.
+4. ~~**Anthropic account billing**~~ — **Resolved 2026-07-31**, a funded API
+   key is now configured in Settings and all AI features work end-to-end.
 5. **Production hosting**, if this ever needs to run somewhere other than one
    local machine — changes the database and auth answers above.
 6. **Email OAuth app registrations** — Google Cloud Console (Gmail), Microsoft
