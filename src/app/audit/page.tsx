@@ -12,6 +12,7 @@ const ACTION_LABELS: Record<string, string> = {
   deadlines_extracted: "Deadlines extracted",
   draft_generated: "Draft generated",
   evidence_matrix_generated: "Evidence matrix generated",
+  matter_status_changed: "Matter status changed",
 };
 
 export default async function AuditPage() {

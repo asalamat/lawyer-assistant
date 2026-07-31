@@ -59,6 +59,18 @@ export async function createMatter(input: {
   return matter;
 }
 
+export async function updateMatterStatus(
+  matterId: string,
+  status: Matter["status"],
+): Promise<Matter | null> {
+  db.prepare("UPDATE matters SET status = ? WHERE id = ?").run(status, matterId);
+  const matter = await getMatter(matterId);
+  if (matter) {
+    await recordAuditEvent("matter_status_changed", matterId, `Marked matter as ${status}`);
+  }
+  return matter;
+}
+
 export async function listDocuments(matterId: string): Promise<Document[]> {
   return db
     .prepare("SELECT * FROM documents WHERE matterId = ? ORDER BY uploadedAt DESC")

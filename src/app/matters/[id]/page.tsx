@@ -12,6 +12,7 @@ import { isExtractableDocument } from "@/lib/textExtraction";
 import DeadlinesPanel from "@/components/DeadlinesPanel";
 import DraftsPanel from "@/components/DraftsPanel";
 import GeneratedDocPanel from "@/components/GeneratedDocPanel";
+import MatterStatusToggle from "@/components/MatterStatusToggle";
 import UploadDropzone from "@/components/UploadDropzone";
 
 export default async function MatterDetailPage({
@@ -35,9 +36,11 @@ export default async function MatterDetailPage({
         <div>
           <h1 className="text-2xl font-semibold">{matter.title}</h1>
           <p className="text-sm text-zinc-500">
-            {matter.clientName} &middot; {matter.matterType} &middot;{" "}
-            {matter.status}
+            {matter.clientName} &middot; {matter.matterType}
           </p>
+          <div className="mt-1">
+            <MatterStatusToggle matter={matter} />
+          </div>
         </div>
         <Link
           href={`/matters/${matter.id}/chat`}
