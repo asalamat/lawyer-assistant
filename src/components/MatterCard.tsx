@@ -13,6 +13,7 @@ export default function MatterCard({ matter }: { matter: Matter }) {
           {matter.status}
         </span>
       </div>
+      <p className="mt-1 text-xs font-mono text-muted">{matter.fileNumber}</p>
       <p className="mt-1 text-sm text-muted">
         {matter.clientName} &middot; {matter.matterType}
       </p>

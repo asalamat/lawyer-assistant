@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Matter } from "@/lib/types";
+import type { ConflictMatch } from "@/lib/matters";
 import MatterCard from "./MatterCard";
 
 type StatusFilter = "all" | "open" | "closed";
@@ -18,6 +19,9 @@ export default function MatterList({ matters }: { matters: Matter[] }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
+  const [conflicts, setConflicts] = useState<ConflictMatch[]>([]);
+  const [conflictsChecked, setConflictsChecked] = useState(false);
+  const [acknowledgeConflict, setAcknowledgeConflict] = useState(false);
 
   const filteredMatters = matters
     .filter((matter) => {
@@ -32,8 +36,24 @@ export default function MatterList({ matters }: { matters: Matter[] }) {
       return b.createdAt.localeCompare(a.createdAt);
     });
 
+  async function handleClientNameBlur() {
+    setConflictsChecked(false);
+    setAcknowledgeConflict(false);
+    if (!clientName.trim()) {
+      setConflicts([]);
+      return;
+    }
+    const res = await fetch(
+      `/api/matters/conflicts?clientName=${encodeURIComponent(clientName.trim())}`,
+    );
+    const matches: ConflictMatch[] = res.ok ? await res.json() : [];
+    setConflicts(matches);
+    setConflictsChecked(true);
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
+    if (conflicts.length > 0 && !acknowledgeConflict) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -46,6 +66,9 @@ export default function MatterList({ matters }: { matters: Matter[] }) {
       setTitle("");
       setClientName("");
       setMatterType("");
+      setConflicts([]);
+      setConflictsChecked(false);
+      setAcknowledgeConflict(false);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -71,6 +94,7 @@ export default function MatterList({ matters }: { matters: Matter[] }) {
             placeholder="Client name"
             value={clientName}
             onChange={(e) => setClientName(e.target.value)}
+            onBlur={handleClientNameBlur}
             className="surface-input"
           />
           <input
@@ -81,8 +105,35 @@ export default function MatterList({ matters }: { matters: Matter[] }) {
             className="surface-input"
           />
         </div>
+        {conflictsChecked && conflicts.length > 0 && (
+          <div className="surface-row border-amber-500/40 bg-amber-500/10 text-sm">
+            <p className="font-medium">
+              Possible conflict of interest: this client name matches {conflicts.length}{" "}
+              existing matter{conflicts.length > 1 ? "s" : ""}.
+            </p>
+            <ul className="mt-1 list-inside list-disc text-muted">
+              {conflicts.map((c) => (
+                <li key={c.matterId}>
+                  {c.matterTitle} ({c.fileNumber}) &middot; client on file: {c.matchedOn}
+                </li>
+              ))}
+            </ul>
+            <label className="mt-2 flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={acknowledgeConflict}
+                onChange={(e) => setAcknowledgeConflict(e.target.checked)}
+              />
+              I&apos;ve reviewed this and confirm there is no conflict of interest.
+            </label>
+          </div>
+        )}
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <button type="submit" disabled={submitting} className="btn-primary self-start">
+        <button
+          type="submit"
+          disabled={submitting || (conflicts.length > 0 && !acknowledgeConflict)}
+          className="btn-primary self-start"
+        >
           {submitting ? "Creating…" : "Create matter"}
         </button>
       </form>

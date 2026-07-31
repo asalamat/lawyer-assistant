@@ -33,30 +33,66 @@ export async function getMatter(id: string): Promise<Matter | null> {
   return row ? toPlain<Matter>(row) : null;
 }
 
+function generateFileNumber(createdAt: string): string {
+  const year = createdAt.slice(0, 4);
+  const { count } = db
+    .prepare("SELECT COUNT(*) as count FROM matters WHERE fileNumber LIKE ?")
+    .get(`${year}-%`) as { count: number };
+  return `${year}-${String(count + 1).padStart(4, "0")}`;
+}
+
+export interface ConflictMatch {
+  matterId: string;
+  matterTitle: string;
+  fileNumber: string;
+  matchedOn: string;
+}
+
+export async function checkConflicts(clientName: string): Promise<ConflictMatch[]> {
+  const trimmed = clientName.trim();
+  if (!trimmed) return [];
+  const rows = db
+    .prepare("SELECT id, title, fileNumber, clientName FROM matters WHERE clientName LIKE ?")
+    .all(`%${trimmed}%`) as { id: string; title: string; fileNumber: string; clientName: string }[];
+  return rows.map((row) => ({
+    matterId: row.id,
+    matterTitle: row.title,
+    fileNumber: row.fileNumber,
+    matchedOn: row.clientName,
+  }));
+}
+
 export async function createMatter(input: {
   title: string;
   clientName: string;
   matterType: string;
 }): Promise<Matter> {
+  const createdAt = new Date().toISOString();
   const matter: Matter = {
     id: crypto.randomUUID(),
+    fileNumber: generateFileNumber(createdAt),
     title: input.title,
     clientName: input.clientName,
     matterType: input.matterType,
     status: "open",
-    createdAt: new Date().toISOString(),
+    createdAt,
   };
   db.prepare(
-    "INSERT INTO matters (id, title, clientName, matterType, status, createdAt) VALUES (?, ?, ?, ?, ?, ?)",
+    "INSERT INTO matters (id, fileNumber, title, clientName, matterType, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)",
   ).run(
     matter.id,
+    matter.fileNumber,
     matter.title,
     matter.clientName,
     matter.matterType,
     matter.status,
     matter.createdAt,
   );
-  await recordAuditEvent("matter_created", matter.id, `Created matter "${matter.title}"`);
+  await recordAuditEvent(
+    "matter_created",
+    matter.id,
+    `Created matter "${matter.title}" (${matter.fileNumber})`,
+  );
   return matter;
 }
 

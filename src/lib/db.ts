@@ -134,6 +134,34 @@ execWithRetry(`
   CREATE INDEX IF NOT EXISTS idx_evidence_matrices_matterId ON evidence_matrices(matterId);
 `);
 
+// Schema migrations for columns added after the table already existed on a
+// real (non-empty) database — CREATE TABLE IF NOT EXISTS is a no-op once the
+// table exists, so new columns need an explicit ALTER TABLE.
+function ensureColumn(table: string, column: string, definition: string): void {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!columns.some((c) => c.name === column)) {
+    execWithRetry(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
+ensureColumn("matters", "fileNumber", "TEXT");
+
+// Backfill file numbers for any matter created before this column existed,
+// numbering sequentially per calendar year in creation order.
+const missingFileNumbers = db
+  .prepare("SELECT id, createdAt FROM matters WHERE fileNumber IS NULL ORDER BY createdAt ASC")
+  .all() as { id: string; createdAt: string }[];
+if (missingFileNumbers.length > 0) {
+  const yearCounts = new Map<string, number>();
+  const update = db.prepare("UPDATE matters SET fileNumber = ? WHERE id = ?");
+  for (const matter of missingFileNumbers) {
+    const year = matter.createdAt.slice(0, 4);
+    const next = (yearCounts.get(year) ?? 0) + 1;
+    yearCounts.set(year, next);
+    update.run(`${year}-${String(next).padStart(4, "0")}`, matter.id);
+  }
+}
+
 export default db;
 
 // better-sqlite/node:sqlite rows have a null prototype, which Next.js's RSC

@@ -1,5 +1,6 @@
 export interface Matter {
   id: string;
+  fileNumber: string;
   title: string;
   clientName: string;
   matterType: string;

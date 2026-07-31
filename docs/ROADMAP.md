@@ -111,6 +111,16 @@ see git log for exact history.
       real provider round-trip.
 - [ ] Unified per-matter activity timeline (combining documents/chat/digests/
       deadlines/drafts/evidence-matrix chronologically) — not started
+- [x] Automatic file-number generation (`YYYY-NNNN`, sequential per calendar
+      year) — assigned on matter creation, backfilled for pre-existing
+      matters via an `ensureColumn`/migration pass in `src/lib/db.ts`,
+      surfaced on the matter card and matter detail header
+- [x] Conflict-of-interest check on matter creation — client name is matched
+      (substring, case-insensitive via SQL `LIKE`) against existing matters'
+      client names when the field loses focus; matches are shown with an
+      explicit "I've reviewed this" acknowledgement required before the
+      create button is enabled (`checkConflicts()` in `src/lib/matters.ts`,
+      `/api/matters/conflicts`)
 
 ## Decisions that need the account owner, not a default
 

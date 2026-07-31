@@ -38,7 +38,10 @@ export default async function MatterDetailPage({
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-10">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="font-display text-3xl italic">{matter.title}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="font-display text-3xl italic">{matter.title}</h1>
+            <span className="badge font-mono">{matter.fileNumber}</span>
+          </div>
           <p className="text-sm text-muted">
             {matter.clientName} &middot; {matter.matterType}
           </p>
