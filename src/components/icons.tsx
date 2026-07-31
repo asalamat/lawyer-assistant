@@ -124,6 +124,15 @@ export const UpdateIcon = (props: IconProps) =>
     props,
   );
 
+export const SearchIcon = (props: IconProps) =>
+  base(
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.3-4.3" />
+    </>,
+    props,
+  );
+
 export const LogoutIcon = (props: IconProps) =>
   base(
     <>

@@ -39,10 +39,7 @@ export default function ChangePasswordForm() {
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="flex flex-col gap-3 rounded-lg border border-black/10 p-4 dark:border-white/10"
-    >
+    <form onSubmit={handleSubmit} className="surface-card flex flex-col gap-3">
       <h3 className="font-medium">Change password</h3>
       <input
         type="password"
@@ -50,7 +47,7 @@ export default function ChangePasswordForm() {
         placeholder="Current password"
         value={currentPassword}
         onChange={(e) => setCurrentPassword(e.target.value)}
-        className="rounded border border-black/10 px-3 py-2 text-sm dark:border-white/10 dark:bg-transparent"
+        className="surface-input"
       />
       <input
         type="password"
@@ -58,7 +55,7 @@ export default function ChangePasswordForm() {
         placeholder="New password (min 8 characters)"
         value={newPassword}
         onChange={(e) => setNewPassword(e.target.value)}
-        className="rounded border border-black/10 px-3 py-2 text-sm dark:border-white/10 dark:bg-transparent"
+        className="surface-input"
       />
       <input
         type="password"
@@ -66,18 +63,14 @@ export default function ChangePasswordForm() {
         placeholder="Confirm new password"
         value={confirmPassword}
         onChange={(e) => setConfirmPassword(e.target.value)}
-        className="rounded border border-black/10 px-3 py-2 text-sm dark:border-white/10 dark:bg-transparent"
+        className="surface-input"
       />
       {error && <p className="text-sm text-red-600">{error}</p>}
       {success && <p className="text-sm text-green-600">Password changed.</p>}
-      <button
-        type="submit"
-        disabled={submitting}
-        className="self-start rounded bg-foreground px-4 py-2 text-sm text-background disabled:opacity-50"
-      >
+      <button type="submit" disabled={submitting} className="btn-primary self-start">
         {submitting ? "Changing…" : "Change password"}
       </button>
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-muted">
         Forgot your password instead? Run <code>npm run reset-password</code> from the
         terminal.
       </p>

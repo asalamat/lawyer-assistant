@@ -38,7 +38,7 @@ export default function LoginForm({ mode }: { mode: "login" | "create" }) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
       {mode === "create" && (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-muted">
           No password is set yet. Choose one to protect this app.
         </p>
       )}
@@ -49,7 +49,7 @@ export default function LoginForm({ mode }: { mode: "login" | "create" }) {
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         placeholder="Password"
-        className="rounded border border-black/10 px-3 py-2 text-sm dark:border-white/10 dark:bg-transparent"
+        className="surface-input"
       />
       {mode === "create" && (
         <input
@@ -58,15 +58,11 @@ export default function LoginForm({ mode }: { mode: "login" | "create" }) {
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           placeholder="Confirm password"
-          className="rounded border border-black/10 px-3 py-2 text-sm dark:border-white/10 dark:bg-transparent"
+          className="surface-input"
         />
       )}
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <button
-        type="submit"
-        disabled={submitting}
-        className="rounded bg-foreground px-4 py-2 text-sm text-background disabled:opacity-50"
-      >
+      <button type="submit" disabled={submitting} className="btn-primary">
         {submitting ? "…" : mode === "create" ? "Set password" : "Log in"}
       </button>
     </form>

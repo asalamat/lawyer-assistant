@@ -3,24 +3,91 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f6f2ea;
+  --foreground: #221d17;
+  --card: #fcfaf4;
+  --border: rgba(34, 29, 23, 0.12);
+  --accent: #7a2e37;
+  --accent-hover: #611f27;
+  --accent-foreground: #fbf1ee;
+  --muted: #756a5c;
+}
+
+.dark {
+  --background: #15120d;
+  --foreground: #ece4d6;
+  --card: #1c1811;
+  --border: rgba(236, 228, 214, 0.12);
+  --accent: #c17a83;
+  --accent-hover: #cf8f97;
+  --accent-foreground: #15120d;
+  --muted: #a89c8a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-.dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted: var(--muted);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono-plex);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+@layer components {
+  .surface-card {
+    @apply rounded-xl border border-border bg-card p-4 shadow-sm shadow-black/[0.03] dark:shadow-black/20;
+  }
+
+  .surface-row {
+    @apply rounded-lg border border-border bg-card px-3 py-2;
+  }
+
+  .surface-input {
+    @apply rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-muted focus:border-accent;
+  }
+
+  .btn-primary {
+    @apply rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50;
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+
+  .btn-secondary {
+    @apply rounded-lg border border-border bg-transparent px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-black/[0.04] disabled:opacity-50 dark:hover:bg-white/[0.06];
+  }
+
+  .badge {
+    @apply rounded-full bg-black/[0.05] px-2 py-0.5 text-xs text-muted dark:bg-white/[0.08];
+  }
+
+  .badge-accent {
+    @apply rounded-full px-2 py-0.5 text-xs;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent);
+  }
 }

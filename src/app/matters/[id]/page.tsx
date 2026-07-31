@@ -38,18 +38,15 @@ export default async function MatterDetailPage({
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-10">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">{matter.title}</h1>
-          <p className="text-sm text-zinc-500">
+          <h1 className="font-display text-3xl italic">{matter.title}</h1>
+          <p className="text-sm text-muted">
             {matter.clientName} &middot; {matter.matterType}
           </p>
           <div className="mt-1">
             <MatterStatusToggle matter={matter} />
           </div>
         </div>
-        <Link
-          href={`/matters/${matter.id}/chat`}
-          className="rounded bg-foreground px-4 py-2 text-sm text-background"
-        >
+        <Link href={`/matters/${matter.id}/chat`} className="btn-primary">
           Chat about this matter
         </Link>
       </div>
@@ -75,16 +72,13 @@ export default async function MatterDetailPage({
       <DraftsPanel matterId={matter.id} initialDrafts={drafts} />
 
       <div>
-        <h2 className="mb-2 font-medium">Documents</h2>
+        <h2 className="mb-2 font-display text-lg">Documents</h2>
         {documents.length === 0 ? (
-          <p className="text-sm text-zinc-500">No documents uploaded yet.</p>
+          <p className="text-sm text-muted">No documents uploaded yet.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {documents.map((doc) => (
-              <li
-                key={doc.id}
-                className="flex items-center justify-between rounded border border-black/10 px-3 py-2 text-sm dark:border-white/10"
-              >
+              <li key={doc.id} className="surface-row flex items-center justify-between text-sm">
                 <span>
                   {doc.fileName}
                   {doc.duplicateOfFileName && (
@@ -93,15 +87,11 @@ export default async function MatterDetailPage({
                     </span>
                   )}
                 </span>
-                <span className="flex items-center gap-3 text-zinc-500">
+                <span className="flex items-center gap-3 text-muted">
                   {isExtractableDocument(doc.fileName) ? (
-                    <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs dark:bg-white/10">
-                      chat-readable
-                    </span>
+                    <span className="badge">chat-readable</span>
                   ) : (
-                    <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs dark:bg-white/10">
-                      not used in chat
-                    </span>
+                    <span className="badge">not used in chat</span>
                   )}
                   {(doc.sizeBytes / 1024).toFixed(1)} KB
                 </span>
@@ -112,9 +102,9 @@ export default async function MatterDetailPage({
       </div>
 
       <div>
-        <h2 className="mb-2 font-medium">Activity timeline</h2>
+        <h2 className="mb-2 font-display text-lg">Activity timeline</h2>
         {timeline.length === 0 ? (
-          <p className="text-sm text-zinc-500">No activity recorded yet.</p>
+          <p className="text-sm text-muted">No activity recorded yet.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {timeline.map((entry) => (

@@ -48,6 +48,11 @@ const SECTIONS = [
     title: "Oversight",
     items: [
       {
+        name: "Search",
+        detail:
+          "The search icon in the nav searches across everything at once — matter titles/clients/types, document filenames, chat message content, digests, drafts, and evidence matrices — with a snippet showing where the match was found.",
+      },
+      {
         name: "Audit log & matter timeline",
         detail:
           "Every matter/document/chat/digest/feedback/status action is recorded with a timestamp — viewable app-wide at Audit log, or filtered to one matter in its Activity timeline section. Also flags duplicate document uploads (same file content uploaded twice).",
@@ -91,8 +96,8 @@ export default function HelpPage() {
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-6 py-10">
       <div>
-        <h1 className="text-2xl font-semibold">Help</h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <h1 className="font-display text-3xl italic">Help</h1>
+        <p className="mt-1 text-sm text-muted">
           What this app can do today. Updated as features are added — if something
           you use isn&apos;t listed here, it&apos;s a documentation gap, not a hidden feature.
         </p>
@@ -100,15 +105,12 @@ export default function HelpPage() {
 
       {SECTIONS.map((section) => (
         <div key={section.title}>
-          <h2 className="mb-3 text-lg font-medium">{section.title}</h2>
+          <h2 className="mb-3 font-display text-lg">{section.title}</h2>
           <div className="flex flex-col gap-3">
             {section.items.map((item) => (
-              <div
-                key={item.name}
-                className="rounded-lg border border-black/10 p-4 text-sm dark:border-white/10"
-              >
+              <div key={item.name} className="surface-card text-sm">
                 <p className="font-medium">{item.name}</p>
-                <p className="mt-1 text-zinc-600 dark:text-zinc-400">{item.detail}</p>
+                <p className="mt-1 text-muted">{item.detail}</p>
               </div>
             ))}
           </div>

@@ -51,29 +51,25 @@ export default function UpdateChecker() {
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-black/10 p-4 dark:border-white/10">
-      <h2 className="font-medium">Software updates</h2>
+    <div className="surface-card flex flex-col gap-3">
+      <h2 className="font-display text-lg">Software updates</h2>
 
       {checking ? (
-        <p className="text-sm text-zinc-500">Checking for updates…</p>
+        <p className="text-sm text-muted">Checking for updates…</p>
       ) : status?.error ? (
         <p className="text-sm text-red-600">Could not check for updates: {status.error}</p>
       ) : status?.upToDate ? (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-muted">
           Up to date on <code>{status.branch}</code> ({status.current?.shortSha}: {status.current?.message})
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-muted">
             {status?.commitsBehind} commit{status?.commitsBehind === 1 ? "" : "s"} behind{" "}
             <code>origin/{status?.branch}</code>. Latest: {status?.latest?.shortSha} —{" "}
             {status?.latest?.message}
           </p>
-          <button
-            onClick={handlePull}
-            disabled={pulling}
-            className="self-start rounded bg-foreground px-4 py-2 text-sm text-background disabled:opacity-50"
-          >
+          <button onClick={handlePull} disabled={pulling} className="btn-primary self-start">
             {pulling ? "Pulling…" : "Pull latest"}
           </button>
         </div>
@@ -82,7 +78,7 @@ export default function UpdateChecker() {
       {pullResult && <p className="text-sm">{pullResult}</p>}
 
       {status && !status.error && (
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-muted">
           Note: pulling updates the source on disk. In dev mode changes hot-reload automatically;
           a production server (<code>next start</code>) needs a manual restart to pick up the new build.
         </p>

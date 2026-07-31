@@ -8,9 +8,12 @@ export default async function LoginPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-6">
-      <h1 className="text-2xl font-semibold">
-        {passwordSet ? "Log in" : "Set a password"}
-      </h1>
+      <div>
+        <p className="text-sm tracking-wide text-muted uppercase">Lawyer Assistant</p>
+        <h1 className="font-display text-3xl italic">
+          {passwordSet ? "Welcome back" : "Set a password"}
+        </h1>
+      </div>
       <LoginForm mode={passwordSet ? "login" : "create"} />
     </main>
   );

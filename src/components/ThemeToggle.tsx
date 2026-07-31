@@ -48,7 +48,7 @@ export default function ThemeToggle() {
     <div
       role="radiogroup"
       aria-label="Theme"
-      className="flex items-center gap-0.5 rounded-full border border-black/10 p-0.5 dark:border-white/10"
+      className="flex items-center gap-0.5 rounded-full border border-border p-0.5"
     >
       {OPTIONS.map(({ value, label, Icon }) => (
         <button
@@ -59,9 +59,7 @@ export default function ThemeToggle() {
           title={label}
           onClick={() => setTheme(value)}
           className={`rounded-full p-1.5 transition-colors ${
-            theme === value
-              ? "bg-foreground text-background"
-              : "text-zinc-500 hover:text-foreground"
+            theme === value ? "bg-accent text-accent-foreground" : "text-muted hover:text-accent"
           }`}
         >
           <Icon className="h-4 w-4" />

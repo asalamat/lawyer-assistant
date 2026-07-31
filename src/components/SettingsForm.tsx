@@ -39,10 +39,10 @@ export default function SettingsForm({ initialStatus }: { initialStatus: KeyStat
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-lg border border-black/10 p-4 dark:border-white/10">
+    <form onSubmit={handleSubmit} className="surface-card flex flex-col gap-3">
       <div>
-        <h2 className="font-medium">Anthropic API key</h2>
-        <p className="text-sm text-zinc-500">
+        <h3 className="font-medium">Anthropic API key</h3>
+        <p className="text-sm text-muted">
           {status.configured
             ? `Currently configured (${status.preview}, from ${status.source === "settings" ? "settings" : ".env.local"}). Enter a new key below to replace it.`
             : "No API key configured yet."}
@@ -54,15 +54,11 @@ export default function SettingsForm({ initialStatus }: { initialStatus: KeyStat
         value={apiKey}
         onChange={(e) => setApiKey(e.target.value)}
         placeholder="sk-ant-..."
-        className="rounded border border-black/10 px-3 py-2 text-sm dark:border-white/10 dark:bg-transparent"
+        className="surface-input"
       />
       {error && <p className="text-sm text-red-600">{error}</p>}
       {saved && <p className="text-sm text-green-600">Saved. Takes effect immediately, no restart needed.</p>}
-      <button
-        type="submit"
-        disabled={saving || !apiKey.trim()}
-        className="self-start rounded bg-foreground px-4 py-2 text-sm text-background disabled:opacity-50"
-      >
+      <button type="submit" disabled={saving || !apiKey.trim()} className="btn-primary self-start">
         {saving ? "Saving…" : "Save key"}
       </button>
     </form>

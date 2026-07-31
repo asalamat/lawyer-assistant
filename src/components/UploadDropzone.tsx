@@ -45,10 +45,8 @@ export default function UploadDropzone({ matterId }: { matterId: string }) {
         void upload(e.dataTransfer.files);
       }}
       onClick={() => inputRef.current?.click()}
-      className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed p-6 text-center text-sm transition-colors ${
-        dragActive
-          ? "border-foreground bg-black/[.03] dark:bg-white/[.05]"
-          : "border-black/15 dark:border-white/15"
+      className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed p-6 text-center text-sm transition-colors ${
+        dragActive ? "border-accent bg-accent/[0.05]" : "border-border"
       }`}
     >
       <input

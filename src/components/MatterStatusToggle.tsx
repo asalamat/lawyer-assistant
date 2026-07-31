@@ -30,19 +30,13 @@ export default function MatterStatusToggle({ matter }: { matter: Matter }) {
 
   return (
     <div className="flex items-center gap-2">
-      <span
-        className={`rounded-full px-2 py-0.5 text-xs ${
-          matter.status === "open"
-            ? "bg-green-500/10 text-green-700 dark:text-green-400"
-            : "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400"
-        }`}
-      >
+      <span className={matter.status === "open" ? "badge-accent" : "badge"}>
         {matter.status}
       </span>
       <button
         onClick={handleToggle}
         disabled={updating}
-        className="text-xs underline disabled:opacity-50"
+        className="text-xs text-accent underline decoration-accent/40 disabled:opacity-50"
       >
         {updating ? "…" : matter.status === "open" ? "Close matter" : "Reopen matter"}
       </button>

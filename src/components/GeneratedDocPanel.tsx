@@ -37,14 +37,10 @@ export default function GeneratedDocPanel({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-black/10 p-4 dark:border-white/10">
+    <div className="surface-card flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h2 className="font-medium">{title}</h2>
-        <button
-          onClick={handleGenerate}
-          disabled={generating}
-          className="rounded bg-foreground px-3 py-1.5 text-sm text-background disabled:opacity-50"
-        >
+        <h2 className="font-display text-lg">{title}</h2>
+        <button onClick={handleGenerate} disabled={generating} className="btn-primary px-3 py-1.5">
           {generating ? "Generating…" : doc ? "Regenerate" : "Generate"}
         </button>
       </div>
@@ -52,7 +48,7 @@ export default function GeneratedDocPanel({
       {doc ? (
         <div className="whitespace-pre-wrap text-sm">{doc.content}</div>
       ) : (
-        <p className="text-sm text-zinc-500">{emptyMessage}</p>
+        <p className="text-sm text-muted">{emptyMessage}</p>
       )}
     </div>
   );

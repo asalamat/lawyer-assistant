@@ -68,17 +68,13 @@ function ProviderRow({
   }
 
   return (
-    <div className="rounded-lg border border-black/10 p-4 dark:border-white/10">
+    <div className="surface-card">
       <div className="flex items-center justify-between">
         <h3 className="font-medium">{PROVIDER_LABELS[provider]}</h3>
         {account ? (
-          <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-xs text-green-700 dark:text-green-400">
-            Connected: {account.emailAddress}
-          </span>
+          <span className="badge-accent">Connected: {account.emailAddress}</span>
         ) : (
-          <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs text-zinc-500 dark:bg-white/10">
-            Not connected
-          </span>
+          <span className="badge">Not connected</span>
         )}
       </div>
 
@@ -92,7 +88,7 @@ function ProviderRow({
         </button>
       ) : (
         <div className="mt-3 flex flex-col gap-2">
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-muted">
             Requires an OAuth app registered with this provider (Client ID + Secret), with
             redirect URI <code>{`{this app's URL}/api/integrations/${provider}/callback`}</code>.
           </p>
@@ -101,19 +97,19 @@ function ProviderRow({
               value={clientId}
               onChange={(e) => setClientId(e.target.value)}
               placeholder="Client ID"
-              className="flex-1 rounded border border-black/10 px-3 py-2 text-sm dark:border-white/10 dark:bg-transparent"
+              className="surface-input flex-1"
             />
             <input
               type="password"
               value={clientSecret}
               onChange={(e) => setClientSecret(e.target.value)}
               placeholder="Client Secret"
-              className="flex-1 rounded border border-black/10 px-3 py-2 text-sm dark:border-white/10 dark:bg-transparent"
+              className="surface-input flex-1"
             />
             <button
               type="submit"
               disabled={saving || !clientId.trim() || !clientSecret.trim()}
-              className="rounded bg-foreground px-3 py-2 text-sm text-background disabled:opacity-50"
+              className="btn-primary px-3 py-2"
             >
               {saving ? "Saving…" : "Save"}
             </button>
@@ -121,10 +117,7 @@ function ProviderRow({
           {error && <p className="text-xs text-red-600">{error}</p>}
           {saved && <p className="text-xs text-green-600">Credentials saved.</p>}
           {hasCredentials && (
-            <a
-              href={`/api/integrations/${provider}/connect`}
-              className="self-start rounded bg-foreground px-4 py-2 text-sm text-background"
-            >
+            <a href={`/api/integrations/${provider}/connect`} className="btn-primary self-start">
               Connect {PROVIDER_LABELS[provider]}
             </a>
           )}
@@ -160,7 +153,7 @@ export default function IntegrationsPanel() {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-muted">
         Connect a mailbox so matter-related email and attachments can be ingested.
         Each provider needs its own OAuth app — see Help for setup notes.
       </p>
@@ -171,7 +164,7 @@ export default function IntegrationsPanel() {
       )}
       {integrationError && <p className="text-sm text-red-600">{integrationError}</p>}
       {!state ? (
-        <p className="text-sm text-zinc-500">Loading…</p>
+        <p className="text-sm text-muted">Loading…</p>
       ) : (
         EMAIL_PROVIDERS.map((provider) => (
           <ProviderRow

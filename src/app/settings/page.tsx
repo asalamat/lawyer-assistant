@@ -21,10 +21,10 @@ export default async function SettingsPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-10 px-6 py-10">
-      <h1 className="text-2xl font-semibold">Settings</h1>
+      <h1 className="font-display text-3xl italic">Settings</h1>
 
       <SettingsSection title="Appearance" icon={MonitorIcon}>
-        <div className="flex flex-col gap-4 rounded-lg border border-black/10 p-4 dark:border-white/10">
+        <div className="surface-card flex flex-col gap-4">
           <div className="flex items-center gap-3">
             <span className="text-sm">Theme</span>
             <ThemeToggle />

@@ -74,7 +74,7 @@ export default function ChatMessages({
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3">
         {messages.length === 0 ? (
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-muted">
             Ask a question about this matter&apos;s uploaded documents.
           </p>
         ) : (
@@ -86,10 +86,10 @@ export default function ChatMessages({
             return (
               <div
                 key={message.id}
-                className={`max-w-[80%] rounded-lg px-4 py-2 text-sm whitespace-pre-wrap ${
+                className={`max-w-[80%] rounded-xl px-4 py-2 text-sm whitespace-pre-wrap ${
                   message.role === "assistant"
-                    ? "self-start bg-black/5 dark:bg-white/10"
-                    : "self-end bg-foreground text-background"
+                    ? "self-start border border-border bg-card"
+                    : "self-end bg-accent text-accent-foreground"
                 }`}
               >
                 {message.content}
@@ -134,13 +134,9 @@ export default function ChatMessages({
           onChange={(e) => setQuestion(e.target.value)}
           disabled={sending}
           placeholder="Ask about this matter..."
-          className="flex-1 rounded border border-black/10 px-3 py-2 text-sm dark:border-white/10 dark:bg-transparent"
+          className="surface-input flex-1"
         />
-        <button
-          type="submit"
-          disabled={sending}
-          className="rounded bg-foreground px-4 py-2 text-sm text-background disabled:opacity-50"
-        >
+        <button type="submit" disabled={sending} className="btn-primary">
           {sending ? "Asking…" : "Send"}
         </button>
       </form>
