@@ -44,10 +44,21 @@ see git log for exact history.
 - [x] Matter search/filter on the matters list
 - [x] Citation verification on chat answers (`src/lib/citationCheck.ts` — flags any
       cited filename that isn't an actual uploaded document)
-- [ ] CanLII / Justice Laws integration — **blocked on API access**. CanLII's API
-      requires a developer agreement; flag to user when ready to pursue.
-- [ ] Case-law citation lookup and "note-up" (subsequent treatment) — **blocked on
-      a licensed source** (CanLII, Westlaw, or similar)
+- [x] CanLII API client scaffold (`src/lib/canlii.ts` — caseBrowse, caseCitator,
+      legislationBrowse) + Settings > Legal research tab with a "Test
+      connection" check. **Not fully activated**: user has requested an API key
+      via CanLII's feedback form (submitted 2026-07-31) but it hasn't arrived
+      yet. Add the key in Settings once received.
+- [ ] Case-law citation lookup and "note-up" (subsequent treatment) — the CanLII
+      client above supports note-up (`getCaseCitator`) once you already know a
+      case's `databaseId`/`caseId`, but CanLII's documented API has **no
+      free-text or citation-string search** — there's no way to go from "R v
+      Smith, 2020 ONCA 123" to the right IDs without either (a) an ID-derivation
+      scheme from the citation text (unverified — needs testing against a real
+      key) or (b) browsing a specific database's case list and matching by
+      title/citation client-side (works but not a direct lookup). This needs
+      real-key testing to figure out before a "verify this citation" feature
+      can be built honestly.
 
 ## Phase 3 — Evidence and Crown analysis
 
@@ -75,8 +86,8 @@ see git log for exact history.
       wired into `textExtraction.ts` for `.mp3/.mp4/.mpeg/.mpga/.m4a/.wav/.webm`
       uploads (25MB limit, OpenAI's own cap). Needs an OpenAI API key in
       Settings > Audio & video transcription to activate.
-- [ ] New-law monitoring agent — **blocked on a legal-source API** (same blocker as
-      Phase 2's CanLII integration)
+- [ ] New-law monitoring agent — **blocked on the same CanLII key** as above, plus
+      needs a decision on scope (which jurisdictions/practice areas to monitor)
 
 ## Phase 5 — Institutional learning
 
@@ -165,7 +176,10 @@ they're not silently skipped or silently guessed:
 
 1. **Audio/video transcription** — paid API (AssemblyAI/Deepgram/Whisper API) vs.
    local Whisper model. Neither is free-and-easy; pick one when needed.
-2. **CanLII/legal-research API access** — requires signing up and getting a key.
+2. ~~**CanLII/legal-research API access**~~ — request submitted 2026-07-31 via
+   CanLII's feedback form; awaiting the key. Client scaffold is ready in
+   `src/lib/canlii.ts`; add the key in Settings > Legal research once it
+   arrives.
 3. **A second AI provider** for independent review (Phase 3) — which provider, and
    is the cost justified yet at this stage of usage.
 4. ~~**Anthropic account billing**~~ — **Resolved 2026-07-31**, a funded API
