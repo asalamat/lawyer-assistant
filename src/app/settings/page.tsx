@@ -1,4 +1,4 @@
-import { getAnthropicApiKeyStatus } from "@/lib/settings";
+import { getAnthropicApiKeyStatus, getGeminiApiKeyStatus, getOpenaiApiKeyStatus } from "@/lib/settings";
 import ChangePasswordForm from "@/components/ChangePasswordForm";
 import IntegrationsPanel from "@/components/IntegrationsPanel";
 import SettingsForm from "@/components/SettingsForm";
@@ -18,6 +18,8 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const status = await getAnthropicApiKeyStatus();
+  const openaiStatus = await getOpenaiApiKeyStatus();
+  const geminiStatus = await getGeminiApiKeyStatus();
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-10 px-6 py-10">
@@ -39,6 +41,34 @@ export default async function SettingsPage() {
         icon={AiIcon}
       >
         <SettingsForm initialStatus={status} />
+      </SettingsSection>
+
+      <SettingsSection
+        title="Audio &amp; video transcription"
+        description="Recordings (client calls, hearing audio) uploaded as matter documents are transcribed with OpenAI Whisper and added to chat context. Supports .mp3/.mp4/.mpeg/.mpga/.m4a/.wav/.webm up to 25MB."
+        icon={AiIcon}
+      >
+        <SettingsForm
+          initialStatus={openaiStatus}
+          title="OpenAI API key"
+          placeholder="sk-..."
+          apiPath="/api/settings/openai"
+          bodyKey="openaiApiKey"
+        />
+      </SettingsSection>
+
+      <SettingsSection
+        title="Independent AI review"
+        description="Get a second opinion from Google Gemini on a generated matter digest or evidence matrix, to catch blind spots a single model might share with itself."
+        icon={AiIcon}
+      >
+        <SettingsForm
+          initialStatus={geminiStatus}
+          title="Gemini API key"
+          placeholder="AIza..."
+          apiPath="/api/settings/gemini"
+          bodyKey="geminiApiKey"
+        />
       </SettingsSection>
 
       <SettingsSection

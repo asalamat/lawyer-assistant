@@ -8,7 +8,19 @@ interface KeyStatus {
   preview: string | null;
 }
 
-export default function SettingsForm({ initialStatus }: { initialStatus: KeyStatus }) {
+export default function SettingsForm({
+  initialStatus,
+  title = "Anthropic API key",
+  placeholder = "sk-ant-...",
+  apiPath = "/api/settings",
+  bodyKey = "anthropicApiKey",
+}: {
+  initialStatus: KeyStatus;
+  title?: string;
+  placeholder?: string;
+  apiPath?: string;
+  bodyKey?: string;
+}) {
   const [status, setStatus] = useState(initialStatus);
   const [apiKey, setApiKey] = useState("");
   const [saving, setSaving] = useState(false);
@@ -21,10 +33,10 @@ export default function SettingsForm({ initialStatus }: { initialStatus: KeyStat
     setError(null);
     setSaved(false);
     try {
-      const res = await fetch("/api/settings", {
+      const res = await fetch(apiPath, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ anthropicApiKey: apiKey }),
+        body: JSON.stringify({ [bodyKey]: apiKey }),
       });
       if (!res.ok) throw new Error("Failed to save key");
       const nextStatus: KeyStatus = await res.json();
@@ -41,7 +53,7 @@ export default function SettingsForm({ initialStatus }: { initialStatus: KeyStat
   return (
     <form onSubmit={handleSubmit} className="surface-card flex flex-col gap-3">
       <div>
-        <h3 className="font-medium">Anthropic API key</h3>
+        <h3 className="font-medium">{title}</h3>
         <p className="text-sm text-muted">
           {status.configured
             ? `Currently configured (${status.preview}, from ${status.source === "settings" ? "settings" : ".env.local"}). Enter a new key below to replace it.`
@@ -53,7 +65,7 @@ export default function SettingsForm({ initialStatus }: { initialStatus: KeyStat
         autoComplete="off"
         value={apiKey}
         onChange={(e) => setApiKey(e.target.value)}
-        placeholder="sk-ant-..."
+        placeholder={placeholder}
         className="surface-input"
       />
       {error && <p className="text-sm text-red-600">{error}</p>}

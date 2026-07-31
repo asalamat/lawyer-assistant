@@ -11,6 +11,7 @@ export const ACTION_LABELS: Record<string, string> = {
   deadlines_extracted: "Deadlines extracted",
   draft_generated: "Draft generated",
   evidence_matrix_generated: "Evidence matrix generated",
+  independent_review_generated: "Independent review generated",
   matter_status_changed: "Matter status changed",
   email_account_connected: "Email account connected",
   email_account_disconnected: "Email account disconnected",

@@ -79,6 +79,15 @@ export interface EvidenceMatrix {
   createdAt: string;
 }
 
+export interface IndependentReview {
+  id: string;
+  matterId: string;
+  sourceType: "digest" | "evidence_matrix";
+  sourceId: string;
+  content: string;
+  createdAt: string;
+}
+
 export interface TimeEntry {
   id: string;
   matterId: string;

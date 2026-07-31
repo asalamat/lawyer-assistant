@@ -9,6 +9,7 @@ import {
   listDocuments,
   listDrafts,
   listEvidenceMatrices,
+  listIndependentReviews,
   listTimeEntries,
 } from "@/lib/matters";
 import { isExtractableDocument } from "@/lib/textExtraction";
@@ -35,6 +36,7 @@ export default async function MatterDetailPage({
   const drafts = await listDrafts(id);
   const evidenceMatrices = await listEvidenceMatrices(id);
   const timeEntries = await listTimeEntries(id);
+  const independentReviews = await listIndependentReviews(id);
   const timeline = await listAuditLogForMatter(id);
 
   return (
@@ -64,6 +66,9 @@ export default async function MatterDetailPage({
         apiPath={`/api/matters/${matter.id}/digest`}
         initialDoc={digests[0] ?? null}
         emptyMessage="No digest generated yet. Upload documents, then generate a summary."
+        matterId={matter.id}
+        sourceType="digest"
+        initialReviews={independentReviews.filter((r) => r.sourceType === "digest")}
       />
 
       <DeadlinesPanel matterId={matter.id} initialDeadlines={deadlines} />
@@ -73,6 +78,9 @@ export default async function MatterDetailPage({
         apiPath={`/api/matters/${matter.id}/evidence-matrix`}
         initialDoc={evidenceMatrices[0] ?? null}
         emptyMessage="No evidence matrix generated yet. Upload documents, then generate one."
+        matterId={matter.id}
+        sourceType="evidence_matrix"
+        initialReviews={independentReviews.filter((r) => r.sourceType === "evidence_matrix")}
       />
 
       <DraftsPanel matterId={matter.id} initialDrafts={drafts} />

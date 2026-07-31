@@ -4,6 +4,8 @@ const SETTINGS_FILE = "settings.json";
 
 interface Settings {
   anthropicApiKey?: string;
+  openaiApiKey?: string;
+  geminiApiKey?: string;
 }
 
 async function readSettings(): Promise<Settings> {
@@ -36,6 +38,58 @@ export async function getAnthropicApiKeyStatus(): Promise<{
   return {
     configured: true,
     source: settings.anthropicApiKey ? "settings" : "env",
+    preview: `••••${key.slice(-4)}`,
+  };
+}
+
+export async function getGeminiApiKey(): Promise<string | undefined> {
+  const settings = await readSettings();
+  return settings.geminiApiKey || process.env.GEMINI_API_KEY;
+}
+
+export async function setGeminiApiKey(key: string): Promise<void> {
+  const settings = await readSettings();
+  settings.geminiApiKey = key;
+  await writeSettings(settings);
+}
+
+export async function getGeminiApiKeyStatus(): Promise<{
+  configured: boolean;
+  source: "settings" | "env" | "none";
+  preview: string | null;
+}> {
+  const settings = await readSettings();
+  const key = settings.geminiApiKey || process.env.GEMINI_API_KEY;
+  if (!key) return { configured: false, source: "none", preview: null };
+  return {
+    configured: true,
+    source: settings.geminiApiKey ? "settings" : "env",
+    preview: `••••${key.slice(-4)}`,
+  };
+}
+
+export async function getOpenaiApiKey(): Promise<string | undefined> {
+  const settings = await readSettings();
+  return settings.openaiApiKey || process.env.OPENAI_API_KEY;
+}
+
+export async function setOpenaiApiKey(key: string): Promise<void> {
+  const settings = await readSettings();
+  settings.openaiApiKey = key;
+  await writeSettings(settings);
+}
+
+export async function getOpenaiApiKeyStatus(): Promise<{
+  configured: boolean;
+  source: "settings" | "env" | "none";
+  preview: string | null;
+}> {
+  const settings = await readSettings();
+  const key = settings.openaiApiKey || process.env.OPENAI_API_KEY;
+  if (!key) return { configured: false, source: "none", preview: null };
+  return {
+    configured: true,
+    source: settings.openaiApiKey ? "settings" : "env",
     preview: `••••${key.slice(-4)}`,
   };
 }

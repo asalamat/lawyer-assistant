@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import type { IndependentReview } from "@/lib/types";
 
 interface GeneratedDoc {
+  id: string;
   content: string;
 }
 
@@ -11,15 +13,26 @@ export default function GeneratedDocPanel({
   apiPath,
   initialDoc,
   emptyMessage,
+  matterId,
+  sourceType,
+  initialReviews = [],
 }: {
   title: string;
   apiPath: string;
   initialDoc: GeneratedDoc | null;
   emptyMessage: string;
+  matterId: string;
+  sourceType: IndependentReview["sourceType"];
+  initialReviews?: IndependentReview[];
 }) {
   const [doc, setDoc] = useState(initialDoc);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reviews, setReviews] = useState(initialReviews);
+  const [reviewing, setReviewing] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  const currentReview = doc ? reviews.find((r) => r.sourceId === doc.id) : undefined;
 
   async function handleGenerate() {
     setGenerating(true);
@@ -36,6 +49,26 @@ export default function GeneratedDocPanel({
     }
   }
 
+  async function handleReview() {
+    if (!doc) return;
+    setReviewing(true);
+    setReviewError(null);
+    try {
+      const res = await fetch(`/api/matters/${matterId}/independent-review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceType, sourceId: doc.id, content: doc.content }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Failed to get independent review");
+      setReviews((prev) => [body, ...prev]);
+    } catch (err) {
+      setReviewError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setReviewing(false);
+    }
+  }
+
   return (
     <div className="surface-card flex flex-col gap-3">
       <div className="flex items-center justify-between">
@@ -46,7 +79,28 @@ export default function GeneratedDocPanel({
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
       {doc ? (
-        <div className="whitespace-pre-wrap text-sm">{doc.content}</div>
+        <>
+          <div className="whitespace-pre-wrap text-sm">{doc.content}</div>
+          <div className="flex items-center justify-between border-t border-border pt-3">
+            <span className="text-xs text-muted">
+              {currentReview ? "Reviewed by Gemini" : "No independent review yet"}
+            </span>
+            <button
+              onClick={handleReview}
+              disabled={reviewing}
+              className="btn-secondary px-3 py-1.5 text-sm"
+            >
+              {reviewing ? "Reviewing…" : currentReview ? "Re-review" : "Get independent review"}
+            </button>
+          </div>
+          {reviewError && <p className="text-sm text-red-600">{reviewError}</p>}
+          {currentReview && (
+            <div className="surface-row whitespace-pre-wrap text-sm">
+              <p className="mb-1 text-xs font-medium text-muted">Independent review (Gemini)</p>
+              {currentReview.content}
+            </div>
+          )}
+        </>
       ) : (
         <p className="text-sm text-muted">{emptyMessage}</p>
       )}

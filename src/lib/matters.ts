@@ -12,6 +12,7 @@ import type {
   Draft,
   DraftType,
   EvidenceMatrix,
+  IndependentReview,
   Matter,
   MatterDeadline,
   MatterDigest,
@@ -370,6 +371,34 @@ export async function addEvidenceMatrix(matterId: string, content: string): Prom
   ).run(matrix.id, matrix.matterId, matrix.content, matrix.createdAt);
   await recordAuditEvent("evidence_matrix_generated", matterId, "Generated evidence matrix");
   return matrix;
+}
+
+export async function listIndependentReviews(matterId: string): Promise<IndependentReview[]> {
+  return db
+    .prepare("SELECT * FROM independent_reviews WHERE matterId = ? ORDER BY createdAt DESC")
+    .all(matterId)
+    .map((row) => toPlain<IndependentReview>(row));
+}
+
+export async function addIndependentReview(
+  matterId: string,
+  sourceType: IndependentReview["sourceType"],
+  sourceId: string,
+  content: string,
+): Promise<IndependentReview> {
+  const review: IndependentReview = {
+    id: crypto.randomUUID(),
+    matterId,
+    sourceType,
+    sourceId,
+    content,
+    createdAt: new Date().toISOString(),
+  };
+  db.prepare(
+    "INSERT INTO independent_reviews (id, matterId, sourceType, sourceId, content, createdAt) VALUES (?, ?, ?, ?, ?, ?)",
+  ).run(review.id, review.matterId, review.sourceType, review.sourceId, review.content, review.createdAt);
+  await recordAuditEvent("independent_review_generated", matterId, "Generated independent review");
+  return review;
 }
 
 export async function listTimeEntries(matterId: string): Promise<TimeEntry[]> {

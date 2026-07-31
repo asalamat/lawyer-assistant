@@ -56,9 +56,13 @@ see git log for exact history.
 - [x] Elements-of-offence / evidence-mapping matrix (`generateEvidenceMatrix()`,
       `evidence_matrices` table) — explicitly does not predict outcomes, only maps
       allegations → elements → evidence → gaps
-- [ ] Independent second-model review — **needs a second model provider account**
-      (Anthropic explicitly recommends a *different* provider family for this to be
-      meaningful, per the multi-model design)
+- [x] Independent second-model review (Google Gemini) — `src/lib/gemini.ts`,
+      `independent_reviews` table, "Get independent review" button on the digest
+      and evidence-matrix panels. Needs a Gemini API key in Settings > Independent
+      AI review to activate; verified live against the real Gemini API (a
+      deliberately invalid test key correctly produced a real 400
+      `API_KEY_INVALID` response surfaced cleanly in the UI, confirming the full
+      request path works end-to-end).
 
 ## Phase 4 — Controlled agents
 
@@ -67,6 +71,10 @@ see git log for exact history.
       the matter page and a dashboard-wide upcoming-deadlines list)
 - [x] Drafting templates (`generateDraft()` — research memo / demand letter /
       client correspondence, `drafts` table, append-only history)
+- [x] Audio/video transcription (OpenAI Whisper API) — `src/lib/transcription.ts`,
+      wired into `textExtraction.ts` for `.mp3/.mp4/.mpeg/.mpga/.m4a/.wav/.webm`
+      uploads (25MB limit, OpenAI's own cap). Needs an OpenAI API key in
+      Settings > Audio & video transcription to activate.
 - [ ] New-law monitoring agent — **blocked on a legal-source API** (same blocker as
       Phase 2's CanLII integration)
 
@@ -149,6 +157,9 @@ they're not silently skipped or silently guessed:
    is the cost justified yet at this stage of usage.
 4. ~~**Anthropic account billing**~~ — **Resolved 2026-07-31**, a funded API
    key is now configured in Settings and all AI features work end-to-end.
+   ~~**Audio/video transcription**~~ and ~~**a second AI provider**~~ (items 1
+   and 3 above) are now both built (OpenAI Whisper, Google Gemini) — just add
+   the respective API key in Settings to activate.
 5. **Production hosting**, if this ever needs to run somewhere other than one
    local machine — changes the database and auth answers above.
 6. **Email OAuth app registrations** — Google Cloud Console (Gmail), Microsoft

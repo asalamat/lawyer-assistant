@@ -135,6 +135,16 @@ execWithRetry(`
     connectedAt TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS independent_reviews (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    sourceType TEXT NOT NULL,
+    sourceId TEXT NOT NULL,
+    content TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_documents_matterId ON documents(matterId);
   CREATE INDEX IF NOT EXISTS idx_documents_contentHash ON documents(matterId, contentHash);
   CREATE INDEX IF NOT EXISTS idx_chat_messages_matterId ON chat_messages(matterId);
@@ -143,6 +153,7 @@ execWithRetry(`
   CREATE INDEX IF NOT EXISTS idx_drafts_matterId ON drafts(matterId);
   CREATE INDEX IF NOT EXISTS idx_evidence_matrices_matterId ON evidence_matrices(matterId);
   CREATE INDEX IF NOT EXISTS idx_time_entries_matterId ON time_entries(matterId);
+  CREATE INDEX IF NOT EXISTS idx_independent_reviews_matterId ON independent_reviews(matterId);
 `);
 
 // Schema migrations for columns added after the table already existed on a
