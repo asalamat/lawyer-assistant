@@ -1,0 +1,52 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  ActivityIcon,
+  ChatIcon,
+  DeadlineIcon,
+  DigestIcon,
+  DraftIcon,
+  EvidenceIcon,
+  OverviewIcon,
+  TimesheetIcon,
+} from "./icons";
+
+export default function MatterSidebarNav({ matterId }: { matterId: string }) {
+  const pathname = usePathname();
+  const base = `/matters/${matterId}`;
+
+  const links = [
+    { href: base, label: "Overview", Icon: OverviewIcon },
+    { href: `${base}/digest`, label: "Digest", Icon: DigestIcon },
+    { href: `${base}/deadlines`, label: "Deadlines", Icon: DeadlineIcon },
+    { href: `${base}/evidence-matrix`, label: "Evidence matrix", Icon: EvidenceIcon },
+    { href: `${base}/drafts`, label: "Drafts", Icon: DraftIcon },
+    { href: `${base}/timesheet`, label: "Timesheet", Icon: TimesheetIcon },
+    { href: `${base}/activity`, label: "Activity", Icon: ActivityIcon },
+    { href: `${base}/chat`, label: "Chat", Icon: ChatIcon },
+  ];
+
+  return (
+    <nav className="flex shrink-0 flex-col gap-1 sm:w-48">
+      {links.map(({ href, label, Icon }) => {
+        const active = href === base ? pathname === base : pathname.startsWith(href);
+        return (
+          <Link
+            key={href}
+            href={href}
+            className={
+              active
+                ? "flex items-center gap-2 rounded-lg bg-accent/10 px-3 py-2 text-sm font-medium text-accent"
+                : "flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground/80 transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
+            }
+          >
+            <Icon className="h-4 w-4 shrink-0" />
+            {label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}

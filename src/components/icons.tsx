@@ -141,3 +141,95 @@ export const LogoutIcon = (props: IconProps) =>
     </>,
     props,
   );
+
+export const OverviewIcon = (props: IconProps) =>
+  base(
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M3 9h18M9 21V9" />
+    </>,
+    props,
+  );
+
+export const DocumentIcon = (props: IconProps) =>
+  base(
+    <>
+      <path d="M6 2h9l5 5v15H6z" />
+      <path d="M15 2v5h5M9 13h6M9 17h6" />
+    </>,
+    props,
+  );
+
+export const DigestIcon = (props: IconProps) =>
+  base(
+    <>
+      <path d="M4 4h16v16H4z" />
+      <path d="M8 9h8M8 13h8M8 17h4" />
+    </>,
+    props,
+  );
+
+export const DeadlineIcon = (props: IconProps) =>
+  base(
+    <>
+      <circle cx="12" cy="13" r="8" />
+      <path d="M12 9v4l3 2M9 2h6" />
+    </>,
+    props,
+  );
+
+export const EvidenceIcon = (props: IconProps) =>
+  base(
+    <>
+      <path d="M12 3v18M5 7l-3 6a3 3 0 0 0 6 0zM19 7l-3 6a3 3 0 0 0 6 0z" />
+      <path d="M5 7h14M9 21h6" />
+    </>,
+    props,
+  );
+
+export const DraftIcon = (props: IconProps) =>
+  base(
+    <>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" />
+    </>,
+    props,
+  );
+
+export const TimesheetIcon = (props: IconProps) =>
+  base(
+    <>
+      <rect x="3" y="4" width="18" height="17" rx="2" />
+      <path d="M3 9h18M8 2v4M16 2v4M12 13v3l2 1" />
+    </>,
+    props,
+  );
+
+export const ActivityIcon = (props: IconProps) =>
+  base(<path d="M3 12h4l2-7 4 14 2-7h6" />, props);
+
+export const ChatIcon = (props: IconProps) =>
+  base(
+    <>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </>,
+    props,
+  );
+
+export const MicIcon = (props: IconProps) =>
+  base(
+    <>
+      <rect x="9" y="2" width="6" height="12" rx="3" />
+      <path d="M5 10a7 7 0 0 0 14 0M12 19v3" />
+    </>,
+    props,
+  );
+
+export const ReviewIcon = (props: IconProps) =>
+  base(
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8.5 12.5l2.5 2.5 4.5-5" />
+    </>,
+    props,
+  );

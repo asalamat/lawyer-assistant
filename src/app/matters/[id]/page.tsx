@@ -1,91 +1,18 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { listAuditLogForMatter } from "@/lib/auditLog";
-import {
-  annotateDuplicates,
-  getMatter,
-  listDeadlines,
-  listDigests,
-  listDocuments,
-  listDrafts,
-  listEvidenceMatrices,
-  listIndependentReviews,
-  listTimeEntries,
-} from "@/lib/matters";
+import { annotateDuplicates, listDocuments } from "@/lib/matters";
 import { isExtractableDocument } from "@/lib/textExtraction";
-import AuditEntryItem from "@/components/AuditEntryItem";
-import DeadlinesPanel from "@/components/DeadlinesPanel";
-import DraftsPanel from "@/components/DraftsPanel";
-import GeneratedDocPanel from "@/components/GeneratedDocPanel";
-import MatterStatusToggle from "@/components/MatterStatusToggle";
-import TimesheetPanel from "@/components/TimesheetPanel";
 import UploadDropzone from "@/components/UploadDropzone";
 
-export default async function MatterDetailPage({
+export default async function MatterOverviewPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const matter = await getMatter(id);
-  if (!matter) notFound();
-
   const documents = annotateDuplicates(await listDocuments(id));
-  const digests = await listDigests(id);
-  const deadlines = await listDeadlines(id);
-  const drafts = await listDrafts(id);
-  const evidenceMatrices = await listEvidenceMatrices(id);
-  const timeEntries = await listTimeEntries(id);
-  const independentReviews = await listIndependentReviews(id);
-  const timeline = await listAuditLogForMatter(id);
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-10">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="font-display text-3xl italic">{matter.title}</h1>
-            <span className="badge font-mono">{matter.fileNumber}</span>
-          </div>
-          <p className="text-sm text-muted">
-            {matter.clientName} &middot; {matter.matterType}
-          </p>
-          <div className="mt-1">
-            <MatterStatusToggle matter={matter} />
-          </div>
-        </div>
-        <Link href={`/matters/${matter.id}/chat`} className="btn-primary">
-          Chat about this matter
-        </Link>
-      </div>
-
-      <UploadDropzone matterId={matter.id} />
-
-      <GeneratedDocPanel
-        title="Matter digest"
-        apiPath={`/api/matters/${matter.id}/digest`}
-        initialDoc={digests[0] ?? null}
-        emptyMessage="No digest generated yet. Upload documents, then generate a summary."
-        matterId={matter.id}
-        sourceType="digest"
-        initialReviews={independentReviews.filter((r) => r.sourceType === "digest")}
-      />
-
-      <DeadlinesPanel matterId={matter.id} initialDeadlines={deadlines} />
-
-      <GeneratedDocPanel
-        title="Evidence matrix"
-        apiPath={`/api/matters/${matter.id}/evidence-matrix`}
-        initialDoc={evidenceMatrices[0] ?? null}
-        emptyMessage="No evidence matrix generated yet. Upload documents, then generate one."
-        matterId={matter.id}
-        sourceType="evidence_matrix"
-        initialReviews={independentReviews.filter((r) => r.sourceType === "evidence_matrix")}
-      />
-
-      <DraftsPanel matterId={matter.id} initialDrafts={drafts} />
-
-      <TimesheetPanel matterId={matter.id} initialEntries={timeEntries} />
+    <div className="flex flex-col gap-6">
+      <UploadDropzone matterId={id} />
 
       <div>
         <h2 className="mb-2 font-display text-lg">Documents</h2>
@@ -116,19 +43,6 @@ export default async function MatterDetailPage({
           </ul>
         )}
       </div>
-
-      <div>
-        <h2 className="mb-2 font-display text-lg">Activity timeline</h2>
-        {timeline.length === 0 ? (
-          <p className="text-sm text-muted">No activity recorded yet.</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {timeline.map((entry) => (
-              <AuditEntryItem key={entry.id} entry={entry} showMatterLink={false} />
-            ))}
-          </ul>
-        )}
-      </div>
-    </main>
+    </div>
   );
 }

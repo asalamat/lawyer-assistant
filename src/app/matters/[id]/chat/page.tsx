@@ -1,5 +1,4 @@
-import { notFound } from "next/navigation";
-import { getFeedbackForMatter, getMatter, listChatMessages, listDocuments } from "@/lib/matters";
+import { getFeedbackForMatter, listChatMessages, listDocuments } from "@/lib/matters";
 import ChatMessages from "@/components/ChatMessages";
 
 export default async function MatterChatPage({
@@ -8,8 +7,6 @@ export default async function MatterChatPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const matter = await getMatter(id);
-  if (!matter) notFound();
 
   const messages = await listChatMessages(id);
   const documents = await listDocuments(id);
@@ -17,20 +14,18 @@ export default async function MatterChatPage({
   const feedback = await getFeedbackForMatter(id);
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-10">
-      <div>
-        <h1 className="font-display text-3xl italic">Chat — {matter.title}</h1>
-        <p className="text-sm text-muted">
-          Answers are grounded only in this matter&apos;s uploaded documents
-          (text, PDF, Word, and scanned images — audio/video not yet supported).
-        </p>
-      </div>
+    <div className="flex flex-col gap-6">
+      <p className="text-sm text-muted">
+        Answers are grounded only in this matter&apos;s uploaded documents
+        (text, PDF, Word, spreadsheets, scanned images, and audio/video
+        recordings with an OpenAI key configured).
+      </p>
       <ChatMessages
-        matterId={matter.id}
+        matterId={id}
         initialMessages={messages}
         knownFilenames={knownFilenames}
         initialFeedback={feedback}
       />
-    </main>
+    </div>
   );
 }
