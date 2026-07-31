@@ -53,17 +53,20 @@ see git log for exact history.
 
 - [x] Matter digest / executive summary generation (`generateMatterDigest()`,
       `matter_digests` table, panel on the matter detail page)
-- [ ] Elements-of-offence matrix, evidence-to-element mapping (buildable now as a
-      structured-output prompt over uploaded docs)
+- [x] Elements-of-offence / evidence-mapping matrix (`generateEvidenceMatrix()`,
+      `evidence_matrices` table) — explicitly does not predict outcomes, only maps
+      allegations → elements → evidence → gaps
 - [ ] Independent second-model review — **needs a second model provider account**
       (Anthropic explicitly recommends a *different* provider family for this to be
       meaningful, per the multi-model design)
 
 ## Phase 4 — Controlled agents
 
-- [ ] Deadline-monitoring agent (buildable now — parse dates out of matter docs,
-      surface on the dashboard)
-- [ ] Drafting agent (memo/letter templates — buildable now)
+- [x] Deadline extraction (`extractDeadlines()`, `matter_deadlines` table,
+      replaced-on-regenerate so it reflects current documents; surfaced on both
+      the matter page and a dashboard-wide upcoming-deadlines list)
+- [x] Drafting templates (`generateDraft()` — research memo / demand letter /
+      client correspondence, `drafts` table, append-only history)
 - [ ] New-law monitoring agent — **blocked on a legal-source API** (same blocker as
       Phase 2's CanLII integration)
 
