@@ -134,6 +134,13 @@ see git log for exact history.
 - [x] Per-matter timesheet — log date/description/hours entries on the
       matter detail page, with a running total; `time_entries` table,
       `/api/matters/[id]/time-entries`
+- [x] Invoicing from timesheet entries — select unbilled entries, set an
+      hourly rate and optional flat discount, generate an invoice
+      (`INV-YYYY-NNNN`); invoiced entries are locked against deletion and
+      double-invoicing; invoice history with a paid/unpaid toggle and a
+      "Send" button that opens a mailto: draft itemizing the invoice (no
+      real email-sending integration exists yet, so this is honest about
+      what it does rather than faking a "sent" state)
 - [x] Sidebar-tabbed navigation for both the matter detail page (Overview/
       Digest/Deadlines/Evidence matrix/Drafts/Timesheet/Activity/Chat, each
       its own route under `/matters/[id]/*`) and Settings (Appearance/AI
