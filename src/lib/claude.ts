@@ -34,6 +34,33 @@ async function complete(params: {
   return textBlock?.text ?? "";
 }
 
+// Uses Claude's structured-output mode (output_config.format) instead of
+// asking for JSON in prose and hoping the model complies — a prompt-only
+// "respond with ONLY a JSON array" instruction is not reliably followed
+// and produced parse failures in practice (markdown fences, stray prose).
+// Structured outputs constrain the response to the given schema server-side.
+async function completeJSON<T>(params: {
+  system: string;
+  messages: { role: "user" | "assistant"; content: string }[];
+  schema: Record<string, unknown>;
+  maxTokens?: number;
+}): Promise<T> {
+  const client = await getClient();
+  const response = await client.messages.create({
+    model: "claude-sonnet-5",
+    max_tokens: params.maxTokens ?? 1024,
+    system: params.system,
+    messages: params.messages,
+    output_config: { format: { type: "json_schema", schema: params.schema } },
+  });
+
+  const textBlock = response.content.find((block) => block.type === "text");
+  if (!textBlock?.text) {
+    throw new Error("The AI returned an empty response. Try regenerating.");
+  }
+  return JSON.parse(textBlock.text) as T;
+}
+
 export async function askClaude(params: {
   question: string;
   context: string;
@@ -83,35 +110,51 @@ export interface ExtractedDeadline {
   sourceDocument: string | null;
 }
 
+const DEADLINES_SCHEMA = {
+  type: "object",
+  properties: {
+    deadlines: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          description: { type: "string" },
+          dueDate: {
+            anyOf: [{ type: "string" }, { type: "null" }],
+            description: "ISO 8601 date (e.g. 2027-03-05), or null if unclear",
+          },
+          sourceDocument: {
+            anyOf: [{ type: "string" }, { type: "null" }],
+            description: "The filename this deadline came from, or null",
+          },
+        },
+        required: ["description", "dueDate", "sourceDocument"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["deadlines"],
+  additionalProperties: false,
+};
+
 export async function extractDeadlines(context: string): Promise<ExtractedDeadline[]> {
   if (!context) return [];
 
-  const system = `You extract deadlines and important dates from legal matter documents. Respond with ONLY a JSON array (no prose, no markdown fences) of objects: {"description": string, "dueDate": string or null (ISO 8601 date, e.g. "2027-03-05"), "sourceDocument": string or null (the filename it came from)}. Only include dates that represent a genuine deadline, court date, limitation period, or similarly actionable date — not every date mentioned. If a date is mentioned but not clearly formatted, set dueDate to null and describe it in the description. If there are no such dates, respond with []`;
+  const system = `You extract deadlines and important dates from legal matter documents. Only include dates that represent a genuine deadline, court date, limitation period, or similarly actionable date — not every date mentioned. If a date is mentioned but not clearly formatted, set dueDate to null and describe it in the description. If there are no such dates, return an empty list.`;
 
-  const raw = await complete({
+  const result = await completeJSON<{ deadlines: ExtractedDeadline[] }>({
     system,
     messages: [
       {
         role: "user",
-        content: `Here are the matter documents:\n\n${context}\n\nExtract the deadlines as a JSON array.`,
+        content: `Here are the matter documents:\n\n${context}\n\nExtract the deadlines.`,
       },
     ],
+    schema: DEADLINES_SCHEMA,
     maxTokens: 1024,
   });
 
-  try {
-    const parsed = JSON.parse(raw.trim());
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((item) => item && typeof item.description === "string")
-      .map((item) => ({
-        description: item.description,
-        dueDate: typeof item.dueDate === "string" ? item.dueDate : null,
-        sourceDocument: typeof item.sourceDocument === "string" ? item.sourceDocument : null,
-      }));
-  } catch {
-    throw new Error("Could not parse the AI's deadline extraction response. Try regenerating.");
-  }
+  return result.deadlines ?? [];
 }
 
 export async function generateDraft(
