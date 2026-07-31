@@ -79,6 +79,15 @@ export interface EvidenceMatrix {
   createdAt: string;
 }
 
+export interface TimeEntry {
+  id: string;
+  matterId: string;
+  workedOn: string;
+  description: string;
+  hours: number;
+  createdAt: string;
+}
+
 export const EMAIL_PROVIDERS = ["google", "microsoft", "yahoo"] as const;
 export type EmailProvider = (typeof EMAIL_PROVIDERS)[number];
 

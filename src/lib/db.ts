@@ -115,6 +115,16 @@ execWithRetry(`
     FOREIGN KEY (matterId) REFERENCES matters(id)
   );
 
+  CREATE TABLE IF NOT EXISTS time_entries (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    workedOn TEXT NOT NULL,
+    description TEXT NOT NULL,
+    hours REAL NOT NULL,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+
   CREATE TABLE IF NOT EXISTS email_accounts (
     id TEXT PRIMARY KEY,
     provider TEXT NOT NULL UNIQUE,
@@ -132,6 +142,7 @@ execWithRetry(`
   CREATE INDEX IF NOT EXISTS idx_matter_deadlines_matterId ON matter_deadlines(matterId);
   CREATE INDEX IF NOT EXISTS idx_drafts_matterId ON drafts(matterId);
   CREATE INDEX IF NOT EXISTS idx_evidence_matrices_matterId ON evidence_matrices(matterId);
+  CREATE INDEX IF NOT EXISTS idx_time_entries_matterId ON time_entries(matterId);
 `);
 
 // Schema migrations for columns added after the table already existed on a

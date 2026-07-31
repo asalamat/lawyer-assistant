@@ -9,6 +9,7 @@ import {
   listDocuments,
   listDrafts,
   listEvidenceMatrices,
+  listTimeEntries,
 } from "@/lib/matters";
 import { isExtractableDocument } from "@/lib/textExtraction";
 import AuditEntryItem from "@/components/AuditEntryItem";
@@ -16,6 +17,7 @@ import DeadlinesPanel from "@/components/DeadlinesPanel";
 import DraftsPanel from "@/components/DraftsPanel";
 import GeneratedDocPanel from "@/components/GeneratedDocPanel";
 import MatterStatusToggle from "@/components/MatterStatusToggle";
+import TimesheetPanel from "@/components/TimesheetPanel";
 import UploadDropzone from "@/components/UploadDropzone";
 
 export default async function MatterDetailPage({
@@ -32,6 +34,7 @@ export default async function MatterDetailPage({
   const deadlines = await listDeadlines(id);
   const drafts = await listDrafts(id);
   const evidenceMatrices = await listEvidenceMatrices(id);
+  const timeEntries = await listTimeEntries(id);
   const timeline = await listAuditLogForMatter(id);
 
   return (
@@ -73,6 +76,8 @@ export default async function MatterDetailPage({
       />
 
       <DraftsPanel matterId={matter.id} initialDrafts={drafts} />
+
+      <TimesheetPanel matterId={matter.id} initialEntries={timeEntries} />
 
       <div>
         <h2 className="mb-2 font-display text-lg">Documents</h2>

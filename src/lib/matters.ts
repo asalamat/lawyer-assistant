@@ -16,6 +16,7 @@ import type {
   MatterDeadline,
   MatterDigest,
   MessageFeedback,
+  TimeEntry,
 } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -369,6 +370,41 @@ export async function addEvidenceMatrix(matterId: string, content: string): Prom
   ).run(matrix.id, matrix.matterId, matrix.content, matrix.createdAt);
   await recordAuditEvent("evidence_matrix_generated", matterId, "Generated evidence matrix");
   return matrix;
+}
+
+export async function listTimeEntries(matterId: string): Promise<TimeEntry[]> {
+  return db
+    .prepare("SELECT * FROM time_entries WHERE matterId = ? ORDER BY workedOn DESC, createdAt DESC")
+    .all(matterId)
+    .map((row) => toPlain<TimeEntry>(row));
+}
+
+export async function addTimeEntry(
+  matterId: string,
+  input: { workedOn: string; description: string; hours: number },
+): Promise<TimeEntry> {
+  const entry: TimeEntry = {
+    id: crypto.randomUUID(),
+    matterId,
+    workedOn: input.workedOn,
+    description: input.description,
+    hours: input.hours,
+    createdAt: new Date().toISOString(),
+  };
+  db.prepare(
+    "INSERT INTO time_entries (id, matterId, workedOn, description, hours, createdAt) VALUES (?, ?, ?, ?, ?, ?)",
+  ).run(entry.id, entry.matterId, entry.workedOn, entry.description, entry.hours, entry.createdAt);
+  await recordAuditEvent(
+    "time_entry_logged",
+    matterId,
+    `Logged ${entry.hours}h on ${entry.workedOn}: ${entry.description}`,
+  );
+  return entry;
+}
+
+export async function deleteTimeEntry(matterId: string, entryId: string): Promise<void> {
+  db.prepare("DELETE FROM time_entries WHERE id = ? AND matterId = ?").run(entryId, matterId);
+  await recordAuditEvent("time_entry_deleted", matterId, "Deleted a time entry");
 }
 
 export async function getMatterTextContext(matterId: string): Promise<string> {

@@ -121,6 +121,23 @@ see git log for exact history.
       explicit "I've reviewed this" acknowledgement required before the
       create button is enabled (`checkConflicts()` in `src/lib/matters.ts`,
       `/api/matters/conflicts`)
+- [x] Excel/CSV document ingestion — `.csv`/`.xlsx`/`.xls` uploads are parsed
+      into chat-readable text via SheetJS (installed from SheetJS's own CDN,
+      pinned version, not the vulnerable npm-registry `xlsx` package — see
+      the "Dependency notes" section below)
+- [x] Per-matter timesheet — log date/description/hours entries on the
+      matter detail page, with a running total; `time_entries` table,
+      `/api/matters/[id]/time-entries`
+
+## Dependency notes
+
+- **`xlsx` (SheetJS)** is installed from `https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`
+  (pinned exact version), not the npm registry package of the same name. The
+  npm-published `xlsx` build has unpatched high-severity prototype-pollution
+  and ReDoS advisories; SheetJS only ships fixes through their own CDN.
+  `exceljs` was evaluated as an alternative and rejected — it pulls in more
+  vulnerable transitive dependencies, not fewer. Re-check this decision if a
+  cleaner-audited spreadsheet library becomes available.
 
 ## Decisions that need the account owner, not a default
 

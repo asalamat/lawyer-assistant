@@ -14,6 +14,8 @@ export const ACTION_LABELS: Record<string, string> = {
   matter_status_changed: "Matter status changed",
   email_account_connected: "Email account connected",
   email_account_disconnected: "Email account disconnected",
+  time_entry_logged: "Time entry logged",
+  time_entry_deleted: "Time entry deleted",
 };
 
 export async function recordAuditEvent(
