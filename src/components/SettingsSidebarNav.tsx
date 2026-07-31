@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   AiIcon,
+  EvidenceIcon,
   IntegrationIcon,
   MicIcon,
   MonitorIcon,
@@ -17,6 +18,7 @@ const LINKS = [
   { href: "/settings/ai", label: "AI model", Icon: AiIcon },
   { href: "/settings/transcription", label: "Transcription", Icon: MicIcon },
   { href: "/settings/review", label: "Independent review", Icon: ReviewIcon },
+  { href: "/settings/legal-research", label: "Legal research", Icon: EvidenceIcon },
   { href: "/settings/integrations", label: "Integrations", Icon: IntegrationIcon },
   { href: "/settings/security", label: "Security", Icon: SecurityIcon },
   { href: "/settings/updates", label: "Software updates", Icon: UpdateIcon },

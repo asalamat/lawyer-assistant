@@ -6,6 +6,7 @@ interface Settings {
   anthropicApiKey?: string;
   openaiApiKey?: string;
   geminiApiKey?: string;
+  canliiApiKey?: string;
 }
 
 async function readSettings(): Promise<Settings> {
@@ -64,6 +65,32 @@ export async function getGeminiApiKeyStatus(): Promise<{
   return {
     configured: true,
     source: settings.geminiApiKey ? "settings" : "env",
+    preview: `••••${key.slice(-4)}`,
+  };
+}
+
+export async function getCanliiApiKey(): Promise<string | undefined> {
+  const settings = await readSettings();
+  return settings.canliiApiKey || process.env.CANLII_API_KEY;
+}
+
+export async function setCanliiApiKey(key: string): Promise<void> {
+  const settings = await readSettings();
+  settings.canliiApiKey = key;
+  await writeSettings(settings);
+}
+
+export async function getCanliiApiKeyStatus(): Promise<{
+  configured: boolean;
+  source: "settings" | "env" | "none";
+  preview: string | null;
+}> {
+  const settings = await readSettings();
+  const key = settings.canliiApiKey || process.env.CANLII_API_KEY;
+  if (!key) return { configured: false, source: "none", preview: null };
+  return {
+    configured: true,
+    source: settings.canliiApiKey ? "settings" : "env",
     preview: `••••${key.slice(-4)}`,
   };
 }
