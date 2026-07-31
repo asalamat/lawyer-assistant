@@ -145,6 +145,21 @@ execWithRetry(`
     FOREIGN KEY (matterId) REFERENCES matters(id)
   );
 
+  CREATE TABLE IF NOT EXISTS invoices (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    invoiceNumber TEXT NOT NULL,
+    hourlyRate REAL NOT NULL,
+    hours REAL NOT NULL,
+    subtotal REAL NOT NULL,
+    discount REAL NOT NULL,
+    total REAL NOT NULL,
+    status TEXT NOT NULL,
+    paidAt TEXT,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_documents_matterId ON documents(matterId);
   CREATE INDEX IF NOT EXISTS idx_documents_contentHash ON documents(matterId, contentHash);
   CREATE INDEX IF NOT EXISTS idx_chat_messages_matterId ON chat_messages(matterId);
@@ -154,6 +169,7 @@ execWithRetry(`
   CREATE INDEX IF NOT EXISTS idx_evidence_matrices_matterId ON evidence_matrices(matterId);
   CREATE INDEX IF NOT EXISTS idx_time_entries_matterId ON time_entries(matterId);
   CREATE INDEX IF NOT EXISTS idx_independent_reviews_matterId ON independent_reviews(matterId);
+  CREATE INDEX IF NOT EXISTS idx_invoices_matterId ON invoices(matterId);
 `);
 
 // Schema migrations for columns added after the table already existed on a
@@ -167,6 +183,7 @@ function ensureColumn(table: string, column: string, definition: string): void {
 }
 
 ensureColumn("matters", "fileNumber", "TEXT");
+ensureColumn("time_entries", "invoiceId", "TEXT");
 
 // Backfill file numbers for any matter created before this column existed,
 // numbering sequentially per calendar year in creation order.

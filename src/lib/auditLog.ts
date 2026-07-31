@@ -17,6 +17,9 @@ export const ACTION_LABELS: Record<string, string> = {
   email_account_disconnected: "Email account disconnected",
   time_entry_logged: "Time entry logged",
   time_entry_deleted: "Time entry deleted",
+  invoice_created: "Invoice created",
+  invoice_marked_paid: "Invoice marked paid",
+  invoice_marked_unpaid: "Invoice marked unpaid",
 };
 
 export async function recordAuditEvent(

@@ -6,6 +6,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; entryId: string }> },
 ) {
   const { id, entryId } = await params;
-  await deleteTimeEntry(id, entryId);
-  return NextResponse.json({ ok: true });
+  try {
+    await deleteTimeEntry(id, entryId);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    if (err instanceof Error) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    throw err;
+  }
 }

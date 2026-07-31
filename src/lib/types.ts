@@ -94,6 +94,21 @@ export interface TimeEntry {
   workedOn: string;
   description: string;
   hours: number;
+  invoiceId: string | null;
+  createdAt: string;
+}
+
+export interface Invoice {
+  id: string;
+  matterId: string;
+  invoiceNumber: string;
+  hourlyRate: number;
+  hours: number;
+  subtotal: number;
+  discount: number;
+  total: number;
+  status: "unpaid" | "paid";
+  paidAt: string | null;
   createdAt: string;
 }
 

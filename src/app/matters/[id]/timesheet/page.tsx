@@ -1,4 +1,4 @@
-import { listTimeEntries } from "@/lib/matters";
+import { listInvoices, listTimeEntries } from "@/lib/matters";
 import TimesheetPanel from "@/components/TimesheetPanel";
 
 export default async function MatterTimesheetPage({
@@ -8,6 +8,7 @@ export default async function MatterTimesheetPage({
 }) {
   const { id } = await params;
   const timeEntries = await listTimeEntries(id);
+  const invoices = await listInvoices(id);
 
-  return <TimesheetPanel matterId={id} initialEntries={timeEntries} />;
+  return <TimesheetPanel matterId={id} initialEntries={timeEntries} initialInvoices={invoices} />;
 }

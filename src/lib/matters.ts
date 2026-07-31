@@ -13,6 +13,7 @@ import type {
   DraftType,
   EvidenceMatrix,
   IndependentReview,
+  Invoice,
   Matter,
   MatterDeadline,
   MatterDigest,
@@ -418,11 +419,20 @@ export async function addTimeEntry(
     workedOn: input.workedOn,
     description: input.description,
     hours: input.hours,
+    invoiceId: null,
     createdAt: new Date().toISOString(),
   };
   db.prepare(
-    "INSERT INTO time_entries (id, matterId, workedOn, description, hours, createdAt) VALUES (?, ?, ?, ?, ?, ?)",
-  ).run(entry.id, entry.matterId, entry.workedOn, entry.description, entry.hours, entry.createdAt);
+    "INSERT INTO time_entries (id, matterId, workedOn, description, hours, invoiceId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)",
+  ).run(
+    entry.id,
+    entry.matterId,
+    entry.workedOn,
+    entry.description,
+    entry.hours,
+    entry.invoiceId,
+    entry.createdAt,
+  );
   await recordAuditEvent(
     "time_entry_logged",
     matterId,
@@ -432,8 +442,138 @@ export async function addTimeEntry(
 }
 
 export async function deleteTimeEntry(matterId: string, entryId: string): Promise<void> {
+  const entry = db
+    .prepare("SELECT invoiceId FROM time_entries WHERE id = ? AND matterId = ?")
+    .get(entryId, matterId) as unknown as { invoiceId: string | null } | undefined;
+  if (entry?.invoiceId) {
+    throw new Error("This time entry has already been invoiced and can't be deleted.");
+  }
   db.prepare("DELETE FROM time_entries WHERE id = ? AND matterId = ?").run(entryId, matterId);
   await recordAuditEvent("time_entry_deleted", matterId, "Deleted a time entry");
+}
+
+function generateInvoiceNumber(issuedAt: string): string {
+  const year = issuedAt.slice(0, 4);
+  const { count } = db
+    .prepare("SELECT COUNT(*) as count FROM invoices WHERE invoiceNumber LIKE ?")
+    .get(`INV-${year}-%`) as { count: number };
+  return `INV-${year}-${String(count + 1).padStart(4, "0")}`;
+}
+
+export async function listUnbilledTimeEntries(matterId: string): Promise<TimeEntry[]> {
+  return db
+    .prepare(
+      "SELECT * FROM time_entries WHERE matterId = ? AND invoiceId IS NULL ORDER BY workedOn ASC",
+    )
+    .all(matterId)
+    .map((row) => toPlain<TimeEntry>(row));
+}
+
+export async function listInvoices(matterId: string): Promise<Invoice[]> {
+  return db
+    .prepare("SELECT * FROM invoices WHERE matterId = ? ORDER BY createdAt DESC")
+    .all(matterId)
+    .map((row) => toPlain<Invoice>(row));
+}
+
+export async function listInvoiceEntries(invoiceId: string): Promise<TimeEntry[]> {
+  return db
+    .prepare("SELECT * FROM time_entries WHERE invoiceId = ? ORDER BY workedOn ASC")
+    .all(invoiceId)
+    .map((row) => toPlain<TimeEntry>(row));
+}
+
+export async function createInvoice(
+  matterId: string,
+  input: { entryIds: string[]; hourlyRate: number; discount: number },
+): Promise<Invoice> {
+  if (input.entryIds.length === 0) {
+    throw new Error("Select at least one time entry to invoice.");
+  }
+
+  const placeholders = input.entryIds.map(() => "?").join(",");
+  const entries = db
+    .prepare(
+      `SELECT * FROM time_entries WHERE matterId = ? AND invoiceId IS NULL AND id IN (${placeholders})`,
+    )
+    .all(matterId, ...input.entryIds) as unknown as TimeEntry[];
+
+  if (entries.length !== input.entryIds.length) {
+    throw new Error("Some selected time entries are invalid or already invoiced.");
+  }
+
+  const hours = entries.reduce((sum, entry) => sum + entry.hours, 0);
+  const subtotal = hours * input.hourlyRate;
+  const total = Math.max(0, subtotal - input.discount);
+  const createdAt = new Date().toISOString();
+
+  const invoice: Invoice = {
+    id: crypto.randomUUID(),
+    matterId,
+    invoiceNumber: generateInvoiceNumber(createdAt),
+    hourlyRate: input.hourlyRate,
+    hours,
+    subtotal,
+    discount: input.discount,
+    total,
+    status: "unpaid",
+    paidAt: null,
+    createdAt,
+  };
+
+  db.prepare(
+    `INSERT INTO invoices (id, matterId, invoiceNumber, hourlyRate, hours, subtotal, discount, total, status, paidAt, createdAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    invoice.id,
+    invoice.matterId,
+    invoice.invoiceNumber,
+    invoice.hourlyRate,
+    invoice.hours,
+    invoice.subtotal,
+    invoice.discount,
+    invoice.total,
+    invoice.status,
+    invoice.paidAt,
+    invoice.createdAt,
+  );
+
+  const markBilled = db.prepare("UPDATE time_entries SET invoiceId = ? WHERE id = ?");
+  for (const entryId of input.entryIds) {
+    markBilled.run(invoice.id, entryId);
+  }
+
+  await recordAuditEvent(
+    "invoice_created",
+    matterId,
+    `Created invoice ${invoice.invoiceNumber} for ${hours.toFixed(1)}h ($${total.toFixed(2)})`,
+  );
+
+  return invoice;
+}
+
+export async function updateInvoiceStatus(
+  matterId: string,
+  invoiceId: string,
+  status: Invoice["status"],
+): Promise<Invoice | null> {
+  const paidAt = status === "paid" ? new Date().toISOString() : null;
+  db.prepare("UPDATE invoices SET status = ?, paidAt = ? WHERE id = ? AND matterId = ?").run(
+    status,
+    paidAt,
+    invoiceId,
+    matterId,
+  );
+  const row = db
+    .prepare("SELECT * FROM invoices WHERE id = ? AND matterId = ?")
+    .get(invoiceId, matterId);
+  if (!row) return null;
+  await recordAuditEvent(
+    status === "paid" ? "invoice_marked_paid" : "invoice_marked_unpaid",
+    matterId,
+    `Marked invoice as ${status}`,
+  );
+  return toPlain<Invoice>(row);
 }
 
 export async function getMatterTextContext(matterId: string): Promise<string> {
