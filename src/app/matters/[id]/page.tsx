@@ -1,8 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getMatter, listDigests, listDocuments } from "@/lib/matters";
+import {
+  getMatter,
+  listDeadlines,
+  listDigests,
+  listDocuments,
+  listDrafts,
+  listEvidenceMatrices,
+} from "@/lib/matters";
 import { isExtractableDocument } from "@/lib/textExtraction";
-import MatterDigestPanel from "@/components/MatterDigestPanel";
+import DeadlinesPanel from "@/components/DeadlinesPanel";
+import DraftsPanel from "@/components/DraftsPanel";
+import GeneratedDocPanel from "@/components/GeneratedDocPanel";
 import UploadDropzone from "@/components/UploadDropzone";
 
 export default async function MatterDetailPage({
@@ -16,6 +25,9 @@ export default async function MatterDetailPage({
 
   const documents = await listDocuments(id);
   const digests = await listDigests(id);
+  const deadlines = await listDeadlines(id);
+  const drafts = await listDrafts(id);
+  const evidenceMatrices = await listEvidenceMatrices(id);
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-10">
@@ -37,7 +49,23 @@ export default async function MatterDetailPage({
 
       <UploadDropzone matterId={matter.id} />
 
-      <MatterDigestPanel matterId={matter.id} initialDigest={digests[0] ?? null} />
+      <GeneratedDocPanel
+        title="Matter digest"
+        apiPath={`/api/matters/${matter.id}/digest`}
+        initialDoc={digests[0] ?? null}
+        emptyMessage="No digest generated yet. Upload documents, then generate a summary."
+      />
+
+      <DeadlinesPanel matterId={matter.id} initialDeadlines={deadlines} />
+
+      <GeneratedDocPanel
+        title="Evidence matrix"
+        apiPath={`/api/matters/${matter.id}/evidence-matrix`}
+        initialDoc={evidenceMatrices[0] ?? null}
+        emptyMessage="No evidence matrix generated yet. Upload documents, then generate one."
+      />
+
+      <DraftsPanel matterId={matter.id} initialDrafts={drafts} />
 
       <div>
         <h2 className="mb-2 font-medium">Documents</h2>

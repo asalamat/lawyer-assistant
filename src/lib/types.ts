@@ -45,3 +45,34 @@ export interface MessageFeedback {
   rating: "up" | "down";
   createdAt: string;
 }
+
+export interface MatterDeadline {
+  id: string;
+  matterId: string;
+  description: string;
+  dueDate: string | null;
+  sourceDocument: string | null;
+  createdAt: string;
+}
+
+export const DRAFT_TYPES = [
+  "Research memo",
+  "Demand letter",
+  "Client correspondence",
+] as const;
+export type DraftType = (typeof DRAFT_TYPES)[number];
+
+export interface Draft {
+  id: string;
+  matterId: string;
+  draftType: DraftType;
+  content: string;
+  createdAt: string;
+}
+
+export interface EvidenceMatrix {
+  id: string;
+  matterId: string;
+  content: string;
+  createdAt: string;
+}

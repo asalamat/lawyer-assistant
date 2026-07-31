@@ -4,7 +4,18 @@ import path from "path";
 import { recordAuditEvent } from "./auditLog";
 import db, { toPlain } from "./db";
 import { extractDocumentText, isExtractableDocument } from "./textExtraction";
-import type { ChatMessage, Document, Matter, MatterDigest, MessageFeedback } from "./types";
+import type { ExtractedDeadline } from "./claude";
+import type {
+  ChatMessage,
+  Document,
+  Draft,
+  DraftType,
+  EvidenceMatrix,
+  Matter,
+  MatterDeadline,
+  MatterDigest,
+  MessageFeedback,
+} from "./types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
@@ -177,6 +188,103 @@ export async function addDigest(matterId: string, content: string): Promise<Matt
   ).run(digest.id, digest.matterId, digest.content, digest.createdAt);
   await recordAuditEvent("digest_generated", matterId, "Generated matter digest");
   return digest;
+}
+
+export async function listDeadlines(matterId: string): Promise<MatterDeadline[]> {
+  return db
+    .prepare(
+      "SELECT * FROM matter_deadlines WHERE matterId = ? ORDER BY (dueDate IS NULL), dueDate ASC",
+    )
+    .all(matterId)
+    .map((row) => toPlain<MatterDeadline>(row));
+}
+
+export async function replaceDeadlines(
+  matterId: string,
+  deadlines: ExtractedDeadline[],
+): Promise<MatterDeadline[]> {
+  db.prepare("DELETE FROM matter_deadlines WHERE matterId = ?").run(matterId);
+  const createdAt = new Date().toISOString();
+  const insert = db.prepare(
+    "INSERT INTO matter_deadlines (id, matterId, description, dueDate, sourceDocument, createdAt) VALUES (?, ?, ?, ?, ?, ?)",
+  );
+  for (const deadline of deadlines) {
+    insert.run(
+      crypto.randomUUID(),
+      matterId,
+      deadline.description,
+      deadline.dueDate,
+      deadline.sourceDocument,
+      createdAt,
+    );
+  }
+  await recordAuditEvent(
+    "deadlines_extracted",
+    matterId,
+    `Extracted ${deadlines.length} deadline(s)`,
+  );
+  return listDeadlines(matterId);
+}
+
+export async function listUpcomingDeadlines(limit = 10): Promise<(MatterDeadline & { matterTitle: string })[]> {
+  return db
+    .prepare(
+      `SELECT d.*, m.title as matterTitle
+       FROM matter_deadlines d
+       JOIN matters m ON m.id = d.matterId
+       WHERE d.dueDate IS NOT NULL
+       ORDER BY d.dueDate ASC
+       LIMIT ?`,
+    )
+    .all(limit)
+    .map((row) => toPlain<MatterDeadline & { matterTitle: string }>(row));
+}
+
+export async function listDrafts(matterId: string): Promise<Draft[]> {
+  return db
+    .prepare("SELECT * FROM drafts WHERE matterId = ? ORDER BY createdAt DESC")
+    .all(matterId)
+    .map((row) => toPlain<Draft>(row));
+}
+
+export async function addDraft(
+  matterId: string,
+  draftType: DraftType,
+  content: string,
+): Promise<Draft> {
+  const draft: Draft = {
+    id: crypto.randomUUID(),
+    matterId,
+    draftType,
+    content,
+    createdAt: new Date().toISOString(),
+  };
+  db.prepare(
+    "INSERT INTO drafts (id, matterId, draftType, content, createdAt) VALUES (?, ?, ?, ?, ?)",
+  ).run(draft.id, draft.matterId, draft.draftType, draft.content, draft.createdAt);
+  await recordAuditEvent("draft_generated", matterId, `Generated ${draftType} draft`);
+  return draft;
+}
+
+export async function listEvidenceMatrices(matterId: string): Promise<EvidenceMatrix[]> {
+  return db
+    .prepare("SELECT * FROM evidence_matrices WHERE matterId = ? ORDER BY createdAt DESC")
+    .all(matterId)
+    .map((row) => toPlain<EvidenceMatrix>(row));
+}
+
+export async function addEvidenceMatrix(matterId: string, content: string): Promise<EvidenceMatrix> {
+  const matrix: EvidenceMatrix = {
+    id: crypto.randomUUID(),
+    matterId,
+    content,
+    createdAt: new Date().toISOString(),
+  };
+  db.prepare(
+    "INSERT INTO evidence_matrices (id, matterId, content, createdAt) VALUES (?, ?, ?, ?)",
+  ).run(matrix.id, matrix.matterId, matrix.content, matrix.createdAt);
+  await recordAuditEvent("evidence_matrix_generated", matterId, "Generated evidence matrix");
+  return matrix;
 }
 
 export async function getMatterTextContext(matterId: string): Promise<string> {

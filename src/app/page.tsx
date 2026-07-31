@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { listMatters } from "@/lib/matters";
+import { formatDateOnly } from "@/lib/formatDate";
+import { listMatters, listUpcomingDeadlines } from "@/lib/matters";
 import { getSystemInfo } from "@/lib/systemInfo";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ export default async function Home() {
   const matters = await listMatters();
   const openCount = matters.filter((m) => m.status === "open").length;
   const info = await getSystemInfo();
+  const upcomingDeadlines = await listUpcomingDeadlines();
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-10">
@@ -32,6 +34,27 @@ export default async function Home() {
         <Link href="/matters" className="underline">
           View all matters
         </Link>
+      </div>
+
+      <div className="rounded-lg border border-black/10 p-4 text-sm dark:border-white/10">
+        <h2 className="mb-3 font-medium">Upcoming deadlines</h2>
+        {upcomingDeadlines.length === 0 ? (
+          <p className="text-zinc-500">
+            No deadlines extracted yet — open a matter and extract deadlines from its
+            documents.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {upcomingDeadlines.map((deadline) => (
+              <li key={deadline.id} className="flex items-center justify-between">
+                <Link href={`/matters/${deadline.matterId}`} className="hover:underline">
+                  {deadline.matterTitle}: {deadline.description}
+                </Link>
+                <span className="shrink-0 font-medium">{formatDateOnly(deadline.dueDate!)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="rounded-lg border border-black/10 p-4 text-sm dark:border-white/10">

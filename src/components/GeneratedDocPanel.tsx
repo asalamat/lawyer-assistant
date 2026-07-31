@@ -1,16 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import type { MatterDigest } from "@/lib/types";
 
-export default function MatterDigestPanel({
-  matterId,
-  initialDigest,
+interface GeneratedDoc {
+  content: string;
+}
+
+export default function GeneratedDocPanel({
+  title,
+  apiPath,
+  initialDoc,
+  emptyMessage,
 }: {
-  matterId: string;
-  initialDigest: MatterDigest | null;
+  title: string;
+  apiPath: string;
+  initialDoc: GeneratedDoc | null;
+  emptyMessage: string;
 }) {
-  const [digest, setDigest] = useState(initialDigest);
+  const [doc, setDoc] = useState(initialDoc);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,10 +25,10 @@ export default function MatterDigestPanel({
     setGenerating(true);
     setError(null);
     try {
-      const res = await fetch(`/api/matters/${matterId}/digest`, { method: "POST" });
+      const res = await fetch(apiPath, { method: "POST" });
       const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? "Failed to generate digest");
-      setDigest(body);
+      if (!res.ok) throw new Error(body.error ?? "Failed to generate");
+      setDoc(body);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -32,22 +39,20 @@ export default function MatterDigestPanel({
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-black/10 p-4 dark:border-white/10">
       <div className="flex items-center justify-between">
-        <h2 className="font-medium">Matter digest</h2>
+        <h2 className="font-medium">{title}</h2>
         <button
           onClick={handleGenerate}
           disabled={generating}
           className="rounded bg-foreground px-3 py-1.5 text-sm text-background disabled:opacity-50"
         >
-          {generating ? "Generating…" : digest ? "Regenerate" : "Generate summary"}
+          {generating ? "Generating…" : doc ? "Regenerate" : "Generate"}
         </button>
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
-      {digest ? (
-        <div className="whitespace-pre-wrap text-sm">{digest.content}</div>
+      {doc ? (
+        <div className="whitespace-pre-wrap text-sm">{doc.content}</div>
       ) : (
-        <p className="text-sm text-zinc-500">
-          No digest generated yet. Upload documents, then generate a summary.
-        </p>
+        <p className="text-sm text-zinc-500">{emptyMessage}</p>
       )}
     </div>
   );
