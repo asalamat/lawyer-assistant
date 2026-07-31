@@ -134,6 +134,12 @@ see git log for exact history.
 - [x] Per-matter timesheet — log date/description/hours entries on the
       matter detail page, with a running total; `time_entries` table,
       `/api/matters/[id]/time-entries`
+- [x] Sidebar-tabbed navigation for both the matter detail page (Overview/
+      Digest/Deadlines/Evidence matrix/Drafts/Timesheet/Activity/Chat, each
+      its own route under `/matters/[id]/*`) and Settings (Appearance/AI
+      model/Transcription/Independent review/Integrations/Security/Software
+      updates, each its own route under `/settings/*`) — replaces the
+      earlier single long-scroll page for each
 
 ## Dependency notes
 
