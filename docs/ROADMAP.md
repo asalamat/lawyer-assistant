@@ -109,8 +109,6 @@ see git log for exact history.
       redirect building a correct real Google authorize URL, CSRF state
       rejection on /callback) — cannot verify the token exchange without a
       real provider round-trip.
-- [ ] Unified per-matter activity timeline (combining documents/chat/digests/
-      deadlines/drafts/evidence-matrix chronologically) — not started
 - [x] Automatic file-number generation (`YYYY-NNNN`, sequential per calendar
       year) — assigned on matter creation, backfilled for pre-existing
       matters via an `ensureColumn`/migration pass in `src/lib/db.ts`,
