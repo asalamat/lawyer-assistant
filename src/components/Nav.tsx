@@ -1,11 +1,14 @@
 import Link from "next/link";
 import LogoutButton from "./LogoutButton";
+import ThemeToggle from "./ThemeToggle";
+import { AuditIcon, DashboardIcon, HelpIcon, MattersIcon, SettingsIcon } from "./icons";
 
 const LINKS = [
-  { href: "/", label: "Dashboard" },
-  { href: "/matters", label: "Matters" },
-  { href: "/audit", label: "Audit log" },
-  { href: "/settings", label: "Settings" },
+  { href: "/", label: "Dashboard", Icon: DashboardIcon },
+  { href: "/matters", label: "Matters", Icon: MattersIcon },
+  { href: "/audit", label: "Audit log", Icon: AuditIcon },
+  { href: "/settings", label: "Settings", Icon: SettingsIcon },
+  { href: "/help", label: "Help", Icon: HelpIcon },
 ];
 
 export default function Nav() {
@@ -15,16 +18,20 @@ export default function Nav() {
         <div className="flex items-center gap-6">
           <span className="font-semibold">Lawyer Assistant</span>
           <ul className="flex gap-4 text-sm">
-            {LINKS.map((link) => (
-              <li key={link.href}>
-                <Link href={link.href} className="hover:underline">
-                  {link.label}
+            {LINKS.map(({ href, label, Icon }) => (
+              <li key={href}>
+                <Link href={href} className="flex items-center gap-1.5 hover:underline">
+                  <Icon className="h-4 w-4" />
+                  {label}
                 </Link>
               </li>
             ))}
           </ul>
         </div>
-        <LogoutButton />
+        <div className="flex items-center gap-4">
+          <ThemeToggle />
+          <LogoutButton />
+        </div>
       </nav>
     </header>
   );

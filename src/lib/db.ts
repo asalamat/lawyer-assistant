@@ -115,6 +115,16 @@ execWithRetry(`
     FOREIGN KEY (matterId) REFERENCES matters(id)
   );
 
+  CREATE TABLE IF NOT EXISTS email_accounts (
+    id TEXT PRIMARY KEY,
+    provider TEXT NOT NULL UNIQUE,
+    emailAddress TEXT NOT NULL,
+    accessToken TEXT NOT NULL,
+    refreshToken TEXT,
+    tokenExpiresAt TEXT,
+    connectedAt TEXT NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_documents_matterId ON documents(matterId);
   CREATE INDEX IF NOT EXISTS idx_documents_contentHash ON documents(matterId, contentHash);
   CREATE INDEX IF NOT EXISTS idx_chat_messages_matterId ON chat_messages(matterId);

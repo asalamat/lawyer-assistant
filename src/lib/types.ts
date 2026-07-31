@@ -77,3 +77,13 @@ export interface EvidenceMatrix {
   content: string;
   createdAt: string;
 }
+
+export const EMAIL_PROVIDERS = ["google", "microsoft", "yahoo"] as const;
+export type EmailProvider = (typeof EMAIL_PROVIDERS)[number];
+
+export interface EmailAccount {
+  id: string;
+  provider: EmailProvider;
+  emailAddress: string;
+  connectedAt: string;
+}

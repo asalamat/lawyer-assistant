@@ -1,0 +1,134 @@
+// Minimal inline-SVG icon set — no external icon font/package dependency.
+// Each icon is a plain 24x24 stroke-based glyph sized via currentColor so it
+// inherits text color and can be recolored/sized with normal Tailwind classes.
+
+import type { ReactNode, SVGProps } from "react";
+
+type IconProps = SVGProps<SVGSVGElement>;
+
+function base(children: ReactNode, props: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      {children}
+    </svg>
+  );
+}
+
+export const DashboardIcon = (props: IconProps) =>
+  base(
+    <>
+      <rect x="3" y="3" width="7" height="9" rx="1" />
+      <rect x="14" y="3" width="7" height="5" rx="1" />
+      <rect x="14" y="12" width="7" height="9" rx="1" />
+      <rect x="3" y="16" width="7" height="5" rx="1" />
+    </>,
+    props,
+  );
+
+export const MattersIcon = (props: IconProps) =>
+  base(
+    <>
+      <rect x="3" y="7" width="18" height="13" rx="2" />
+      <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </>,
+    props,
+  );
+
+export const AuditIcon = (props: IconProps) =>
+  base(
+    <>
+      <path d="M9 3h6l3 3v15H6V6z" />
+      <path d="M9 3v3H6" />
+      <path d="M9 12l2 2 4-4" />
+    </>,
+    props,
+  );
+
+export const SettingsIcon = (props: IconProps) =>
+  base(
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </>,
+    props,
+  );
+
+export const HelpIcon = (props: IconProps) =>
+  base(
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.5-2 1.75-2 3.5" />
+      <path d="M12 17h.01" />
+    </>,
+    props,
+  );
+
+export const SunIcon = (props: IconProps) =>
+  base(
+    <>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+    </>,
+    props,
+  );
+
+export const MoonIcon = (props: IconProps) =>
+  base(<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />, props);
+
+export const MonitorIcon = (props: IconProps) =>
+  base(
+    <>
+      <rect x="2" y="4" width="20" height="13" rx="2" />
+      <path d="M8 21h8M12 17v4" />
+    </>,
+    props,
+  );
+
+export const AiIcon = (props: IconProps) =>
+  base(
+    <>
+      <rect x="4" y="8" width="16" height="11" rx="2" />
+      <path d="M9 3l1.5 3M15 3l-1.5 3M9 13h.01M15 13h.01" />
+    </>,
+    props,
+  );
+
+export const IntegrationIcon = (props: IconProps) =>
+  base(
+    <>
+      <rect x="2" y="6" width="8" height="8" rx="2" />
+      <rect x="14" y="10" width="8" height="8" rx="2" />
+      <path d="M10 10h4" />
+    </>,
+    props,
+  );
+
+export const SecurityIcon = (props: IconProps) =>
+  base(<path d="M12 2l8 4v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6z" />, props);
+
+export const UpdateIcon = (props: IconProps) =>
+  base(
+    <>
+      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+      <path d="M21 3v6h-6" />
+    </>,
+    props,
+  );
+
+export const LogoutIcon = (props: IconProps) =>
+  base(
+    <>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="M16 17l5-5-5-5M21 12H9" />
+    </>,
+    props,
+  );
