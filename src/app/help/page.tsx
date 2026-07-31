@@ -48,9 +48,9 @@ const SECTIONS = [
     title: "Oversight",
     items: [
       {
-        name: "Audit log",
+        name: "Audit log & matter timeline",
         detail:
-          "Every matter/document/chat/digest/feedback/status action is recorded with a timestamp, viewable at Audit log.",
+          "Every matter/document/chat/digest/feedback/status action is recorded with a timestamp — viewable app-wide at Audit log, or filtered to one matter in its Activity timeline section. Also flags duplicate document uploads (same file content uploaded twice).",
       },
       {
         name: "Dashboard system info",
@@ -74,8 +74,14 @@ const SECTIONS = [
         detail: "Light/Dark/System theme, and other display preferences.",
       },
       {
+        name: "Integrations",
+        detail:
+          "Connect a Gmail, Microsoft (Outlook/Hotmail/Office 365), or Yahoo mailbox to bring matter-related email into the app. Requires an OAuth app registered with the provider — see the note in each provider's row for the redirect URI to register.",
+      },
+      {
         name: "Security",
-        detail: "Change your login password (or reset a forgotten one from the terminal with npm run reset-password).",
+        detail:
+          "Change your login password (or reset a forgotten one from the terminal with npm run reset-password). Login is rate-limited after repeated failed attempts.",
       },
     ],
   },
