@@ -92,6 +92,12 @@ see git log for exact history.
 - [x] In-app change-password (Settings > Security), on top of the CLI reset
 - [x] Login rate limiting (5 failed attempts → 15 min lockout) on both the
       login and change-password endpoints
+- [x] Unified per-matter activity timeline (reuses the audit log, filtered per
+      matter — no separate table needed)
+- [x] Full visual redesign (warm parchment/ink palette, Fraunces + IBM Plex
+      fonts, shared surface-card/btn-primary/badge classes) and advanced
+      cross-entity search (`/search` — matters, document filenames, chat
+      content, digests, drafts, evidence matrices, one query)
 - [ ] **Email integration (Gmail / Microsoft — covers Outlook.com, Hotmail, and
       Office 365 / Yahoo)** — OAuth 2.0 flow fully built
       (`src/lib/emailIntegration.ts`, Settings > Integrations) but **not
