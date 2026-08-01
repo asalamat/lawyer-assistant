@@ -126,6 +126,14 @@ export default function TimesheetPanel({
   }
 
   async function handleCreateInvoice() {
+    if (selectedEntries.length === 0) {
+      setInvoiceError("Select at least one time entry first.");
+      return;
+    }
+    if (!hourlyRate || Number(hourlyRate) <= 0) {
+      setInvoiceError("Enter an hourly rate to create the invoice.");
+      return;
+    }
     setInvoicing(true);
     setInvoiceError(null);
     try {
@@ -338,11 +346,7 @@ export default function TimesheetPanel({
                 onChange={(e) => setDiscount(e.target.value)}
                 className="surface-input"
               />
-              <button
-                onClick={handleCreateInvoice}
-                disabled={invoicing || selectedEntries.length === 0 || !hourlyRate}
-                className="btn-primary"
-              >
+              <button onClick={handleCreateInvoice} disabled={invoicing} className="btn-primary">
                 {invoicing ? "Creating…" : `Create invoice (${formatCurrency(previewTotal)})`}
               </button>
             </div>
