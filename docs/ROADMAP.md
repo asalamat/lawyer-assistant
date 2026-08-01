@@ -148,10 +148,16 @@ see git log for exact history.
 - [x] Invoicing from timesheet entries — select unbilled entries, set an
       hourly rate and optional flat discount, generate an invoice
       (`INV-YYYY-NNNN`); invoiced entries are locked against deletion and
-      double-invoicing; invoice history with a paid/unpaid toggle and a
-      "Send" button that opens a mailto: draft itemizing the invoice (no
-      real email-sending integration exists yet, so this is honest about
-      what it does rather than faking a "sent" state)
+      double-invoicing; invoice history with a paid/unpaid toggle. Each
+      time entry renders as its own line item (date/description/hours/
+      rate/amount) in the invoice.
+- [x] Real email sending (SMTP) — Settings > Email tab configures an
+      outgoing mail server (nodemailer) with a connection-test button.
+      The invoice "Send" button now emails the itemized invoice (text +
+      HTML) to the matter's client email via SMTP, recorded as an
+      `invoice_sent` audit event; falls back to a mailto: draft when SMTP
+      isn't configured. Matters now store a client email (used as the
+      default invoice recipient).
 - [x] Sidebar-tabbed navigation for both the matter detail page (Overview/
       Digest/Deadlines/Evidence matrix/Drafts/Timesheet/Activity/Chat, each
       its own route under `/matters/[id]/*`) and Settings (Appearance/AI
