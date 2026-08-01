@@ -6,6 +6,7 @@ export interface Matter {
   clientEmail: string | null;
   matterType: string;
   status: "open" | "closed";
+  hourlyRate: number | null;
   createdAt: string;
 }
 

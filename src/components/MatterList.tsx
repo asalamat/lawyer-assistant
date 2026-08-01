@@ -15,6 +15,7 @@ export default function MatterList({ matters }: { matters: Matter[] }) {
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [matterType, setMatterType] = useState("");
+  const [hourlyRate, setHourlyRate] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -61,13 +62,14 @@ export default function MatterList({ matters }: { matters: Matter[] }) {
       const res = await fetch("/api/matters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, clientName, clientEmail, matterType }),
+        body: JSON.stringify({ title, clientName, clientEmail, matterType, hourlyRate }),
       });
       if (!res.ok) throw new Error("Failed to create matter");
       setTitle("");
       setClientName("");
       setClientEmail("");
       setMatterType("");
+      setHourlyRate("");
       setConflicts([]);
       setConflictsChecked(false);
       setAcknowledgeConflict(false);
@@ -111,6 +113,15 @@ export default function MatterList({ matters }: { matters: Matter[] }) {
             placeholder="Matter type"
             value={matterType}
             onChange={(e) => setMatterType(e.target.value)}
+            className="surface-input"
+          />
+          <input
+            type="number"
+            step="0.01"
+            min="0.01"
+            placeholder="Default hourly rate ($, optional)"
+            value={hourlyRate}
+            onChange={(e) => setHourlyRate(e.target.value)}
             className="surface-input"
           />
         </div>

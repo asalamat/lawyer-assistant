@@ -20,6 +20,7 @@ export default async function MatterTimesheetPage({
       initialInvoices={invoices}
       clientEmail={matter?.clientEmail ?? null}
       emailConfigured={emailConfigured}
+      initialHourlyRate={matter?.hourlyRate ?? null}
     />
   );
 }

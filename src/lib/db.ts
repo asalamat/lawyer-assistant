@@ -184,6 +184,7 @@ function ensureColumn(table: string, column: string, definition: string): void {
 
 ensureColumn("matters", "fileNumber", "TEXT");
 ensureColumn("matters", "clientEmail", "TEXT");
+ensureColumn("matters", "hourlyRate", "REAL");
 ensureColumn("time_entries", "invoiceId", "TEXT");
 ensureColumn("time_entries", "rate", "REAL");
 

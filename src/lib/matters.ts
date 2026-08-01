@@ -70,6 +70,7 @@ export async function createMatter(input: {
   clientName: string;
   clientEmail?: string;
   matterType: string;
+  hourlyRate?: number;
 }): Promise<Matter> {
   const createdAt = new Date().toISOString();
   const matter: Matter = {
@@ -80,10 +81,11 @@ export async function createMatter(input: {
     clientEmail: input.clientEmail?.trim() || null,
     matterType: input.matterType,
     status: "open",
+    hourlyRate: input.hourlyRate ?? null,
     createdAt,
   };
   db.prepare(
-    "INSERT INTO matters (id, fileNumber, title, clientName, clientEmail, matterType, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO matters (id, fileNumber, title, clientName, clientEmail, matterType, status, hourlyRate, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
   ).run(
     matter.id,
     matter.fileNumber,
@@ -92,6 +94,7 @@ export async function createMatter(input: {
     matter.clientEmail,
     matter.matterType,
     matter.status,
+    matter.hourlyRate,
     matter.createdAt,
   );
   await recordAuditEvent(
@@ -110,6 +113,22 @@ export async function updateMatterStatus(
   const matter = await getMatter(matterId);
   if (matter) {
     await recordAuditEvent("matter_status_changed", matterId, `Marked matter as ${status}`);
+  }
+  return matter;
+}
+
+export async function updateMatterHourlyRate(
+  matterId: string,
+  hourlyRate: number,
+): Promise<Matter | null> {
+  db.prepare("UPDATE matters SET hourlyRate = ? WHERE id = ?").run(hourlyRate, matterId);
+  const matter = await getMatter(matterId);
+  if (matter) {
+    await recordAuditEvent(
+      "matter_rate_updated",
+      matterId,
+      `Set default hourly rate to $${hourlyRate.toFixed(2)}/hr`,
+    );
   }
   return matter;
 }

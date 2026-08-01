@@ -13,6 +13,7 @@ export const ACTION_LABELS: Record<string, string> = {
   evidence_matrix_generated: "Evidence matrix generated",
   independent_review_generated: "Independent review generated",
   matter_status_changed: "Matter status changed",
+  matter_rate_updated: "Matter billing rate updated",
   email_account_connected: "Email account connected",
   email_account_disconnected: "Email account disconnected",
   time_entry_logged: "Time entry logged",

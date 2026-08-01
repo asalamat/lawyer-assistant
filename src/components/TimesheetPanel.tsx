@@ -35,12 +35,14 @@ export default function TimesheetPanel({
   initialInvoices,
   clientEmail,
   emailConfigured,
+  initialHourlyRate,
 }: {
   matterId: string;
   initialEntries: TimeEntry[];
   initialInvoices: Invoice[];
   clientEmail: string | null;
   emailConfigured: boolean;
+  initialHourlyRate: number | null;
 }) {
   const [entries, setEntries] = useState(initialEntries);
   const [invoices, setInvoices] = useState(initialInvoices);
@@ -51,26 +53,28 @@ export default function TimesheetPanel({
   const [workedOn, setWorkedOn] = useState(today());
   const [description, setDescription] = useState("");
   const [hours, setHours] = useState("");
-  const [entryRate, setEntryRate] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  const [matterRate, setMatterRate] = useState(initialHourlyRate);
+  const [editingRate, setEditingRate] = useState(false);
+  const [rateInput, setRateInput] = useState(String(initialHourlyRate ?? ""));
+  const [savingRate, setSavingRate] = useState(false);
+  const [rateError, setRateError] = useState<string | null>(null);
+
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [hourlyRate, setHourlyRate] = useState("");
+  const [hourlyRate, setHourlyRate] = useState(initialHourlyRate != null ? String(initialHourlyRate) : "");
   const [discount, setDiscount] = useState("0");
   const [invoicing, setInvoicing] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
 
   const totalHours = entries.reduce((sum, entry) => sum + entry.hours, 0);
-  const totalCost = entries.reduce((sum, entry) => sum + (entry.rate ? entry.hours * entry.rate : 0), 0);
   const unbilled = entries.filter((e) => !e.invoiceId);
   const selectedEntries = unbilled.filter((e) => selectedIds.has(e.id));
   const selectedHours = selectedEntries.reduce((sum, e) => sum + e.hours, 0);
   const previewSubtotal = selectedHours * (Number(hourlyRate) || 0);
   const previewTotal = Math.max(0, previewSubtotal - (Number(discount) || 0));
-  const selectedRates = new Set(selectedEntries.map((e) => e.rate).filter((r) => r != null));
-  const commonSelectedRate = selectedRates.size === 1 ? [...selectedRates][0] : null;
 
   function toggleSelected(id: string) {
     setSelectedIds((prev) => {
@@ -93,12 +97,7 @@ export default function TimesheetPanel({
       const res = await fetch(`/api/matters/${matterId}/time-entries`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          workedOn,
-          description,
-          hours: Number(hours),
-          rate: entryRate ? Number(entryRate) : null,
-        }),
+        body: JSON.stringify({ workedOn, description, hours: Number(hours) }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Failed to log time");
@@ -109,7 +108,6 @@ export default function TimesheetPanel({
       );
       setDescription("");
       setHours("");
-      setEntryRate("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -135,13 +133,39 @@ export default function TimesheetPanel({
     });
   }
 
+  async function handleSaveRate() {
+    const parsed = Number(rateInput);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setRateError("Enter a positive hourly rate.");
+      return;
+    }
+    setSavingRate(true);
+    setRateError(null);
+    try {
+      const res = await fetch(`/api/matters/${matterId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hourlyRate: parsed }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Failed to save rate");
+      setMatterRate(parsed);
+      setHourlyRate(String(parsed));
+      setEditingRate(false);
+    } catch (err) {
+      setRateError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setSavingRate(false);
+    }
+  }
+
   async function handleCreateInvoice() {
     if (selectedEntries.length === 0) {
       setInvoiceError("Select at least one time entry first.");
       return;
     }
     if (!hourlyRate || Number(hourlyRate) <= 0) {
-      setInvoiceError("Enter an hourly rate to create the invoice.");
+      setInvoiceError("Set this matter's hourly rate to create an invoice.");
       return;
     }
     setInvoicing(true);
@@ -163,7 +187,6 @@ export default function TimesheetPanel({
         prev.map((entry) => (selectedIds.has(entry.id) ? { ...entry, invoiceId: body.id } : entry)),
       );
       setSelectedIds(new Set());
-      setHourlyRate("");
       setDiscount("0");
     } catch (err) {
       setInvoiceError(err instanceof Error ? err.message : "Something went wrong");
@@ -233,13 +256,52 @@ export default function TimesheetPanel({
       <div className="surface-card flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg">Timesheet</h2>
-          <div className="flex items-center gap-2">
-            {totalCost > 0 && <span className="badge">{formatCurrency(totalCost)} logged</span>}
-            <span className="badge-accent">{totalHours.toFixed(1)} hrs total</span>
-          </div>
+          <span className="badge-accent">{totalHours.toFixed(1)} hrs total</span>
         </div>
 
-        <form onSubmit={handleAdd} className="grid gap-2 sm:grid-cols-[auto_1fr_auto_auto_auto]">
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-muted">Billing rate for this matter:</span>
+          {editingRate ? (
+            <>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                autoFocus
+                value={rateInput}
+                onChange={(e) => setRateInput(e.target.value)}
+                className="surface-input w-28"
+              />
+              <button onClick={handleSaveRate} disabled={savingRate} className="btn-secondary px-2 py-1 text-xs">
+                {savingRate ? "Saving…" : "Save"}
+              </button>
+              <button
+                onClick={() => {
+                  setEditingRate(false);
+                  setRateInput(String(matterRate ?? ""));
+                  setRateError(null);
+                }}
+                className="text-xs text-muted hover:underline"
+              >
+                Cancel
+              </button>
+            </>
+          ) : matterRate != null ? (
+            <>
+              <span className="font-medium text-accent">{formatCurrency(matterRate)}/hr</span>
+              <button onClick={() => setEditingRate(true)} className="text-xs text-accent hover:underline">
+                Edit
+              </button>
+            </>
+          ) : (
+            <button onClick={() => setEditingRate(true)} className="text-xs text-accent hover:underline">
+              Set a rate
+            </button>
+          )}
+        </div>
+        {rateError && <p className="text-sm text-red-600">{rateError}</p>}
+
+        <form onSubmit={handleAdd} className="grid gap-2 sm:grid-cols-[auto_1fr_auto_auto]">
           <input
             required
             type="date"
@@ -264,15 +326,6 @@ export default function TimesheetPanel({
             onChange={(e) => setHours(e.target.value)}
             className="surface-input w-24"
           />
-          <input
-            type="number"
-            step="0.01"
-            min="0.01"
-            placeholder="Rate ($/hr)"
-            value={entryRate}
-            onChange={(e) => setEntryRate(e.target.value)}
-            className="surface-input w-28"
-          />
           <button type="submit" disabled={submitting} className="btn-primary">
             {submitting ? "Logging…" : "Log time"}
           </button>
@@ -288,15 +341,9 @@ export default function TimesheetPanel({
               <li key={entry.id} className="surface-row flex items-center justify-between text-sm">
                 <div>
                   <p>{entry.description}</p>
-                  <p className="text-xs text-muted">
-                    {formatDateOnly(entry.workedOn)}
-                    {entry.rate != null && ` · ${formatCurrency(entry.rate)}/hr`}
-                  </p>
+                  <p className="text-xs text-muted">{formatDateOnly(entry.workedOn)}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
-                  {entry.rate != null && (
-                    <span className="text-xs text-muted">{formatCurrency(entry.hours * entry.rate)}</span>
-                  )}
                   <span className="font-medium text-accent">{entry.hours.toFixed(1)}h</span>
                   {entry.invoiceId ? (
                     <span className="badge">
@@ -348,25 +395,13 @@ export default function TimesheetPanel({
                     />
                     <div>
                       <p>{entry.description}</p>
-                      <p className="text-xs text-muted">
-                        {formatDateOnly(entry.workedOn)}
-                        {entry.rate != null && ` · ${formatCurrency(entry.rate)}/hr logged`}
-                      </p>
+                      <p className="text-xs text-muted">{formatDateOnly(entry.workedOn)}</p>
                     </div>
                   </label>
                   <span className="font-medium text-accent">{entry.hours.toFixed(1)}h</span>
                 </li>
               ))}
             </ul>
-            {commonSelectedRate != null && hourlyRate !== String(commonSelectedRate) && (
-              <button
-                type="button"
-                onClick={() => setHourlyRate(String(commonSelectedRate))}
-                className="self-start text-xs text-accent hover:underline"
-              >
-                Use logged rate ({formatCurrency(commonSelectedRate)}/hr)
-              </button>
-            )}
             <div className="grid gap-2 sm:grid-cols-3">
               <input
                 type="number"
