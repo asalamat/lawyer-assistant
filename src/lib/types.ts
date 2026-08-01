@@ -95,6 +95,7 @@ export interface TimeEntry {
   workedOn: string;
   description: string;
   hours: number;
+  rate: number | null;
   invoiceId: string | null;
   createdAt: string;
 }
