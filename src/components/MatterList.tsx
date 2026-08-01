@@ -13,6 +13,7 @@ export default function MatterList({ matters }: { matters: Matter[] }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [clientName, setClientName] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
   const [matterType, setMatterType] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,11 +61,12 @@ export default function MatterList({ matters }: { matters: Matter[] }) {
       const res = await fetch("/api/matters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, clientName, matterType }),
+        body: JSON.stringify({ title, clientName, clientEmail, matterType }),
       });
       if (!res.ok) throw new Error("Failed to create matter");
       setTitle("");
       setClientName("");
+      setClientEmail("");
       setMatterType("");
       setConflicts([]);
       setConflictsChecked(false);
@@ -81,7 +83,7 @@ export default function MatterList({ matters }: { matters: Matter[] }) {
     <div className="flex flex-col gap-6">
       <form onSubmit={handleCreate} className="surface-card flex flex-col gap-3">
         <h2 className="font-display text-lg">New matter</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <input
             required
             placeholder="Matter title"
@@ -95,6 +97,13 @@ export default function MatterList({ matters }: { matters: Matter[] }) {
             value={clientName}
             onChange={(e) => setClientName(e.target.value)}
             onBlur={handleClientNameBlur}
+            className="surface-input"
+          />
+          <input
+            type="email"
+            placeholder="Client email (for invoices)"
+            value={clientEmail}
+            onChange={(e) => setClientEmail(e.target.value)}
             className="surface-input"
           />
           <input

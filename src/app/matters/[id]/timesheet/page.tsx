@@ -1,4 +1,5 @@
-import { listInvoices, listTimeEntries } from "@/lib/matters";
+import { getMatter, listInvoices, listTimeEntries } from "@/lib/matters";
+import { isEmailConfigured } from "@/lib/email";
 import TimesheetPanel from "@/components/TimesheetPanel";
 
 export default async function MatterTimesheetPage({
@@ -7,8 +8,18 @@ export default async function MatterTimesheetPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const matter = await getMatter(id);
   const timeEntries = await listTimeEntries(id);
   const invoices = await listInvoices(id);
+  const emailConfigured = await isEmailConfigured();
 
-  return <TimesheetPanel matterId={id} initialEntries={timeEntries} initialInvoices={invoices} />;
+  return (
+    <TimesheetPanel
+      matterId={id}
+      initialEntries={timeEntries}
+      initialInvoices={invoices}
+      clientEmail={matter?.clientEmail ?? null}
+      emailConfigured={emailConfigured}
+    />
+  );
 }

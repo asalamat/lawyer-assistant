@@ -2,11 +2,22 @@ import { readSecureJson, writeSecureJson } from "./secureStore";
 
 const SETTINGS_FILE = "settings.json";
 
+export interface SmtpConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  username: string;
+  password: string;
+  fromName: string;
+  fromEmail: string;
+}
+
 interface Settings {
   anthropicApiKey?: string;
   openaiApiKey?: string;
   geminiApiKey?: string;
   canliiApiKey?: string;
+  smtp?: SmtpConfig;
 }
 
 async function readSettings(): Promise<Settings> {
@@ -66,6 +77,51 @@ export async function getGeminiApiKeyStatus(): Promise<{
     configured: true,
     source: settings.geminiApiKey ? "settings" : "env",
     preview: `••••${key.slice(-4)}`,
+  };
+}
+
+export async function getSmtpConfig(): Promise<SmtpConfig | undefined> {
+  const settings = await readSettings();
+  return settings.smtp;
+}
+
+export async function setSmtpConfig(config: SmtpConfig): Promise<void> {
+  const settings = await readSettings();
+  settings.smtp = config;
+  await writeSettings(settings);
+}
+
+// Returns the config with the password redacted, for display in the UI.
+export async function getSmtpStatus(): Promise<{
+  configured: boolean;
+  host: string | null;
+  port: number | null;
+  secure: boolean;
+  username: string | null;
+  fromName: string | null;
+  fromEmail: string | null;
+}> {
+  const settings = await readSettings();
+  const smtp = settings.smtp;
+  if (!smtp) {
+    return {
+      configured: false,
+      host: null,
+      port: null,
+      secure: true,
+      username: null,
+      fromName: null,
+      fromEmail: null,
+    };
+  }
+  return {
+    configured: true,
+    host: smtp.host,
+    port: smtp.port,
+    secure: smtp.secure,
+    username: smtp.username,
+    fromName: smtp.fromName,
+    fromEmail: smtp.fromEmail,
   };
 }
 

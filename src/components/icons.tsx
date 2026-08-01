@@ -225,6 +225,15 @@ export const MicIcon = (props: IconProps) =>
     props,
   );
 
+export const MailIcon = (props: IconProps) =>
+  base(
+    <>
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="M2 7l10 6 10-6" />
+    </>,
+    props,
+  );
+
 export const ReviewIcon = (props: IconProps) =>
   base(
     <>

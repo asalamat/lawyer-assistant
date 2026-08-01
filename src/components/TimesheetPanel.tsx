@@ -33,13 +33,21 @@ export default function TimesheetPanel({
   matterId,
   initialEntries,
   initialInvoices,
+  clientEmail,
+  emailConfigured,
 }: {
   matterId: string;
   initialEntries: TimeEntry[];
   initialInvoices: Invoice[];
+  clientEmail: string | null;
+  emailConfigured: boolean;
 }) {
   const [entries, setEntries] = useState(initialEntries);
   const [invoices, setInvoices] = useState(initialInvoices);
+  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [sendResult, setSendResult] = useState<{ id: string; ok: boolean; message: string } | null>(
+    null,
+  );
   const [workedOn, setWorkedOn] = useState(today());
   const [description, setDescription] = useState("");
   const [hours, setHours] = useState("");
@@ -154,11 +162,48 @@ export default function TimesheetPanel({
     setInvoices((prev) => prev.map((inv) => (inv.id === invoice.id ? updated : inv)));
   }
 
-  function handleSend(invoice: Invoice) {
+  function sendViaMailto(invoice: Invoice) {
     const invoiceEntries = entries.filter((e) => e.invoiceId === invoice.id);
     const subject = encodeURIComponent(`Invoice ${invoice.invoiceNumber}`);
     const body = encodeURIComponent(invoiceEmailBody(invoice, invoiceEntries));
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    const to = clientEmail ? encodeURIComponent(clientEmail) : "";
+    window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
+  }
+
+  async function handleSend(invoice: Invoice) {
+    // Without SMTP configured, fall back to opening the user's own mail client.
+    if (!emailConfigured) {
+      sendViaMailto(invoice);
+      return;
+    }
+
+    let to = clientEmail ?? "";
+    if (!to) {
+      const entered = window.prompt("Send invoice to which email address?");
+      if (!entered) return;
+      to = entered;
+    }
+
+    setSendingId(invoice.id);
+    setSendResult(null);
+    try {
+      const res = await fetch(`/api/matters/${matterId}/invoices/${invoice.id}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Failed to send invoice");
+      setSendResult({ id: invoice.id, ok: true, message: `Sent to ${body.to}.` });
+    } catch (err) {
+      setSendResult({
+        id: invoice.id,
+        ok: false,
+        message: err instanceof Error ? err.message : "Failed to send invoice",
+      });
+    } finally {
+      setSendingId(null);
+    }
   }
 
   return (
@@ -292,27 +337,38 @@ export default function TimesheetPanel({
         ) : (
           <ul className="flex flex-col gap-2">
             {invoices.map((invoice) => (
-              <li key={invoice.id} className="surface-row flex items-center justify-between text-sm">
-                <div>
-                  <p className="font-medium">{invoice.invoiceNumber}</p>
-                  <p className="text-xs text-muted">
-                    {formatDateOnly(invoice.createdAt.slice(0, 10))} &middot; {invoice.hours.toFixed(1)}h @{" "}
-                    {formatCurrency(invoice.hourlyRate)}/hr
-                    {invoice.discount > 0 && ` · ${formatCurrency(invoice.discount)} discount`}
+              <li key={invoice.id} className="surface-row flex flex-col gap-1 text-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{invoice.invoiceNumber}</p>
+                    <p className="text-xs text-muted">
+                      {formatDateOnly(invoice.createdAt.slice(0, 10))} &middot; {invoice.hours.toFixed(1)}h @{" "}
+                      {formatCurrency(invoice.hourlyRate)}/hr
+                      {invoice.discount > 0 && ` · ${formatCurrency(invoice.discount)} discount`}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className="font-medium text-accent">{formatCurrency(invoice.total)}</span>
+                    <span className={invoice.status === "paid" ? "badge-accent" : "badge"}>
+                      {invoice.status}
+                    </span>
+                    <button onClick={() => handleTogglePaid(invoice)} className="btn-secondary px-2 py-1 text-xs">
+                      Mark {invoice.status === "paid" ? "unpaid" : "paid"}
+                    </button>
+                    <button
+                      onClick={() => handleSend(invoice)}
+                      disabled={sendingId === invoice.id}
+                      className="btn-secondary px-2 py-1 text-xs"
+                    >
+                      {sendingId === invoice.id ? "Sending…" : emailConfigured ? "Email" : "Send"}
+                    </button>
+                  </div>
+                </div>
+                {sendResult?.id === invoice.id && (
+                  <p className={`text-xs ${sendResult.ok ? "text-green-600" : "text-red-600"}`}>
+                    {sendResult.message}
                   </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  <span className="font-medium text-accent">{formatCurrency(invoice.total)}</span>
-                  <span className={invoice.status === "paid" ? "badge-accent" : "badge"}>
-                    {invoice.status}
-                  </span>
-                  <button onClick={() => handleTogglePaid(invoice)} className="btn-secondary px-2 py-1 text-xs">
-                    Mark {invoice.status === "paid" ? "unpaid" : "paid"}
-                  </button>
-                  <button onClick={() => handleSend(invoice)} className="btn-secondary px-2 py-1 text-xs">
-                    Send
-                  </button>
-                </div>
+                )}
               </li>
             ))}
           </ul>

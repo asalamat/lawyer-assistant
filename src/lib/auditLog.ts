@@ -18,6 +18,7 @@ export const ACTION_LABELS: Record<string, string> = {
   time_entry_logged: "Time entry logged",
   time_entry_deleted: "Time entry deleted",
   invoice_created: "Invoice created",
+  invoice_sent: "Invoice emailed",
   invoice_marked_paid: "Invoice marked paid",
   invoice_marked_unpaid: "Invoice marked unpaid",
 };

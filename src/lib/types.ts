@@ -3,6 +3,7 @@ export interface Matter {
   fileNumber: string;
   title: string;
   clientName: string;
+  clientEmail: string | null;
   matterType: string;
   status: "open" | "closed";
   createdAt: string;

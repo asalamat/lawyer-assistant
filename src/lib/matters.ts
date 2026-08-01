@@ -68,6 +68,7 @@ export async function checkConflicts(clientName: string): Promise<ConflictMatch[
 export async function createMatter(input: {
   title: string;
   clientName: string;
+  clientEmail?: string;
   matterType: string;
 }): Promise<Matter> {
   const createdAt = new Date().toISOString();
@@ -76,17 +77,19 @@ export async function createMatter(input: {
     fileNumber: generateFileNumber(createdAt),
     title: input.title,
     clientName: input.clientName,
+    clientEmail: input.clientEmail?.trim() || null,
     matterType: input.matterType,
     status: "open",
     createdAt,
   };
   db.prepare(
-    "INSERT INTO matters (id, fileNumber, title, clientName, matterType, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO matters (id, fileNumber, title, clientName, clientEmail, matterType, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
   ).run(
     matter.id,
     matter.fileNumber,
     matter.title,
     matter.clientName,
+    matter.clientEmail,
     matter.matterType,
     matter.status,
     matter.createdAt,
@@ -550,6 +553,17 @@ export async function createInvoice(
   );
 
   return invoice;
+}
+
+export async function getInvoice(matterId: string, invoiceId: string): Promise<Invoice | null> {
+  const row = db
+    .prepare("SELECT * FROM invoices WHERE id = ? AND matterId = ?")
+    .get(invoiceId, matterId);
+  return row ? toPlain<Invoice>(row) : null;
+}
+
+export async function recordInvoiceSent(matterId: string, invoiceNumber: string, to: string): Promise<void> {
+  await recordAuditEvent("invoice_sent", matterId, `Emailed invoice ${invoiceNumber} to ${to}`);
 }
 
 export async function updateInvoiceStatus(
