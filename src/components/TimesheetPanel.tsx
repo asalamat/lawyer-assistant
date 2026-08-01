@@ -77,6 +77,10 @@ export default function TimesheetPanel({
     });
   }
 
+  function toggleSelectAll() {
+    setSelectedIds((prev) => (prev.size === unbilled.length ? new Set() : new Set(unbilled.map((e) => e.id))));
+  }
+
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
@@ -252,19 +256,9 @@ export default function TimesheetPanel({
           <ul className="flex flex-col gap-2">
             {entries.map((entry) => (
               <li key={entry.id} className="surface-row flex items-center justify-between text-sm">
-                <div className="flex items-center gap-3">
-                  {!entry.invoiceId && (
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(entry.id)}
-                      onChange={() => toggleSelected(entry.id)}
-                      aria-label="Select for invoice"
-                    />
-                  )}
-                  <div>
-                    <p>{entry.description}</p>
-                    <p className="text-xs text-muted">{formatDateOnly(entry.workedOn)}</p>
-                  </div>
+                <div>
+                  <p>{entry.description}</p>
+                  <p className="text-xs text-muted">{formatDateOnly(entry.workedOn)}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
                   <span className="font-medium text-accent">{entry.hours.toFixed(1)}h</span>
@@ -294,10 +288,37 @@ export default function TimesheetPanel({
           <p className="text-sm text-muted">No unbilled time entries.</p>
         ) : (
           <>
-            <p className="text-sm text-muted">
-              {selectedEntries.length} of {unbilled.length} unbilled entries selected (
-              {selectedHours.toFixed(1)}h)
-            </p>
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.size === unbilled.length}
+                  onChange={toggleSelectAll}
+                />
+                Select all unbilled ({unbilled.length})
+              </label>
+              <span className="text-sm text-muted">
+                {selectedEntries.length} selected &middot; {selectedHours.toFixed(1)}h
+              </span>
+            </div>
+            <ul className="flex flex-col gap-1">
+              {unbilled.map((entry) => (
+                <li key={entry.id} className="surface-row flex items-center justify-between text-sm">
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(entry.id)}
+                      onChange={() => toggleSelected(entry.id)}
+                    />
+                    <div>
+                      <p>{entry.description}</p>
+                      <p className="text-xs text-muted">{formatDateOnly(entry.workedOn)}</p>
+                    </div>
+                  </label>
+                  <span className="font-medium text-accent">{entry.hours.toFixed(1)}h</span>
+                </li>
+              ))}
+            </ul>
             <div className="grid gap-2 sm:grid-cols-3">
               <input
                 type="number"
