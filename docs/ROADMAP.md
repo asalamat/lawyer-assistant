@@ -151,6 +151,10 @@ see git log for exact history.
       double-invoicing; invoice history with a paid/unpaid toggle. Each
       time entry renders as its own line item (date/description/hours/
       rate/amount) in the invoice.
+- [x] Optional per-entry rate on timesheet entries — log a $/hr cost
+      alongside hours, see the computed line cost and a running
+      total-cost badge, and a "Use logged rate" shortcut when creating
+      an invoice from entries that share a rate
 - [x] Real email sending (SMTP) — Settings > Email tab configures an
       outgoing mail server (nodemailer) with a connection-test button.
       The invoice "Send" button now emails the itemized invoice (text +
