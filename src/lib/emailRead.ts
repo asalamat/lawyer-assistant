@@ -1,4 +1,5 @@
 import db from "./db";
+import { getYahooMessageBody, listRecentYahooMessages } from "./yahooImap";
 import type { EmailProvider } from "./types";
 
 export interface EmailMessageSummary {
@@ -145,14 +146,14 @@ export async function listRecentMessages(
 ): Promise<EmailMessageSummary[]> {
   const maxResults = options?.maxResults ?? 25;
 
-  if (provider === "yahoo") {
-    throw new Error(
-      "Yahoo Mail reading is not supported — Yahoo does not provide a public Mail API for third-party apps.",
-    );
-  }
-
   const account = await getEmailAccountWithToken(provider);
   if (!account) throw notConnectedError(provider);
+
+  if (provider === "yahoo") {
+    // Yahoo account rows store an app password in the accessToken column,
+    // not an OAuth token — see src/lib/yahooImap.ts for why.
+    return listRecentYahooMessages(account.emailAddress, account.accessToken, maxResults);
+  }
 
   if (provider === "google") {
     const list = (await gmailFetch(
@@ -198,14 +199,12 @@ export async function getMessageBody(
   provider: EmailProvider,
   messageId: string,
 ): Promise<EmailMessageBody> {
-  if (provider === "yahoo") {
-    throw new Error(
-      "Yahoo Mail reading is not supported — Yahoo does not provide a public Mail API for third-party apps.",
-    );
-  }
-
   const account = await getEmailAccountWithToken(provider);
   if (!account) throw notConnectedError(provider);
+
+  if (provider === "yahoo") {
+    return getYahooMessageBody(account.emailAddress, account.accessToken, messageId);
+  }
 
   if (provider === "google") {
     const msg = (await gmailFetch(

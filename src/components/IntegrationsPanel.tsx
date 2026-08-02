@@ -78,14 +78,6 @@ function ProviderRow({
         )}
       </div>
 
-      {provider === "yahoo" && (
-        <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
-          Yahoo does not grant mail-read access to self-registered apps (their developer docs say
-          this explicitly — it requires a separate commercial approval). Connecting here only
-          verifies identity; reading or importing Yahoo mail into a matter isn&apos;t supported.
-        </p>
-      )}
-
       {account ? (
         <button
           onClick={handleDisconnect}
@@ -135,6 +127,111 @@ function ProviderRow({
   );
 }
 
+// Yahoo has no viable OAuth mail-read path for a self-registered app (Yahoo's
+// own docs: mail scopes require a separate commercial approval, not
+// available via self-serve app creation). App passwords over IMAP are still
+// supported and are the only realistic way to read Yahoo mail here.
+function YahooProviderRow({
+  account,
+  onChange,
+}: {
+  account: EmailAccount | undefined;
+  onChange: () => void;
+}) {
+  const [emailAddress, setEmailAddress] = useState("");
+  const [appPassword, setAppPassword] = useState("");
+  const [connecting, setConnecting] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleConnect(e: React.FormEvent) {
+    e.preventDefault();
+    setConnecting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/integrations/yahoo/imap-connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailAddress, appPassword }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Failed to connect Yahoo Mail");
+      setEmailAddress("");
+      setAppPassword("");
+      onChange();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  async function handleDisconnect() {
+    setDisconnecting(true);
+    try {
+      await fetch("/api/integrations/yahoo/disconnect", { method: "POST" });
+      onChange();
+    } finally {
+      setDisconnecting(false);
+    }
+  }
+
+  return (
+    <div className="surface-card">
+      <div className="flex items-center justify-between">
+        <h3 className="font-medium">{PROVIDER_LABELS.yahoo}</h3>
+        {account ? (
+          <span className="badge-accent">Connected: {account.emailAddress}</span>
+        ) : (
+          <span className="badge">Not connected</span>
+        )}
+      </div>
+
+      <p className="mt-2 text-xs text-muted">
+        Yahoo doesn&apos;t grant mail-read OAuth access to self-registered apps, so this uses an{" "}
+        <strong>app password</strong> over IMAP instead. Enable Two-Step Verification on your
+        Yahoo account, then generate an app password under Account Security &gt; Generate app
+        password, and use it here (not your normal Yahoo password).
+      </p>
+
+      {account ? (
+        <button
+          onClick={handleDisconnect}
+          disabled={disconnecting}
+          className="mt-3 text-sm text-red-600 underline disabled:opacity-50"
+        >
+          {disconnecting ? "Disconnecting…" : "Disconnect"}
+        </button>
+      ) : (
+        <form onSubmit={handleConnect} className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <input
+            type="email"
+            value={emailAddress}
+            onChange={(e) => setEmailAddress(e.target.value)}
+            placeholder="you@yahoo.com"
+            className="surface-input flex-1"
+          />
+          <input
+            type="password"
+            value={appPassword}
+            onChange={(e) => setAppPassword(e.target.value)}
+            placeholder="App password"
+            className="surface-input flex-1"
+          />
+          <button
+            type="submit"
+            disabled={connecting || !emailAddress.trim() || !appPassword.trim()}
+            className="btn-primary px-3 py-2"
+          >
+            {connecting ? "Connecting…" : "Connect"}
+          </button>
+        </form>
+      )}
+      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+    </div>
+  );
+}
+
 export default function IntegrationsPanel() {
   const searchParams = useSearchParams();
   const [state, setState] = useState<IntegrationsState | null>(null);
@@ -174,15 +271,23 @@ export default function IntegrationsPanel() {
       {!state ? (
         <p className="text-sm text-muted">Loading…</p>
       ) : (
-        EMAIL_PROVIDERS.map((provider) => (
-          <ProviderRow
-            key={provider}
-            provider={provider}
-            account={state.accounts.find((a) => a.provider === provider)}
-            hasCredentials={state.credentialStatus[provider]}
-            onChange={refresh}
-          />
-        ))
+        EMAIL_PROVIDERS.map((provider) =>
+          provider === "yahoo" ? (
+            <YahooProviderRow
+              key={provider}
+              account={state.accounts.find((a) => a.provider === provider)}
+              onChange={refresh}
+            />
+          ) : (
+            <ProviderRow
+              key={provider}
+              provider={provider}
+              account={state.accounts.find((a) => a.provider === provider)}
+              hasCredentials={state.credentialStatus[provider]}
+              onChange={refresh}
+            />
+          ),
+        )
       )}
     </div>
   );

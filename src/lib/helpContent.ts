@@ -41,7 +41,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "email",
         name: "Email",
         detail:
-          "Compose and send an email directly from a matter once SMTP is configured in Settings. Connected inboxes (Gmail/Microsoft, once an OAuth app is registered) can also be browsed and a message imported into the matter as a document.",
+          "Compose and send an email directly from a matter once SMTP is configured in Settings. Connected inboxes (Gmail/Microsoft via OAuth, or Yahoo via an app password) can also be browsed and a message imported into the matter as a document.",
       },
     ],
   },
@@ -147,7 +147,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "integrations",
         name: "Integrations",
         detail:
-          "Connect a Gmail or Microsoft (Outlook/Hotmail/Office 365) mailbox to browse and import matter-related email. Requires an OAuth app registered with the provider — see the note in each provider's row for the redirect URI to register. Yahoo can be connected for identity only — Yahoo does not grant third-party apps mail-read access without a separate commercial approval, so reading or importing Yahoo mail isn't supported.",
+          "Connect a Gmail or Microsoft (Outlook/Hotmail/Office 365) mailbox via OAuth to browse and import matter-related email — requires an OAuth app registered with the provider (see the note in each row for the exact redirect URI to register). Yahoo doesn't allow third-party OAuth mail-read access at all, so it connects differently: generate a Yahoo app password (Account Security > Generate app password, after enabling Two-Step Verification) and enter it directly — no app registration needed for Yahoo.",
       },
       {
         slug: "security",
