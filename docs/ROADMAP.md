@@ -134,17 +134,30 @@ see git log for exact history.
       fonts, shared surface-card/btn-primary/badge classes) and advanced
       cross-entity search (`/search` — matters, document filenames, chat
       content, digests, drafts, evidence matrices, one query)
-- [ ] **Email integration (Gmail / Microsoft — covers Outlook.com, Hotmail, and
-      Office 365 / Yahoo)** — OAuth 2.0 flow fully built
-      (`src/lib/emailIntegration.ts`, Settings > Integrations) but **not
-      functional yet**: needs an OAuth app registered with each provider you
-      want to use (Google Cloud Console / Microsoft Entra ID / Yahoo Developer
-      Network), with redirect URI `{this app's URL}/api/integrations/{provider}/callback`
-      authorized, and the resulting Client ID + Secret entered in Settings.
-      Verified everything up to that boundary (credential save, the /connect
-      redirect building a correct real Google authorize URL, CSRF state
-      rejection on /callback) — cannot verify the token exchange without a
-      real provider round-trip.
+- [ ] **Email integration — Gmail / Microsoft (Outlook.com, Hotmail, Office
+      365)** — OAuth 2.0 flow fully built (`src/lib/emailIntegration.ts`,
+      Settings > Integrations) but **not functional yet for these two**:
+      needs an OAuth app registered with each provider you want to use
+      (Google Cloud Console / Microsoft Entra ID), with redirect URI
+      `{this app's URL}/api/integrations/{provider}/callback` authorized, and
+      the resulting Client ID + Secret entered in Settings. Verified
+      everything up to that boundary (credential save, the /connect redirect
+      building a correct real Google authorize URL, CSRF state rejection on
+      /callback) — cannot verify the token exchange without a real provider
+      round-trip.
+- [x] **Email integration — Yahoo, working differently from the other two**:
+      Yahoo does not grant third-party apps mail-read OAuth access at all
+      (their own developer docs: self-serve app creation cannot be granted
+      mail scopes), so it connects via an app password over IMAP instead
+      (`src/lib/yahooImap.ts`, using `imapflow`/`mailparser`) — no OAuth app
+      registration needed for Yahoo, just a Yahoo app password (Account
+      Security > Generate app password, after enabling Two-Step
+      Verification). Verified live against Yahoo's real IMAP server.
+- [x] Gmail/Microsoft/Yahoo inbox browsing + import-to-matter
+      (`src/lib/emailRead.ts`, `ImportEmailPanel.tsx`) — lists recent
+      messages and imports a selected one into a matter as a document.
+      Functional for Yahoo now; functional for Gmail/Microsoft once their
+      respective OAuth apps are registered per the item above.
 - [x] Automatic file-number generation (`YYYY-NNNN`, sequential per calendar
       year) — assigned on matter creation, backfilled for pre-existing
       matters via an `ensureColumn`/migration pass in `src/lib/db.ts`,
@@ -217,12 +230,12 @@ they're not silently skipped or silently guessed:
    the respective API key in Settings to activate.
 5. **Production hosting**, if this ever needs to run somewhere other than one
    local machine — changes the database and auth answers above.
-6. **Email OAuth app registrations** — Google Cloud Console (Gmail), Microsoft
-   Entra ID app registration (covers Outlook.com/Hotmail/Office 365 in one
-   app), and/or Yahoo Developer Network, each yielding a Client ID + Secret
-   to enter in Settings > Integrations. The code is ready — connecting an
-   account, browsing its inbox, and importing a message into a matter as a
-   document (`src/lib/emailRead.ts`, matter Email tab) are all built — but
-   nothing will connect until at least one OAuth app exists. Note: Yahoo
-   Mail reading specifically is not supported regardless of OAuth
-   credentials — Yahoo does not offer a third-party Mail-read API.
+6. **Email OAuth app registrations (Gmail, Microsoft)** — Google Cloud Console
+   (Gmail) and/or Microsoft Entra ID app registration (covers
+   Outlook.com/Hotmail/Office 365 in one app), each yielding a Client ID +
+   Secret to enter in Settings > Integrations. The code is ready — connecting
+   an account, browsing its inbox, and importing a message into a matter as
+   a document (`src/lib/emailRead.ts`, matter Email tab) are all built — but
+   nothing will connect for these two until at least one OAuth app exists.
+   ~~Yahoo~~ needs no such registration — it's **resolved** via an app
+   password over IMAP instead (see above), which is already working.
