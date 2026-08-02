@@ -35,12 +35,20 @@ export const PROVIDER_CONFIG: Record<EmailProvider, ProviderConfig> = {
     userInfoUrl: "https://graph.microsoft.com/v1.0/me",
     scope: "offline_access Mail.Read User.Read",
   },
+  // Yahoo's own developer docs state mail scopes are "not available for
+  // self-served setup in the developer console" — third-party mail read
+  // access requires a separate commercial approval Yahoo grants case by
+  // case (senders.yahooinc.com/developer/developer-access). Requesting
+  // "mail-r" from a normal self-registered app is rejected by Yahoo's
+  // authorize endpoint with a generic error page, not a usable one. Scope
+  // is limited to identity only so connecting the account itself succeeds;
+  // mail reading is deliberately unsupported (see src/lib/emailRead.ts).
   yahoo: {
-    displayName: "Yahoo Mail",
+    displayName: "Yahoo (identity only — mail reading not supported)",
     authUrl: "https://api.login.yahoo.com/oauth2/request_auth",
     tokenUrl: "https://api.login.yahoo.com/oauth2/get_token",
     userInfoUrl: "https://api.login.yahoo.com/openid/v1/userinfo",
-    scope: "mail-r openid email",
+    scope: "openid email",
   },
 };
 

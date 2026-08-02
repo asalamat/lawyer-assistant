@@ -147,7 +147,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "integrations",
         name: "Integrations",
         detail:
-          "Connect a Gmail, Microsoft (Outlook/Hotmail/Office 365), or Yahoo mailbox to bring matter-related email into the app. Requires an OAuth app registered with the provider — see the note in each provider's row for the redirect URI to register.",
+          "Connect a Gmail or Microsoft (Outlook/Hotmail/Office 365) mailbox to browse and import matter-related email. Requires an OAuth app registered with the provider — see the note in each provider's row for the redirect URI to register. Yahoo can be connected for identity only — Yahoo does not grant third-party apps mail-read access without a separate commercial approval, so reading or importing Yahoo mail isn't supported.",
       },
       {
         slug: "security",

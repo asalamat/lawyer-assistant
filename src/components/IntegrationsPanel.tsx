@@ -7,7 +7,7 @@ import { EMAIL_PROVIDERS, type EmailAccount, type EmailProvider } from "@/lib/ty
 const PROVIDER_LABELS: Record<EmailProvider, string> = {
   google: "Google (Gmail)",
   microsoft: "Microsoft (Outlook / Hotmail / Office 365)",
-  yahoo: "Yahoo Mail",
+  yahoo: "Yahoo",
 };
 
 interface IntegrationsState {
@@ -77,6 +77,14 @@ function ProviderRow({
           <span className="badge">Not connected</span>
         )}
       </div>
+
+      {provider === "yahoo" && (
+        <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+          Yahoo does not grant mail-read access to self-registered apps (their developer docs say
+          this explicitly — it requires a separate commercial approval). Connecting here only
+          verifies identity; reading or importing Yahoo mail into a matter isn&apos;t supported.
+        </p>
+      )}
 
       {account ? (
         <button
