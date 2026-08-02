@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { getAppVersion } from "@/lib/systemInfo";
+import ConditionalFooter from "@/components/ConditionalFooter";
 import ConditionalNav from "@/components/ConditionalNav";
 import ThemeScript from "@/components/ThemeScript";
 import "./globals.css";
@@ -28,11 +30,13 @@ export const metadata: Metadata = {
   description: "Matter management, document intake, and legal Q&A",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const version = await getAppVersion();
+
   return (
     <html
       lang="en"
@@ -45,6 +49,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <ConditionalNav />
         {children}
+        <ConditionalFooter version={version} />
       </body>
     </html>
   );

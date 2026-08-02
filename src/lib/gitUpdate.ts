@@ -35,6 +35,13 @@ async function getCommitInfo(ref: string): Promise<CommitInfo | null> {
   }
 }
 
+// Local-only, no network call — safe to use on every page render (e.g. a
+// footer). getUpdateStatus() below does a `git fetch` and is only for the
+// explicit "check for updates" action, not for cheap/frequent display.
+export async function getCurrentCommit(): Promise<CommitInfo | null> {
+  return getCommitInfo("HEAD");
+}
+
 export async function getUpdateStatus(): Promise<UpdateStatus> {
   try {
     const branch = await git(["rev-parse", "--abbrev-ref", "HEAD"]);

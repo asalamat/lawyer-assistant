@@ -1,20 +1,12 @@
 import Link from "next/link";
 import { formatDateOnly } from "@/lib/formatDate";
 import { listMatters, listUpcomingDeadlines } from "@/lib/matters";
-import { getSystemInfo } from "@/lib/systemInfo";
 
 export const dynamic = "force-dynamic";
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export default async function Home() {
   const matters = await listMatters();
   const openCount = matters.filter((m) => m.status === "open").length;
-  const info = await getSystemInfo();
   const upcomingDeadlines = await listUpcomingDeadlines();
 
   return (
@@ -56,36 +48,6 @@ export default async function Home() {
               </li>
             ))}
           </ul>
-        )}
-      </div>
-
-      <div className="surface-card text-sm">
-        <h2 className="mb-3 font-display text-lg">System info</h2>
-        <dl className="grid grid-cols-2 gap-y-1.5 gap-x-4 sm:grid-cols-4">
-          <dt className="text-muted">Version</dt>
-          <dd>
-            {info.appVersion}
-            {info.gitCommit && ` (${info.gitCommit.shortSha})`}
-          </dd>
-          <dt className="text-muted">Node</dt>
-          <dd>{info.nodeVersion}</dd>
-          <dt className="text-muted">Next.js</dt>
-          <dd>{info.nextVersion}</dd>
-          <dt className="text-muted">Database</dt>
-          <dd>SQLite, {formatBytes(info.db.sizeBytes)}</dd>
-          <dt className="text-muted">Matters</dt>
-          <dd>{info.db.counts.matters}</dd>
-          <dt className="text-muted">Documents</dt>
-          <dd>{info.db.counts.documents}</dd>
-          <dt className="text-muted">Chat messages</dt>
-          <dd>{info.db.counts.chatMessages}</dd>
-          <dt className="text-muted">Digests</dt>
-          <dd>{info.db.counts.matterDigests}</dd>
-        </dl>
-        {info.gitCommit && (
-          <p className="mt-3 text-xs text-muted">
-            Last commit: {info.gitCommit.message} ({info.gitCommit.date})
-          </p>
         )}
       </div>
     </main>

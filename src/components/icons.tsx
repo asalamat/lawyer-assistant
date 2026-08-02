@@ -234,6 +234,15 @@ export const MailIcon = (props: IconProps) =>
     props,
   );
 
+export const NoteIcon = (props: IconProps) =>
+  base(
+    <>
+      <path d="M9 2h9a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7z" />
+      <path d="M9 2v5H4M8 12h8M8 16h5" />
+    </>,
+    props,
+  );
+
 export const ReviewIcon = (props: IconProps) =>
   base(
     <>

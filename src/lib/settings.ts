@@ -12,12 +12,24 @@ export interface SmtpConfig {
   fromEmail: string;
 }
 
+export interface WeatherLocation {
+  name: string;
+  country: string | null;
+  latitude: number;
+  longitude: number;
+}
+
+export type AiProvider = "anthropic" | "openai";
+const DEFAULT_AI_PROVIDER_ORDER: AiProvider[] = ["anthropic", "openai"];
+
 interface Settings {
   anthropicApiKey?: string;
   openaiApiKey?: string;
   geminiApiKey?: string;
   canliiApiKey?: string;
   smtp?: SmtpConfig;
+  location?: WeatherLocation;
+  aiProviderOrder?: AiProvider[];
 }
 
 async function readSettings(): Promise<Settings> {
@@ -149,6 +161,30 @@ export async function getCanliiApiKeyStatus(): Promise<{
     source: settings.canliiApiKey ? "settings" : "env",
     preview: `••••${key.slice(-4)}`,
   };
+}
+
+export async function getWeatherLocation(): Promise<WeatherLocation | undefined> {
+  const settings = await readSettings();
+  return settings.location;
+}
+
+export async function setWeatherLocation(location: WeatherLocation): Promise<void> {
+  const settings = await readSettings();
+  settings.location = location;
+  await writeSettings(settings);
+}
+
+export async function getAiProviderOrder(): Promise<AiProvider[]> {
+  const settings = await readSettings();
+  return settings.aiProviderOrder && settings.aiProviderOrder.length > 0
+    ? settings.aiProviderOrder
+    : DEFAULT_AI_PROVIDER_ORDER;
+}
+
+export async function setAiProviderOrder(order: AiProvider[]): Promise<void> {
+  const settings = await readSettings();
+  settings.aiProviderOrder = order;
+  await writeSettings(settings);
 }
 
 export async function getOpenaiApiKey(): Promise<string | undefined> {

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getMatter, updateMatterHourlyRate, updateMatterStatus } from "@/lib/matters";
+import { deleteMatter, getMatter, updateMatterHourlyRate, updateMatterStatus } from "@/lib/matters";
 
 export async function GET(
   _request: Request,
@@ -33,8 +33,11 @@ export async function PATCH(
   }
 
   const status = body?.status;
-  if (status !== "open" && status !== "closed") {
-    return NextResponse.json({ error: "status must be 'open' or 'closed'" }, { status: 400 });
+  if (status !== "open" && status !== "closed" && status !== "archived") {
+    return NextResponse.json(
+      { error: "status must be 'open', 'closed', or 'archived'" },
+      { status: 400 },
+    );
   }
 
   const matter = await updateMatterStatus(id, status);
@@ -42,4 +45,16 @@ export async function PATCH(
     return NextResponse.json({ error: "Matter not found" }, { status: 404 });
   }
   return NextResponse.json(matter);
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const deleted = await deleteMatter(id);
+  if (!deleted) {
+    return NextResponse.json({ error: "Matter not found" }, { status: 404 });
+  }
+  return NextResponse.json({ ok: true });
 }

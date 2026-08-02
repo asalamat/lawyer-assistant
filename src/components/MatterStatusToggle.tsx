@@ -4,13 +4,30 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Matter } from "@/lib/types";
 
+const NEXT_ACTIONS: Record<Matter["status"], { label: string; next: Matter["status"] }[]> = {
+  open: [
+    { label: "Close matter", next: "closed" },
+    { label: "Archive matter", next: "archived" },
+  ],
+  closed: [
+    { label: "Reopen matter", next: "open" },
+    { label: "Archive matter", next: "archived" },
+  ],
+  archived: [{ label: "Restore matter", next: "closed" }],
+};
+
+const BADGE_CLASS: Record<Matter["status"], string> = {
+  open: "badge-accent",
+  closed: "badge",
+  archived: "badge",
+};
+
 export default function MatterStatusToggle({ matter }: { matter: Matter }) {
   const router = useRouter();
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleToggle() {
-    const nextStatus = matter.status === "open" ? "closed" : "open";
+  async function handleChange(nextStatus: Matter["status"]) {
     setUpdating(true);
     setError(null);
     try {
@@ -30,16 +47,17 @@ export default function MatterStatusToggle({ matter }: { matter: Matter }) {
 
   return (
     <div className="flex items-center gap-2">
-      <span className={matter.status === "open" ? "badge-accent" : "badge"}>
-        {matter.status}
-      </span>
-      <button
-        onClick={handleToggle}
-        disabled={updating}
-        className="text-xs text-accent underline decoration-accent/40 disabled:opacity-50"
-      >
-        {updating ? "…" : matter.status === "open" ? "Close matter" : "Reopen matter"}
-      </button>
+      <span className={BADGE_CLASS[matter.status]}>{matter.status}</span>
+      {NEXT_ACTIONS[matter.status].map(({ label, next }) => (
+        <button
+          key={next}
+          onClick={() => handleChange(next)}
+          disabled={updating}
+          className="text-xs text-accent underline decoration-accent/40 disabled:opacity-50"
+        >
+          {updating ? "…" : label}
+        </button>
+      ))}
       {error && <span className="text-xs text-red-600">{error}</span>}
     </div>
   );

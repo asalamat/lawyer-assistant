@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, rm, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import { createHash } from "crypto";
 import path from "path";
@@ -17,6 +17,7 @@ import type {
   Matter,
   MatterDeadline,
   MatterDigest,
+  MatterNote,
   MessageFeedback,
   TimeEntry,
 } from "./types";
@@ -131,6 +132,39 @@ export async function updateMatterHourlyRate(
     );
   }
   return matter;
+}
+
+export async function deleteMatter(matterId: string): Promise<boolean> {
+  const matter = await getMatter(matterId);
+  if (!matter) return false;
+
+  db.prepare(
+    "DELETE FROM message_feedback WHERE chatMessageId IN (SELECT id FROM chat_messages WHERE matterId = ?)",
+  ).run(matterId);
+  db.prepare("DELETE FROM chat_messages WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM documents WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM matter_digests WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM matter_deadlines WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM drafts WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM evidence_matrices WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM independent_reviews WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM invoices WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM time_entries WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM matter_notes WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM audit_log WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM matters WHERE id = ?").run(matterId);
+
+  const matterDir = path.join(UPLOADS_DIR, matterId);
+  if (existsSync(matterDir)) {
+    await rm(matterDir, { recursive: true, force: true });
+  }
+
+  await recordAuditEvent(
+    "matter_deleted",
+    null,
+    `Deleted matter "${matter.title}" (${matter.fileNumber})`,
+  );
+  return true;
 }
 
 export async function listDocuments(matterId: string): Promise<Document[]> {
@@ -587,6 +621,14 @@ export async function recordInvoiceSent(matterId: string, invoiceNumber: string,
   await recordAuditEvent("invoice_sent", matterId, `Emailed invoice ${invoiceNumber} to ${to}`);
 }
 
+export async function recordMatterEmailSent(
+  matterId: string,
+  to: string,
+  subject: string,
+): Promise<void> {
+  await recordAuditEvent("matter_email_sent", matterId, `Emailed ${to}: "${subject}"`);
+}
+
 export async function updateInvoiceStatus(
   matterId: string,
   invoiceId: string,
@@ -611,6 +653,31 @@ export async function updateInvoiceStatus(
   return toPlain<Invoice>(row);
 }
 
+export async function listMatterNotes(matterId: string): Promise<MatterNote[]> {
+  return db
+    .prepare("SELECT * FROM matter_notes WHERE matterId = ? ORDER BY createdAt DESC")
+    .all(matterId)
+    .map((row) => toPlain<MatterNote>(row));
+}
+
+export async function addMatterNote(matterId: string, content: string): Promise<MatterNote> {
+  const note: MatterNote = {
+    id: crypto.randomUUID(),
+    matterId,
+    content,
+    createdAt: new Date().toISOString(),
+  };
+  db.prepare(
+    "INSERT INTO matter_notes (id, matterId, content, createdAt) VALUES (?, ?, ?, ?)",
+  ).run(note.id, note.matterId, note.content, note.createdAt);
+  await recordAuditEvent("matter_note_added", matterId, "Added a note");
+  return note;
+}
+
+export async function deleteMatterNote(matterId: string, noteId: string): Promise<void> {
+  db.prepare("DELETE FROM matter_notes WHERE id = ? AND matterId = ?").run(noteId, matterId);
+}
+
 export async function getMatterTextContext(matterId: string): Promise<string> {
   const documents = await listDocuments(matterId);
   const extractable = documents.filter((doc) => isExtractableDocument(doc.fileName));
@@ -625,5 +692,16 @@ export async function getMatterTextContext(matterId: string): Promise<string> {
       }
     }),
   );
-  return sections.filter((section) => section !== null).join("\n\n");
+
+  const notes = await listMatterNotes(matterId);
+  const notesSection =
+    notes.length > 0
+      ? [
+          `--- Lawyer's notes ---\n${notes
+            .map((n) => `[${n.createdAt.slice(0, 10)}] ${n.content}`)
+            .join("\n\n")}`,
+        ]
+      : [];
+
+  return [...sections.filter((section) => section !== null), ...notesSection].join("\n\n");
 }

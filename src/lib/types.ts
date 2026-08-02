@@ -5,7 +5,7 @@ export interface Matter {
   clientName: string;
   clientEmail: string | null;
   matterType: string;
-  status: "open" | "closed";
+  status: "open" | "closed" | "archived";
   hourlyRate: number | null;
   createdAt: string;
 }
@@ -47,6 +47,13 @@ export interface MessageFeedback {
   id: string;
   chatMessageId: string;
   rating: "up" | "down";
+  createdAt: string;
+}
+
+export interface MatterNote {
+  id: string;
+  matterId: string;
+  content: string;
   createdAt: string;
 }
 

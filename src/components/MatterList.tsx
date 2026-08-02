@@ -6,7 +6,7 @@ import type { Matter } from "@/lib/types";
 import type { ConflictMatch } from "@/lib/matters";
 import MatterCard from "./MatterCard";
 
-type StatusFilter = "all" | "open" | "closed";
+type StatusFilter = "all" | "open" | "closed" | "archived";
 type SortOrder = "newest" | "oldest" | "title";
 
 export default function MatterList({ matters }: { matters: Matter[] }) {
@@ -27,6 +27,7 @@ export default function MatterList({ matters }: { matters: Matter[] }) {
 
   const filteredMatters = matters
     .filter((matter) => {
+      if (statusFilter === "all" && matter.status === "archived") return false;
       if (statusFilter !== "all" && matter.status !== statusFilter) return false;
       if (!query.trim()) return true;
       const haystack = `${matter.title} ${matter.clientName} ${matter.matterType}`.toLowerCase();
@@ -177,6 +178,7 @@ export default function MatterList({ matters }: { matters: Matter[] }) {
               <option value="all">All statuses</option>
               <option value="open">Open</option>
               <option value="closed">Closed</option>
+              <option value="archived">Archived</option>
             </select>
             <select
               value={sortOrder}

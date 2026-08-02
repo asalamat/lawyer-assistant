@@ -9,6 +9,8 @@ import {
   DigestIcon,
   DraftIcon,
   EvidenceIcon,
+  MailIcon,
+  NoteIcon,
   OverviewIcon,
   TimesheetIcon,
 } from "./icons";
@@ -19,11 +21,13 @@ export default function MatterSidebarNav({ matterId }: { matterId: string }) {
 
   const links = [
     { href: base, label: "Overview", Icon: OverviewIcon },
+    { href: `${base}/notes`, label: "Notes", Icon: NoteIcon },
     { href: `${base}/digest`, label: "Digest", Icon: DigestIcon },
     { href: `${base}/deadlines`, label: "Deadlines", Icon: DeadlineIcon },
     { href: `${base}/evidence-matrix`, label: "Evidence matrix", Icon: EvidenceIcon },
     { href: `${base}/drafts`, label: "Drafts", Icon: DraftIcon },
     { href: `${base}/timesheet`, label: "Timesheet", Icon: TimesheetIcon },
+    { href: `${base}/email`, label: "Email", Icon: MailIcon },
     { href: `${base}/activity`, label: "Activity", Icon: ActivityIcon },
     { href: `${base}/chat`, label: "Chat", Icon: ChatIcon },
   ];

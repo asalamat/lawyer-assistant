@@ -1,5 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { getAnthropicApiKey } from "./settings";
+import { completeJSONWithOpenAI, completeWithOpenAI } from "./openaiText";
+import { getAiProviderOrder, getAnthropicApiKey, getOpenaiApiKey } from "./settings";
+import type { AiProvider } from "./settings";
 import type { DraftType } from "./types";
 
 let cachedKey: string | null = null;
@@ -17,7 +19,7 @@ async function getClient(): Promise<Anthropic> {
   return cachedClient;
 }
 
-async function complete(params: {
+async function completeAnthropic(params: {
   system: string;
   messages: { role: "user" | "assistant"; content: string }[];
   maxTokens?: number;
@@ -34,12 +36,12 @@ async function complete(params: {
   return textBlock?.text ?? "";
 }
 
-// Uses Claude's structured-output mode (output_config.format) instead of
-// asking for JSON in prose and hoping the model complies — a prompt-only
-// "respond with ONLY a JSON array" instruction is not reliably followed
-// and produced parse failures in practice (markdown fences, stray prose).
-// Structured outputs constrain the response to the given schema server-side.
-async function completeJSON<T>(params: {
+// Uses structured-output mode (json_schema) instead of asking for JSON in
+// prose and hoping the model complies — a prompt-only "respond with ONLY a
+// JSON array" instruction is not reliably followed and produced parse
+// failures in practice (markdown fences, stray prose). Structured outputs
+// constrain the response to the given schema server-side.
+async function completeJSONAnthropic<T>(params: {
   system: string;
   messages: { role: "user" | "assistant"; content: string }[];
   schema: Record<string, unknown>;
@@ -59,6 +61,62 @@ async function completeJSON<T>(params: {
     throw new Error("The AI returned an empty response. Try regenerating.");
   }
   return JSON.parse(textBlock.text) as T;
+}
+
+async function isProviderConfigured(provider: AiProvider): Promise<boolean> {
+  return Boolean(provider === "anthropic" ? await getAnthropicApiKey() : await getOpenaiApiKey());
+}
+
+// Tries each configured provider in the user's chosen order (Settings > AI
+// model), falling through to the next on any failure (billing, rate limit,
+// outage) so a single provider going down doesn't take the app down with it.
+// Providers with no key at all are skipped unless none are configured, in
+// which case the first provider's natural "no key configured" error surfaces
+// (preserves the original single-provider error message when nothing is set
+// up yet).
+async function forEachConfiguredProvider<T>(
+  attempt: (provider: AiProvider) => Promise<T>,
+): Promise<T> {
+  const order = await getAiProviderOrder();
+  const configured: AiProvider[] = [];
+  for (const provider of order) {
+    if (await isProviderConfigured(provider)) configured.push(provider);
+  }
+  const attemptOrder = configured.length > 0 ? configured : order;
+
+  let lastError: unknown;
+  for (const provider of attemptOrder) {
+    try {
+      return await attempt(provider);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError;
+}
+
+async function complete(params: {
+  system: string;
+  messages: { role: "user" | "assistant"; content: string }[];
+  maxTokens?: number;
+}): Promise<string> {
+  return forEachConfiguredProvider((provider) =>
+    provider === "anthropic" ? completeAnthropic(params) : completeWithOpenAI(params),
+  );
+}
+
+async function completeJSON<T>(params: {
+  system: string;
+  messages: { role: "user" | "assistant"; content: string }[];
+  schema: Record<string, unknown>;
+  schemaName: string;
+  maxTokens?: number;
+}): Promise<T> {
+  return forEachConfiguredProvider((provider) =>
+    provider === "anthropic"
+      ? completeJSONAnthropic<T>(params)
+      : completeJSONWithOpenAI<T>(params),
+  );
 }
 
 export async function askClaude(params: {
@@ -151,6 +209,7 @@ export async function extractDeadlines(context: string): Promise<ExtractedDeadli
       },
     ],
     schema: DEADLINES_SCHEMA,
+    schemaName: "deadlines",
     maxTokens: 1024,
   });
 

@@ -1,6 +1,8 @@
 import Link from "next/link";
+import HealthIndicator from "./HealthIndicator";
 import LogoutButton from "./LogoutButton";
 import ThemeToggle from "./ThemeToggle";
+import WeatherDisplay from "./WeatherDisplay";
 import {
   AuditIcon,
   DashboardIcon,
@@ -39,6 +41,8 @@ export default function Nav() {
           </ul>
         </div>
         <div className="flex items-center gap-4">
+          <HealthIndicator />
+          <WeatherDisplay />
           <Link
             href="/search"
             aria-label="Search"

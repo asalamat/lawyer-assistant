@@ -100,14 +100,31 @@ see git log for exact history.
 
 - [x] `/audit` — audit log of matter/document/chat/digest/feedback/status/email
       actions
-- [x] Dashboard system-info panel (app version, git commit, Node/Next versions,
-      SQLite row counts)
 - [x] `npm run reset-password` for a forgotten single-user password (no in-app
       recovery flow by design — that would be a bypass path, not a safety net)
-- [x] Matter status toggle (open/close/reopen)
+- [x] Matter status toggle (open/close/reopen/archive) and permanent delete
+      (typed-confirmation, cascading removal of all related rows and uploaded
+      files) — archived matters are hidden from the default matters list
 - [x] Duplicate document detection (SHA-256 content hash per upload)
 - [x] Dark mode (Light/Dark/System), sectioned Settings page with icons,
-      `/help` page kept current as features land
+      `/help` restructured into a sidebar of per-feature pages (one URL per
+      feature, kept current as features land)
+- [x] App version shown in Help, Settings > Software updates, and a new
+      site-wide footer — replaces the old Dashboard "System info" card
+      (dropped in favour of these, plus the new health indicator below)
+- [x] System health indicator (nav bar) — a status dot + popover showing
+      which subsystems are configured (primary/backup AI, independent review,
+      transcription, legal research, email, weather location), each linking
+      straight to its Settings page
+- [x] Live current-temperature display in the nav, via Open-Meteo (free, no
+      API key) — set a location in Settings > Appearance, shown in the
+      user's preferred F/C unit
+- [x] Per-matter notes — free-text findings included as context the next
+      time the matter's digest is generated, alongside uploaded documents
+- [x] AI provider redundancy — configure OpenAI as a backup text-generation
+      provider (Settings > AI model); if the primary provider fails for a
+      request (billing, rate limit, outage) the app automatically falls
+      through to the next configured provider in the chosen order
 - [x] In-app change-password (Settings > Security), on top of the CLI reset
 - [x] Login rate limiting (5 failed attempts → 15 min lockout) on both the
       login and change-password endpoints

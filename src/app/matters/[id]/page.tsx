@@ -1,5 +1,6 @@
-import { annotateDuplicates, listDocuments } from "@/lib/matters";
+import { annotateDuplicates, getMatter, listDocuments } from "@/lib/matters";
 import { isExtractableDocument } from "@/lib/textExtraction";
+import DeleteMatterButton from "@/components/DeleteMatterButton";
 import UploadDropzone from "@/components/UploadDropzone";
 
 export default async function MatterOverviewPage({
@@ -8,6 +9,7 @@ export default async function MatterOverviewPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const matter = await getMatter(id);
   const documents = annotateDuplicates(await listDocuments(id));
 
   return (
@@ -43,6 +45,15 @@ export default async function MatterOverviewPage({
           </ul>
         )}
       </div>
+
+      {matter && (
+        <div>
+          <h2 className="mb-2 font-display text-lg">Danger zone</h2>
+          <div className="surface-row">
+            <DeleteMatterButton matter={matter} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
