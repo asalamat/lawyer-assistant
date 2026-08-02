@@ -220,5 +220,9 @@ they're not silently skipped or silently guessed:
 6. **Email OAuth app registrations** — Google Cloud Console (Gmail), Microsoft
    Entra ID app registration (covers Outlook.com/Hotmail/Office 365 in one
    app), and/or Yahoo Developer Network, each yielding a Client ID + Secret
-   to enter in Settings > Integrations. The code is ready; nothing will
-   connect until at least one of these exists.
+   to enter in Settings > Integrations. The code is ready — connecting an
+   account, browsing its inbox, and importing a message into a matter as a
+   document (`src/lib/emailRead.ts`, matter Email tab) are all built — but
+   nothing will connect until at least one OAuth app exists. Note: Yahoo
+   Mail reading specifically is not supported regardless of OAuth
+   credentials — Yahoo does not offer a third-party Mail-read API.
