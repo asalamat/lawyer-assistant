@@ -106,6 +106,16 @@ see git log for exact history.
       (typed-confirmation, cascading removal of all related rows and uploaded
       files) — archived matters are hidden from the default matters list
 - [x] Duplicate document detection (SHA-256 content hash per upload)
+- [x] Shared reference library (`/reference-library`) — upload statutes,
+      case law, or other reference material once, then attach whichever
+      documents are relevant to a specific matter from its Overview tab
+      (opt-in per matter, not auto-injected everywhere, so an unrelated
+      matter doesn't get e.g. the entire Criminal Code stuffed into its AI
+      context). Attached documents' text is included in that matter's chat/
+      digest/drafts/evidence-matrix/deadlines context, alongside its own
+      documents and notes. This is a practical stand-in for the original
+      vision doc's "public legal authority" RAG layer — full-text injection,
+      not vector retrieval; see the deviations note at the top of this file.
 - [x] Dark mode (Light/Dark/System), sectioned Settings page with icons,
       `/help` restructured into a sidebar of per-feature pages (one URL per
       feature, kept current as features land)

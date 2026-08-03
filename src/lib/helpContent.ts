@@ -32,6 +32,12 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Add free-text notes or findings to a matter. Notes are included as context for the matter digest, alongside uploaded documents.",
       },
       {
+        slug: "reference-library",
+        name: "Reference library",
+        detail:
+          "Upload statutes, case law, or other reference material once (nav > Reference library), then attach whichever documents are relevant to a specific matter from that matter's Overview tab. Attached reference documents are included in that matter's chat/digest/drafts/evidence-matrix context — attaching is per matter on purpose, so an unrelated matter doesn't get, say, the entire Criminal Code stuffed into its AI context.",
+      },
+      {
         slug: "timesheet-invoicing",
         name: "Timesheet & invoicing",
         detail:
