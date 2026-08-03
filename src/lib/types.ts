@@ -20,6 +20,20 @@ export interface Document {
   contentHash: string;
 }
 
+// A shared, firm-wide document library (e.g. statutes, the Criminal Code,
+// key case law PDFs) — not tied to one matter. Attached to individual
+// matters via matter_reference_documents so a lawyer chooses which
+// reference material is relevant to a given case, rather than every matter
+// silently pulling in every uploaded reference document's full text.
+export interface ReferenceDocument {
+  id: string;
+  fileName: string;
+  sizeBytes: number;
+  uploadedAt: string;
+  storagePath: string;
+  contentHash: string;
+}
+
 export interface ChatMessage {
   id: string;
   matterId: string;

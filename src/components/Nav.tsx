@@ -7,6 +7,7 @@ import {
   AuditIcon,
   DashboardIcon,
   HelpIcon,
+  LibraryIcon,
   MattersIcon,
   SearchIcon,
   SettingsIcon,
@@ -15,6 +16,7 @@ import {
 const LINKS = [
   { href: "/", label: "Dashboard", Icon: DashboardIcon },
   { href: "/matters", label: "Matters", Icon: MattersIcon },
+  { href: "/reference-library", label: "Reference library", Icon: LibraryIcon },
   { href: "/audit", label: "Audit log", Icon: AuditIcon },
   { href: "/settings", label: "Settings", Icon: SettingsIcon },
   { href: "/help", label: "Help", Icon: HelpIcon },

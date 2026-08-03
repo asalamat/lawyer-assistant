@@ -168,7 +168,28 @@ execWithRetry(`
     FOREIGN KEY (matterId) REFERENCES matters(id)
   );
 
+  CREATE TABLE IF NOT EXISTS reference_documents (
+    id TEXT PRIMARY KEY,
+    fileName TEXT NOT NULL,
+    sizeBytes INTEGER NOT NULL,
+    uploadedAt TEXT NOT NULL,
+    storagePath TEXT NOT NULL,
+    contentHash TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS matter_reference_documents (
+    matterId TEXT NOT NULL,
+    referenceDocumentId TEXT NOT NULL,
+    attachedAt TEXT NOT NULL,
+    PRIMARY KEY (matterId, referenceDocumentId),
+    FOREIGN KEY (matterId) REFERENCES matters(id),
+    FOREIGN KEY (referenceDocumentId) REFERENCES reference_documents(id)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_matter_notes_matterId ON matter_notes(matterId);
+  CREATE INDEX IF NOT EXISTS idx_reference_documents_contentHash ON reference_documents(contentHash);
+  CREATE INDEX IF NOT EXISTS idx_matter_reference_documents_matterId ON matter_reference_documents(matterId);
+  CREATE INDEX IF NOT EXISTS idx_matter_reference_documents_refId ON matter_reference_documents(referenceDocumentId);
   CREATE INDEX IF NOT EXISTS idx_documents_matterId ON documents(matterId);
   CREATE INDEX IF NOT EXISTS idx_documents_contentHash ON documents(matterId, contentHash);
   CREATE INDEX IF NOT EXISTS idx_chat_messages_matterId ON chat_messages(matterId);

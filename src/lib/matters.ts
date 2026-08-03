@@ -4,6 +4,7 @@ import { createHash } from "crypto";
 import path from "path";
 import { recordAuditEvent } from "./auditLog";
 import db, { toPlain } from "./db";
+import { listAttachedReferenceDocuments } from "./referenceLibrary";
 import { extractDocumentText, isExtractableDocument } from "./textExtraction";
 import type { ExtractedDeadline } from "./claude";
 import type {
@@ -151,6 +152,7 @@ export async function deleteMatter(matterId: string): Promise<boolean> {
   db.prepare("DELETE FROM invoices WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM time_entries WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM matter_notes WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM matter_reference_documents WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM audit_log WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM matters WHERE id = ?").run(matterId);
 
@@ -693,6 +695,20 @@ export async function getMatterTextContext(matterId: string): Promise<string> {
     }),
   );
 
+  const referenceDocs = await listAttachedReferenceDocuments(matterId);
+  const referenceSections = await Promise.all(
+    referenceDocs
+      .filter((doc) => isExtractableDocument(doc.fileName))
+      .map(async (doc) => {
+        try {
+          const text = await extractDocumentText(doc.fileName, doc.storagePath);
+          return text ? `--- Reference: ${doc.fileName} ---\n${text}` : null;
+        } catch {
+          return `--- Reference: ${doc.fileName} ---\n[Could not extract text from this file]`;
+        }
+      }),
+  );
+
   const notes = await listMatterNotes(matterId);
   const notesSection =
     notes.length > 0
@@ -703,5 +719,9 @@ export async function getMatterTextContext(matterId: string): Promise<string> {
         ]
       : [];
 
-  return [...sections.filter((section) => section !== null), ...notesSection].join("\n\n");
+  return [
+    ...sections.filter((section) => section !== null),
+    ...referenceSections.filter((section) => section !== null),
+    ...notesSection,
+  ].join("\n\n");
 }

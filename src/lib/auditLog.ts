@@ -26,6 +26,10 @@ export const ACTION_LABELS: Record<string, string> = {
   matter_email_sent: "Email sent",
   invoice_marked_paid: "Invoice marked paid",
   invoice_marked_unpaid: "Invoice marked unpaid",
+  reference_document_uploaded: "Reference document uploaded",
+  reference_document_deleted: "Reference document deleted",
+  reference_document_attached: "Reference document attached to matter",
+  reference_document_detached: "Reference document detached from matter",
 };
 
 export async function recordAuditEvent(

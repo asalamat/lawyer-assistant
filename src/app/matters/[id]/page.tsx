@@ -1,6 +1,8 @@
 import { annotateDuplicates, getMatter, listDocuments } from "@/lib/matters";
+import { listAttachedReferenceDocuments, listReferenceDocuments } from "@/lib/referenceLibrary";
 import { isExtractableDocument } from "@/lib/textExtraction";
 import DeleteMatterButton from "@/components/DeleteMatterButton";
+import ReferenceDocumentsAttachPanel from "@/components/ReferenceDocumentsAttachPanel";
 import UploadDropzone from "@/components/UploadDropzone";
 
 export default async function MatterOverviewPage({
@@ -11,6 +13,8 @@ export default async function MatterOverviewPage({
   const { id } = await params;
   const matter = await getMatter(id);
   const documents = annotateDuplicates(await listDocuments(id));
+  const attachedReferenceDocs = await listAttachedReferenceDocuments(id);
+  const referenceLibrary = await listReferenceDocuments();
 
   return (
     <div className="flex flex-col gap-6">
@@ -45,6 +49,12 @@ export default async function MatterOverviewPage({
           </ul>
         )}
       </div>
+
+      <ReferenceDocumentsAttachPanel
+        matterId={id}
+        initialAttached={attachedReferenceDocs}
+        library={referenceLibrary}
+      />
 
       {matter && (
         <div>
