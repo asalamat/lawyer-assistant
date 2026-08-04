@@ -279,6 +279,23 @@ see git log for exact history.
       audited. Verified live via a throwaway matter: classification
       update, hold-blocks-delete, hold-released-then-delete-succeeds —
       all test data removed afterward.
+- [x] Tamper-evident audit log — each row is hash-chained to the one before
+      it (`computeAuditRowHash`/`AUDIT_GENESIS_HASH` in `src/lib/db.ts`,
+      chained on insert in `recordAuditEvent`, `verifyAuditLogIntegrity()`
+      in `src/lib/auditLog.ts`). All 76 pre-existing rows were backfilled
+      with hashes on first startup after this shipped, so the entire
+      history is verifiable, not just rows going forward. A row edited or
+      deleted via direct DB access (bypassing the app) breaks the chain
+      from that point on — detectable, not prevented; this is evidence of
+      tampering after the fact, not a lock. Admins can check
+      Audit log > "Verify log integrity" (`/api/audit/verify`,
+      `AuditIntegrityCheck.tsx`). Verified live: real 76-entry history
+      passes; a throwaway row inserted via the exact same chaining logic
+      passes; tampering that row's `detail` directly via SQL is correctly
+      detected and pinpointed to that exact row; removing the (last)
+      tampered row restores a clean chain — confirmed via both the
+      underlying function and the live HTTP endpoint (200 for admin, 403
+      for non-admin). All test data removed afterward.
 
 ## Dependency notes
 

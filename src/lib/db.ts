@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { DatabaseSync } from "node:sqlite";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
@@ -251,6 +252,7 @@ ensureColumn("time_entries", "invoiceId", "TEXT");
 ensureColumn("time_entries", "rate", "REAL");
 ensureColumn("audit_log", "userId", "TEXT");
 ensureColumn("audit_log", "userName", "TEXT");
+ensureColumn("audit_log", "hash", "TEXT");
 ensureColumn("matters", "classification", "TEXT NOT NULL DEFAULT 'standard'");
 ensureColumn("matters", "legalHold", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("matters", "legalHoldReason", "TEXT");
@@ -296,6 +298,52 @@ function migrateLegacySingleUserToUsersTable(): void {
 }
 
 migrateLegacySingleUserToUsersTable();
+
+// Hash-chains the audit log so a row edited or deleted after the fact (bypassing
+// the app, e.g. direct DB access) is detectable: each row's hash covers its own
+// fields plus the previous row's hash, so changing any row invalidates every
+// hash after it. GENESIS_HASH is the fixed starting point for the very first row.
+export const AUDIT_GENESIS_HASH = "0".repeat(64);
+
+interface AuditHashInput {
+  id: string;
+  action: string;
+  matterId: string | null;
+  detail: string;
+  createdAt: string;
+  userId: string | null;
+}
+
+export function computeAuditRowHash(prevHash: string, row: AuditHashInput): string {
+  return createHash("sha256")
+    .update(`${prevHash}|${row.id}|${row.action}|${row.matterId ?? ""}|${row.detail}|${row.createdAt}|${row.userId ?? ""}`)
+    .digest("hex");
+}
+
+// Backfills hashes for rows written before this feature shipped, chaining
+// from whichever row already has one (or genesis, on first run ever).
+function backfillAuditLogHashes(): void {
+  const missing = db
+    .prepare(
+      "SELECT rowid as rowid, id, action, matterId, detail, createdAt, userId FROM audit_log WHERE hash IS NULL ORDER BY rowid ASC",
+    )
+    .all() as unknown as (AuditHashInput & { rowid: number })[];
+  if (missing.length === 0) return;
+
+  const lastHashed = db
+    .prepare("SELECT hash FROM audit_log WHERE hash IS NOT NULL ORDER BY rowid DESC LIMIT 1")
+    .get() as { hash: string } | undefined;
+  let prevHash = lastHashed?.hash ?? AUDIT_GENESIS_HASH;
+
+  const update = db.prepare("UPDATE audit_log SET hash = ? WHERE rowid = ?");
+  for (const row of missing) {
+    const hash = computeAuditRowHash(prevHash, row);
+    update.run(hash, row.rowid);
+    prevHash = hash;
+  }
+}
+
+backfillAuditLogHashes();
 
 // Backfill file numbers for any matter created before this column existed,
 // numbering sequentially per calendar year in creation order.
