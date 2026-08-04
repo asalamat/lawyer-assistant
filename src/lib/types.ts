@@ -1,3 +1,5 @@
+export type MatterClassification = "standard" | "privileged" | "highly-sensitive";
+
 export interface Matter {
   id: string;
   fileNumber: string;
@@ -7,6 +9,10 @@ export interface Matter {
   matterType: string;
   status: "open" | "closed" | "archived";
   hourlyRate: number | null;
+  classification: MatterClassification;
+  legalHold: number;
+  legalHoldReason: string | null;
+  retentionDate: string | null;
   createdAt: string;
 }
 

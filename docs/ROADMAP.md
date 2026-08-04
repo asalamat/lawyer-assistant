@@ -264,6 +264,21 @@ see git log for exact history.
       round trip via throwaway test accounts (never the real admin
       account), last-remaining-admin deactivation guard, audit
       attribution — all throwaway data removed after testing.
+- [x] Per-matter classification/retention/legal-hold fields (`classification`:
+      standard/privileged/highly-sensitive, `legalHold` +
+      `legalHoldReason`, `retentionDate` — `src/lib/db.ts`,
+      `src/lib/matters.ts`). Editable from a new "Compliance" section on
+      the matter Overview page (`MatterComplianceControls.tsx`); a
+      legal-hold badge shows in the matter header whenever active. A
+      matter on legal hold can't be deleted — `deleteMatter()` throws and
+      the delete-confirmation UI surfaces the real reason instead of a
+      generic failure message. Retention date is informational only for
+      now (nothing auto-deletes on it — that would need a scheduled job
+      plus a real decision about what "expired" should do, which is a
+      bigger call than this pass). All changes to these fields are
+      audited. Verified live via a throwaway matter: classification
+      update, hold-blocks-delete, hold-released-then-delete-succeeds —
+      all test data removed afterward.
 
 ## Dependency notes
 

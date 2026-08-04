@@ -85,6 +85,10 @@ export async function createMatter(input: {
     matterType: input.matterType,
     status: "open",
     hourlyRate: input.hourlyRate ?? null,
+    classification: "standard",
+    legalHold: 0,
+    legalHoldReason: null,
+    retentionDate: null,
     createdAt,
   };
   db.prepare(
@@ -136,9 +140,67 @@ export async function updateMatterHourlyRate(
   return matter;
 }
 
+export async function setMatterClassification(
+  matterId: string,
+  classification: Matter["classification"],
+): Promise<Matter | null> {
+  db.prepare("UPDATE matters SET classification = ? WHERE id = ?").run(classification, matterId);
+  const matter = await getMatter(matterId);
+  if (matter) {
+    await recordAuditEvent(
+      "matter_classification_changed",
+      matterId,
+      `Set classification to ${classification}`,
+    );
+  }
+  return matter;
+}
+
+export async function setMatterLegalHold(
+  matterId: string,
+  legalHold: boolean,
+  reason?: string,
+): Promise<Matter | null> {
+  db.prepare("UPDATE matters SET legalHold = ?, legalHoldReason = ? WHERE id = ?").run(
+    legalHold ? 1 : 0,
+    legalHold ? (reason?.trim() || null) : null,
+    matterId,
+  );
+  const matter = await getMatter(matterId);
+  if (matter) {
+    await recordAuditEvent(
+      legalHold ? "matter_legal_hold_applied" : "matter_legal_hold_released",
+      matterId,
+      legalHold ? `Placed on legal hold${reason ? `: ${reason}` : ""}` : "Legal hold released",
+    );
+  }
+  return matter;
+}
+
+export async function setMatterRetentionDate(
+  matterId: string,
+  retentionDate: string | null,
+): Promise<Matter | null> {
+  db.prepare("UPDATE matters SET retentionDate = ? WHERE id = ?").run(retentionDate, matterId);
+  const matter = await getMatter(matterId);
+  if (matter) {
+    await recordAuditEvent(
+      "matter_retention_date_set",
+      matterId,
+      retentionDate ? `Set retention date to ${retentionDate}` : "Cleared retention date",
+    );
+  }
+  return matter;
+}
+
 export async function deleteMatter(matterId: string): Promise<boolean> {
   const matter = await getMatter(matterId);
   if (!matter) return false;
+  if (matter.legalHold) {
+    throw new Error(
+      "This matter is on legal hold and can't be deleted. Release the hold first if you're sure it's no longer needed.",
+    );
+  }
 
   db.prepare(
     "DELETE FROM message_feedback WHERE chatMessageId IN (SELECT id FROM chat_messages WHERE matterId = ?)",

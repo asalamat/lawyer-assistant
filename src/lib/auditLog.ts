@@ -39,6 +39,10 @@ export const ACTION_LABELS: Record<string, string> = {
   user_deactivated: "User account deactivated",
   user_role_changed: "User role changed",
   user_password_reset: "User password reset by admin",
+  matter_classification_changed: "Matter classification changed",
+  matter_legal_hold_applied: "Matter placed on legal hold",
+  matter_legal_hold_released: "Matter legal hold released",
+  matter_retention_date_set: "Matter retention date set",
 };
 
 export async function recordAuditEvent(

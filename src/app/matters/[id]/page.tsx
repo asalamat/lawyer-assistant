@@ -2,6 +2,7 @@ import { annotateDuplicates, getMatter, listDocuments } from "@/lib/matters";
 import { listAttachedReferenceDocuments, listReferenceDocuments } from "@/lib/referenceLibrary";
 import { isExtractableDocument } from "@/lib/textExtraction";
 import DeleteMatterButton from "@/components/DeleteMatterButton";
+import MatterComplianceControls from "@/components/MatterComplianceControls";
 import ReferenceDocumentsAttachPanel from "@/components/ReferenceDocumentsAttachPanel";
 import UploadDropzone from "@/components/UploadDropzone";
 
@@ -55,6 +56,8 @@ export default async function MatterOverviewPage({
         initialAttached={attachedReferenceDocs}
         library={referenceLibrary}
       />
+
+      {matter && <MatterComplianceControls matter={matter} />}
 
       {matter && (
         <div>

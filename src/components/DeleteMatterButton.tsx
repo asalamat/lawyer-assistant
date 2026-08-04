@@ -16,7 +16,10 @@ export default function DeleteMatterButton({ matter }: { matter: Matter }) {
     setError(null);
     try {
       const res = await fetch(`/api/matters/${matter.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete matter");
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error ?? "Failed to delete matter");
+      }
       router.push("/matters");
       router.refresh();
     } catch (err) {

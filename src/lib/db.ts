@@ -251,6 +251,10 @@ ensureColumn("time_entries", "invoiceId", "TEXT");
 ensureColumn("time_entries", "rate", "REAL");
 ensureColumn("audit_log", "userId", "TEXT");
 ensureColumn("audit_log", "userName", "TEXT");
+ensureColumn("matters", "classification", "TEXT NOT NULL DEFAULT 'standard'");
+ensureColumn("matters", "legalHold", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("matters", "legalHoldReason", "TEXT");
+ensureColumn("matters", "retentionDate", "TEXT");
 
 // One-time migration: this app used to have exactly one global password
 // (data/auth.json). Promote it into the first admin user in the `users`

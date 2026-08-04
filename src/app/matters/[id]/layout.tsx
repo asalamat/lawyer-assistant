@@ -26,8 +26,16 @@ export default async function MatterLayout({
           <p className="text-sm text-muted">
             {matter.clientName} &middot; {matter.matterType}
           </p>
-          <div className="mt-1">
+          <div className="mt-1 flex items-center gap-2">
             <MatterStatusToggle matter={matter} />
+            {Boolean(matter.legalHold) && (
+              <span
+                className="badge bg-red-600/10 text-red-700 dark:text-red-400"
+                title={matter.legalHoldReason ?? undefined}
+              >
+                Legal hold
+              </span>
+            )}
           </div>
         </div>
         <Link href={`/matters/${matter.id}/chat`} className="btn-primary">
