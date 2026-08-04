@@ -595,9 +595,40 @@ see git log for exact history.
       alibi theory as unsupported rather than inventing one, and gave
       concrete disclosure requests as next steps. Audit hash chain
       confirmed intact after cleanup.
+- [x] Real markdown rendering + PDF export for every AI-generated
+      document (`MarkdownContent.tsx`, `ExportPdfButton.tsx`,
+      `/export/pdf`). Digests, evidence matrices, all drafting types, chat
+      answers, and independent reviews previously rendered as raw
+      `whitespace-pre-wrap` text — literal `##`/`-`/`**` characters
+      visible instead of actual headings/lists/bold. `MarkdownContent`
+      (built on `react-markdown`, new dependency — confirmed zero new
+      vulnerabilities the same way as `@xyflow/react`/`tar` above) maps
+      the markdown subset these prompts actually produce onto the app's
+      existing design tokens rather than pulling in a full typography
+      plugin for a handful of element types.
+      PDF export reuses the chromeless-route + `localStorage`-handoff
+      pattern from the evidence graph (lesson already learned there:
+      `localStorage`, not `sessionStorage`, and a real `<a
+      target="_blank">`, not `window.open()`) to open a clean,
+      print-formatted view in a new tab. "Export" is the browser's native
+      print dialog set to "Save as PDF" — no PDF-generation library
+      needed, and print CSS (`print:hidden` on the controls) gives full
+      control over the output without a second rendering pipeline to
+      keep in sync with `MarkdownContent`.
+      Verified live via a throwaway matter: generated a real digest and
+      confirmed the rendered page has actual `<h2>` tags (6 found) and
+      zero literal `##` in the visible HTML (the one match found was
+      inside Next.js's RSC hydration payload, not visible text — checked
+      the surrounding context to confirm); confirmed the Export PDF
+      button renders; confirmed `/export/pdf` has zero sidebar/top-bar
+      markup, matching the evidence graph's chromeless-route pattern.
+      Audit hash chain confirmed intact after cleanup.
 
 ## Dependency notes
 
+- **`react-markdown`** — renders AI-generated markdown content. Adds zero
+  vulnerabilities of its own per `npm audit` (same before/after
+  `package-lock.json` diff check as the other additions below).
 - **`tar`** — creates/extracts the `.tar.gz` archives for backup/restore.
   Adds zero vulnerabilities of its own per `npm audit` (confirmed the same
   way as `@xyflow/react` above: diffing `package-lock.json` before/after

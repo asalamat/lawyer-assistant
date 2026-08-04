@@ -76,7 +76,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "matter-digest",
         name: "Matter digest",
         detail:
-          "Generates an executive summary: parties, key dates, facts, evidence inventory, and open questions — all cited to source documents and notes.",
+          "Generates an executive summary: parties, key dates, facts, evidence inventory, and open questions — all cited to source documents and notes. Renders as proper formatted text (real headings and lists, not literal \"##\"/\"-\" characters); use Export PDF to open a clean, printable copy in a new tab and save it via your browser's print dialog.",
       },
       {
         slug: "independent-review",
@@ -100,7 +100,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "drafting",
         name: "Drafting",
         detail:
-          "Generates a first-draft research memo, demand letter, client correspondence, or defence strategy memo grounded in matter documents, with page-number citations for PDF sources. The defence strategy memo specifically covers the opposing case, its weaknesses, viable defence theories ranked by evidentiary support, procedural issues worth raising, and recommended next investigative steps. Dictate your instructions instead of typing if you prefer. Unsupported sections are marked for lawyer input rather than invented — always a draft for review, never a final document.",
+          "Generates a first-draft research memo, demand letter, client correspondence, or defence strategy memo grounded in matter documents, with page-number citations for PDF sources. The defence strategy memo specifically covers the opposing case, its weaknesses, viable defence theories ranked by evidentiary support, procedural issues worth raising, and recommended next investigative steps. Dictate your instructions instead of typing if you prefer. Unsupported sections are marked for lawyer input rather than invented — always a draft for review, never a final document. Export PDF opens a clean, printable copy in a new tab.",
       },
       {
         slug: "ai-redundancy",

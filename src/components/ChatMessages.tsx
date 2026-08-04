@@ -4,6 +4,8 @@ import { useState } from "react";
 import { verifyCitations } from "@/lib/citationCheck";
 import type { ChatMessage, IndependentReview } from "@/lib/types";
 import DictateButton from "./DictateButton";
+import ExportPdfButton from "./ExportPdfButton";
+import MarkdownContent from "./MarkdownContent";
 
 type Rating = "up" | "down";
 
@@ -116,13 +118,17 @@ export default function ChatMessages({
             return (
               <div
                 key={message.id}
-                className={`max-w-[80%] rounded-xl px-4 py-2 text-sm whitespace-pre-wrap ${
+                className={`max-w-[80%] rounded-xl px-4 py-2 text-sm ${
                   message.role === "assistant"
                     ? "self-start border border-border bg-card"
-                    : "self-end bg-accent text-accent-foreground"
+                    : "self-end whitespace-pre-wrap bg-accent text-accent-foreground"
                 }`}
               >
-                {message.content}
+                {message.role === "assistant" ? (
+                  <MarkdownContent content={message.content} />
+                ) : (
+                  message.content
+                )}
                 {unverified.length > 0 && (
                   <p className="mt-2 text-xs text-red-600">
                     ⚠ Cites {unverified.map((c) => c.filename).join(", ")}, which{" "}
@@ -161,12 +167,17 @@ export default function ChatMessages({
                           ? "Re-review"
                           : "Get independent review"}
                     </button>
+                    <ExportPdfButton
+                      title="Chat answer"
+                      content={message.content}
+                      className="text-xs text-accent underline decoration-accent/40"
+                    />
                   </div>
                 )}
                 {message.role === "assistant" && review && (
-                  <div className="surface-row mt-2 whitespace-pre-wrap text-xs">
+                  <div className="surface-row mt-2 text-xs">
                     <p className="mb-1 font-medium text-muted">Independent review (Gemini)</p>
-                    {review.content}
+                    <MarkdownContent content={review.content} />
                   </div>
                 )}
               </div>
