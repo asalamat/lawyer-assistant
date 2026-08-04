@@ -65,7 +65,10 @@ export async function extractDocumentText(
     const parser = new PDFParse({ data: buffer });
     try {
       const result = await parser.getText();
-      return result.text;
+      // Page markers let the model cite a specific page (e.g. "(file.pdf, p. 4)")
+      // instead of just the filename — see citationCheck.ts, which parses this
+      // format back out to verify the citation.
+      return result.pages.map((page) => `[Page ${page.num}]\n${page.text}`).join("\n\n");
     } finally {
       await parser.destroy();
     }

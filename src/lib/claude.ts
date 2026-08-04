@@ -127,7 +127,7 @@ export async function askClaude(params: {
   const { question, context, history } = params;
 
   const system = context
-    ? `You are a legal assistant answering questions about a specific matter. Base your answer only on the following matter documents. Cite the source filename in parentheses after any fact you draw from a document. If the documents don't contain enough information to answer, say so explicitly rather than guessing.\n\n${context}`
+    ? `You are a legal assistant answering questions about a specific matter. Base your answer only on the following matter documents. Cite the source filename in parentheses after any fact you draw from a document — if the source text has page markers (e.g. "[Page 4]"), include the page too, like "(file.pdf, p. 4)". If the documents don't contain enough information to answer, say so explicitly rather than guessing.\n\n${context}`
     : "You are a legal assistant. No documents have been uploaded for this matter yet, so say you have no source material to cite and answer only in general terms.";
 
   return complete({
@@ -137,7 +137,7 @@ export async function askClaude(params: {
 }
 
 export async function generateMatterDigest(context: string): Promise<string> {
-  const system = `You are a legal assistant producing an executive matter digest for a lawyer. Base every statement only on the provided matter documents — never invent facts, parties, or dates. Cite the source filename in parentheses after any fact you draw from a document. Structure your answer in these sections, using "Not stated in the provided documents" for anything you cannot support:
+  const system = `You are a legal assistant producing an executive matter digest for a lawyer. Base every statement only on the provided matter documents — never invent facts, parties, or dates. Cite the source filename in parentheses after any fact you draw from a document — if the source text has page markers (e.g. "[Page 4]"), include the page too, like "(file.pdf, p. 4)". Structure your answer in these sections, using "Not stated in the provided documents" for anything you cannot support:
 
 ## Executive summary
 ## Parties
@@ -221,7 +221,7 @@ export async function generateDraft(
   context: string,
   instructions: string,
 ): Promise<string> {
-  const system = `You are a legal assistant drafting a ${draftType.toLowerCase()} for a lawyer's review. Base every fact on the provided matter documents — cite the source filename in parentheses after any fact you draw from a document. Clearly distinguish verified fact from inference. This is a first draft only, explicitly for lawyer review before use — do not present it as final or ready to send. If the documents don't contain enough information for part of the draft, write "[NEEDS LAWYER INPUT: ...]" rather than inventing content.`;
+  const system = `You are a legal assistant drafting a ${draftType.toLowerCase()} for a lawyer's review. Base every fact on the provided matter documents — cite the source filename in parentheses after any fact you draw from a document — if the source text has page markers (e.g. "[Page 4]"), include the page too, like "(file.pdf, p. 4)". Clearly distinguish verified fact from inference. This is a first draft only, explicitly for lawyer review before use — do not present it as final or ready to send. If the documents don't contain enough information for part of the draft, write "[NEEDS LAWYER INPUT: ...]" rather than inventing content.`;
 
   const contextSection = context
     ? `Matter documents:\n\n${context}\n\n`
@@ -240,7 +240,7 @@ export async function generateDraft(
 }
 
 export async function generateEvidenceMatrix(context: string): Promise<string> {
-  const system = `You are a legal assistant building an evidence-mapping matrix for a lawyer. Base every statement only on the provided matter documents — never invent allegations, evidence, or elements. Cite the source filename in parentheses after any fact you draw from a document. Structure your answer as:
+  const system = `You are a legal assistant building an evidence-mapping matrix for a lawyer. Base every statement only on the provided matter documents — never invent allegations, evidence, or elements. Cite the source filename in parentheses after any fact you draw from a document — if the source text has page markers (e.g. "[Page 4]"), include the page too, like "(file.pdf, p. 4)". Structure your answer as:
 
 ## Allegations / claims / charges
 ## Elements to be proven (for each allegation/charge)

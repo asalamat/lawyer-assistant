@@ -35,13 +35,14 @@ export async function POST(
   };
   const { sourceType, sourceId, content } = body;
 
-  if (
-    (sourceType !== "digest" && sourceType !== "evidence_matrix") ||
-    !sourceId ||
-    !content
-  ) {
+  const validSourceTypes: IndependentReview["sourceType"][] = [
+    "digest",
+    "evidence_matrix",
+    "chat_message",
+  ];
+  if (!sourceType || !validSourceTypes.includes(sourceType) || !sourceId || !content) {
     return NextResponse.json(
-      { error: "sourceType (digest|evidence_matrix), sourceId, and content are required" },
+      { error: "sourceType (digest|evidence_matrix|chat_message), sourceId, and content are required" },
       { status: 400 },
     );
   }

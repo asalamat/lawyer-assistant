@@ -26,7 +26,7 @@ export async function getIndependentReview(content: string, context: string): Pr
     : "No source documents were provided for this matter.";
 
   const response = await client.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-3.5-flash",
     contents: `${sourceSection}\n\nHere is the other AI's analysis to review:\n\n${content}\n\nProvide your independent critique.`,
     config: {
       systemInstruction,

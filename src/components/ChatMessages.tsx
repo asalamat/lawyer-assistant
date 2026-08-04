@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { verifyCitations } from "@/lib/citationCheck";
-import type { ChatMessage } from "@/lib/types";
+import type { ChatMessage, IndependentReview } from "@/lib/types";
 
 type Rating = "up" | "down";
 
@@ -11,17 +11,45 @@ export default function ChatMessages({
   initialMessages,
   knownFilenames,
   initialFeedback,
+  initialReviews = [],
 }: {
   matterId: string;
   initialMessages: ChatMessage[];
   knownFilenames: string[];
   initialFeedback: Record<string, Rating>;
+  initialReviews?: IndependentReview[];
 }) {
   const [messages, setMessages] = useState(initialMessages);
   const [question, setQuestion] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState(initialFeedback);
+  const [reviews, setReviews] = useState(initialReviews);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  async function handleReview(message: ChatMessage) {
+    setReviewingId(message.id);
+    setReviewError(null);
+    try {
+      const res = await fetch(`/api/matters/${matterId}/independent-review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceType: "chat_message",
+          sourceId: message.id,
+          content: message.content,
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Failed to get independent review");
+      setReviews((prev) => [body, ...prev]);
+    } catch (err) {
+      setReviewError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setReviewingId(null);
+    }
+  }
 
   async function handleRate(messageId: string, rating: Rating) {
     setFeedback((prev) => ({ ...prev, [messageId]: rating }));
@@ -83,6 +111,7 @@ export default function ChatMessages({
               message.role === "assistant"
                 ? verifyCitations(message.content, knownFilenames).filter((c) => !c.verified)
                 : [];
+            const review = reviews.find((r) => r.sourceId === message.id);
             return (
               <div
                 key={message.id}
@@ -101,7 +130,7 @@ export default function ChatMessages({
                   </p>
                 )}
                 {message.role === "assistant" && (
-                  <div className="mt-2 flex gap-2">
+                  <div className="mt-2 flex items-center gap-2">
                     <button
                       onClick={() => handleRate(message.id, "up")}
                       aria-label="Approve this answer"
@@ -120,6 +149,23 @@ export default function ChatMessages({
                     >
                       👎
                     </button>
+                    <button
+                      onClick={() => handleReview(message)}
+                      disabled={reviewingId === message.id}
+                      className="text-xs text-accent underline decoration-accent/40 disabled:opacity-50"
+                    >
+                      {reviewingId === message.id
+                        ? "Reviewing…"
+                        : review
+                          ? "Re-review"
+                          : "Get independent review"}
+                    </button>
+                  </div>
+                )}
+                {message.role === "assistant" && review && (
+                  <div className="surface-row mt-2 whitespace-pre-wrap text-xs">
+                    <p className="mb-1 font-medium text-muted">Independent review (Gemini)</p>
+                    {review.content}
                   </div>
                 )}
               </div>
@@ -141,6 +187,7 @@ export default function ChatMessages({
         </button>
       </form>
       {error && <p className="text-sm text-red-600">{error}</p>}
+      {reviewError && <p className="text-sm text-red-600">{reviewError}</p>}
     </div>
   );
 }

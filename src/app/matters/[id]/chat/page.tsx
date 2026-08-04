@@ -1,4 +1,9 @@
-import { getFeedbackForMatter, listChatMessages, listDocuments } from "@/lib/matters";
+import {
+  getFeedbackForMatter,
+  listChatMessages,
+  listDocuments,
+  listIndependentReviews,
+} from "@/lib/matters";
 import ChatMessages from "@/components/ChatMessages";
 
 export default async function MatterChatPage({
@@ -12,6 +17,8 @@ export default async function MatterChatPage({
   const documents = await listDocuments(id);
   const knownFilenames = documents.map((doc) => doc.fileName);
   const feedback = await getFeedbackForMatter(id);
+  const reviews = await listIndependentReviews(id);
+  const chatReviews = reviews.filter((r) => r.sourceType === "chat_message");
 
   return (
     <div className="flex flex-col gap-6">
@@ -25,6 +32,7 @@ export default async function MatterChatPage({
         initialMessages={messages}
         knownFilenames={knownFilenames}
         initialFeedback={feedback}
+        initialReviews={chatReviews}
       />
     </div>
   );

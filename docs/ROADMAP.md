@@ -296,6 +296,54 @@ see git log for exact history.
       tampered row restores a clean chain — confirmed via both the
       underlying function and the live HTTP endpoint (200 for admin, 403
       for non-admin). All test data removed afterward.
+- [x] Extended independent review (Gemini) to chat Q&A, not just
+      digest/evidence-matrix — each assistant chat message now has its own
+      "Get independent review" action (`ChatMessages.tsx`), reusing the
+      existing `chat_message` addition to `IndependentReview.sourceType`
+      and the same `/api/matters/[id]/independent-review` endpoint.
+- [x] Per-page metadata for PDF extraction — `textExtraction.ts` now tags
+      each page (`[Page N]`) instead of returning one flat string
+      (`pdf-parse`'s `getText()` already returns page-wise text via
+      `result.pages`, previously discarded in favour of the concatenated
+      `result.text`). Chat/digest/draft/evidence-matrix prompts
+      (`src/lib/claude.ts`) now ask the model to cite the page too when
+      available, e.g. `(file.pdf, p. 4)`. `citationCheck.ts`'s regex now
+      parses that optional page suffix so page-qualified citations still
+      verify correctly against known filenames instead of being
+      misdetected as unverified. DOCX/images/spreadsheets/audio don't get
+      page tags — Word documents have no fixed pagination, images are
+      inherently one page, and audio/video would need timestamp
+      segments instead (not done in this pass).
+      **Bug found and fixed along the way**: `src/lib/gemini.ts` was
+      hardcoded to `gemini-2.5-flash`, which Google has retired for this
+      account ("no longer available to new users") — this silently broke
+      *all* independent review (digest and evidence-matrix too, not just
+      the new chat path) before this fix. Probed the real configured key
+      live against several current model IDs and confirmed
+      `gemini-3.5-flash` works; switched to it.
+- [ ] **Real citation verification against CanLII (case law/legislation) —
+      not done, genuinely blocked, not just deferred.** Two separate
+      problems, confirmed by reading CanLII's own API_documentation repo
+      (github.com/canlii/API_documentation) rather than guessing: (1) no
+      CanLII API key is configured yet (still pending per the "Decisions"
+      section below), so nothing here is even live-testable right now;
+      (2) more fundamentally, **the API has no full-text or
+      citation-search endpoint at all** — only browse-by-database and
+      cited/citing-relationship endpoints. The only path to "does this
+      citation exist" is deriving a `caseId` from the citation text
+      (CanLII's own examples show `2014 ONCA 925` → caseId `2014onca925`)
+      and calling the metadata endpoint to see if it 404s — but CanLII's
+      docs don't actually state this as a firm rule, just show it in
+      examples, and `databaseId` codes (e.g. `onca`, `csc-scc`) aren't a
+      guessable pattern — the docs say to call `/caseBrowse/` and read the
+      list back, not to hardcode a mapping. Building this now would mean
+      shipping a heuristic that's never been tested against a real
+      response and could easily produce false "citation not found"
+      results for a real, valid case — worse than no feature, for a legal
+      tool. Citation checking for the matter's *own* uploaded documents
+      (filename + page, see above) is unaffected and works today; this
+      item is specifically about verifying case-law/legislation citations
+      an AI answer generates against an external authority.
 
 ## Dependency notes
 

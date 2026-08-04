@@ -128,7 +128,7 @@ export interface EvidenceMatrix {
 export interface IndependentReview {
   id: string;
   matterId: string;
-  sourceType: "digest" | "evidence_matrix";
+  sourceType: "digest" | "evidence_matrix" | "chat_message";
   sourceId: string;
   content: string;
   createdAt: string;
