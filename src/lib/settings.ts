@@ -1,4 +1,5 @@
 import { randomBytes } from "crypto";
+import { decryptText, encryptText, isEncryptedText } from "./crypto";
 import { readSecureJson, writeSecureJson } from "./secureStore";
 
 const SETTINGS_FILE = "settings.json";
@@ -34,22 +35,45 @@ interface Settings {
   cronSecret?: string;
 }
 
+const SECRET_FIELDS = ["anthropicApiKey", "openaiApiKey", "geminiApiKey", "canliiApiKey", "cronSecret"] as const;
+
+// Settings secrets are encrypted at rest. Values written before this feature
+// shipped are still plaintext on disk — migrate them to encrypted form the
+// first time they're read, so nothing needs a separate migration script.
 async function readSettings(): Promise<Settings> {
-  return readSecureJson<Settings>(SETTINGS_FILE, {});
+  const settings = await readSecureJson<Settings>(SETTINGS_FILE, {});
+  let migrated = false;
+  for (const field of SECRET_FIELDS) {
+    const value = settings[field];
+    if (typeof value === "string" && !isEncryptedText(value)) {
+      settings[field] = await encryptText(value);
+      migrated = true;
+    }
+  }
+  if (settings.smtp?.password && !isEncryptedText(settings.smtp.password)) {
+    settings.smtp.password = await encryptText(settings.smtp.password);
+    migrated = true;
+  }
+  if (migrated) await writeSecureJson(SETTINGS_FILE, settings);
+  return settings;
 }
 
 async function writeSettings(settings: Settings): Promise<void> {
   await writeSecureJson(SETTINGS_FILE, settings);
 }
 
+async function decryptSecret(value: string | undefined): Promise<string | undefined> {
+  return value ? decryptText(value) : undefined;
+}
+
 export async function getAnthropicApiKey(): Promise<string | undefined> {
   const settings = await readSettings();
-  return settings.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
+  return (await decryptSecret(settings.anthropicApiKey)) || process.env.ANTHROPIC_API_KEY;
 }
 
 export async function setAnthropicApiKey(key: string): Promise<void> {
   const settings = await readSettings();
-  settings.anthropicApiKey = key;
+  settings.anthropicApiKey = await encryptText(key);
   await writeSettings(settings);
 }
 
@@ -59,7 +83,7 @@ export async function getAnthropicApiKeyStatus(): Promise<{
   preview: string | null;
 }> {
   const settings = await readSettings();
-  const key = settings.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
+  const key = (await decryptSecret(settings.anthropicApiKey)) || process.env.ANTHROPIC_API_KEY;
   if (!key) return { configured: false, source: "none", preview: null };
   return {
     configured: true,
@@ -70,12 +94,12 @@ export async function getAnthropicApiKeyStatus(): Promise<{
 
 export async function getGeminiApiKey(): Promise<string | undefined> {
   const settings = await readSettings();
-  return settings.geminiApiKey || process.env.GEMINI_API_KEY;
+  return (await decryptSecret(settings.geminiApiKey)) || process.env.GEMINI_API_KEY;
 }
 
 export async function setGeminiApiKey(key: string): Promise<void> {
   const settings = await readSettings();
-  settings.geminiApiKey = key;
+  settings.geminiApiKey = await encryptText(key);
   await writeSettings(settings);
 }
 
@@ -85,7 +109,7 @@ export async function getGeminiApiKeyStatus(): Promise<{
   preview: string | null;
 }> {
   const settings = await readSettings();
-  const key = settings.geminiApiKey || process.env.GEMINI_API_KEY;
+  const key = (await decryptSecret(settings.geminiApiKey)) || process.env.GEMINI_API_KEY;
   if (!key) return { configured: false, source: "none", preview: null };
   return {
     configured: true,
@@ -96,12 +120,13 @@ export async function getGeminiApiKeyStatus(): Promise<{
 
 export async function getSmtpConfig(): Promise<SmtpConfig | undefined> {
   const settings = await readSettings();
-  return settings.smtp;
+  if (!settings.smtp) return undefined;
+  return { ...settings.smtp, password: await decryptText(settings.smtp.password) };
 }
 
 export async function setSmtpConfig(config: SmtpConfig): Promise<void> {
   const settings = await readSettings();
-  settings.smtp = config;
+  settings.smtp = { ...config, password: await encryptText(config.password) };
   await writeSettings(settings);
 }
 
@@ -141,12 +166,12 @@ export async function getSmtpStatus(): Promise<{
 
 export async function getCanliiApiKey(): Promise<string | undefined> {
   const settings = await readSettings();
-  return settings.canliiApiKey || process.env.CANLII_API_KEY;
+  return (await decryptSecret(settings.canliiApiKey)) || process.env.CANLII_API_KEY;
 }
 
 export async function setCanliiApiKey(key: string): Promise<void> {
   const settings = await readSettings();
-  settings.canliiApiKey = key;
+  settings.canliiApiKey = await encryptText(key);
   await writeSettings(settings);
 }
 
@@ -156,7 +181,7 @@ export async function getCanliiApiKeyStatus(): Promise<{
   preview: string | null;
 }> {
   const settings = await readSettings();
-  const key = settings.canliiApiKey || process.env.CANLII_API_KEY;
+  const key = (await decryptSecret(settings.canliiApiKey)) || process.env.CANLII_API_KEY;
   if (!key) return { configured: false, source: "none", preview: null };
   return {
     configured: true,
@@ -191,12 +216,12 @@ export async function setAiProviderOrder(order: AiProvider[]): Promise<void> {
 
 export async function getOpenaiApiKey(): Promise<string | undefined> {
   const settings = await readSettings();
-  return settings.openaiApiKey || process.env.OPENAI_API_KEY;
+  return (await decryptSecret(settings.openaiApiKey)) || process.env.OPENAI_API_KEY;
 }
 
 export async function setOpenaiApiKey(key: string): Promise<void> {
   const settings = await readSettings();
-  settings.openaiApiKey = key;
+  settings.openaiApiKey = await encryptText(key);
   await writeSettings(settings);
 }
 
@@ -206,7 +231,7 @@ export async function getOpenaiApiKeyStatus(): Promise<{
   preview: string | null;
 }> {
   const settings = await readSettings();
-  const key = settings.openaiApiKey || process.env.OPENAI_API_KEY;
+  const key = (await decryptSecret(settings.openaiApiKey)) || process.env.OPENAI_API_KEY;
   if (!key) return { configured: false, source: "none", preview: null };
   return {
     configured: true,
@@ -221,9 +246,9 @@ export async function getOpenaiApiKeyStatus(): Promise<{
 // against, distinct from the user's login password.
 export async function getOrCreateCronSecret(): Promise<string> {
   const settings = await readSettings();
-  if (settings.cronSecret) return settings.cronSecret;
+  if (settings.cronSecret) return (await decryptSecret(settings.cronSecret)) as string;
   const secret = randomBytes(32).toString("hex");
-  settings.cronSecret = secret;
+  settings.cronSecret = await encryptText(secret);
   await writeSettings(settings);
   return secret;
 }

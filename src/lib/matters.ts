@@ -3,6 +3,7 @@ import { existsSync } from "fs";
 import { createHash } from "crypto";
 import path from "path";
 import { recordAuditEvent } from "./auditLog";
+import { encryptFile } from "./crypto";
 import db, { toPlain } from "./db";
 import { listAttachedReferenceDocuments } from "./referenceLibrary";
 import { extractDocumentText, isExtractableDocument } from "./textExtraction";
@@ -187,7 +188,7 @@ export async function addDocument(
   const storagePath = path.join(matterDir, `${id}-${file.name}`);
   const bytes = Buffer.from(await file.arrayBuffer());
   const contentHash = createHash("sha256").update(bytes).digest("hex");
-  await writeFile(storagePath, bytes);
+  await writeFile(storagePath, await encryptFile(bytes));
 
   const document: Document = {
     id,

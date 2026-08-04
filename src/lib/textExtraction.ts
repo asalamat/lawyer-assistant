@@ -1,8 +1,9 @@
-import { readFile } from "fs/promises";
+import { readFile, rename, writeFile } from "fs/promises";
 import mammoth from "mammoth";
 import { PDFParse } from "pdf-parse";
 import { recognize } from "tesseract.js";
 import { read, utils } from "xlsx";
+import { decryptFile, encryptFile, isEncryptedFile } from "./crypto";
 import { transcribeAudio } from "./transcription";
 
 const PLAIN_TEXT_EXTENSIONS = [".txt", ".md"];
@@ -37,16 +38,30 @@ export function isExtractableDocument(fileName: string): boolean {
   ].some((ext) => fileName.toLowerCase().endsWith(ext));
 }
 
+// Documents on disk are encrypted at rest. Files uploaded before that
+// shipped are still plaintext there — detect and migrate those in place the
+// first time they're read, rather than requiring a separate migration step.
+async function readPlaintextFile(storagePath: string): Promise<Buffer> {
+  const raw = await readFile(storagePath);
+  if (isEncryptedFile(raw)) return decryptFile(raw);
+
+  const tmpPath = `${storagePath}.tmp`;
+  await writeFile(tmpPath, await encryptFile(raw));
+  await rename(tmpPath, storagePath);
+  return raw;
+}
+
 export async function extractDocumentText(
   fileName: string,
   storagePath: string,
 ): Promise<string | null> {
+  const buffer = await readPlaintextFile(storagePath);
+
   if (hasExtension(fileName, PLAIN_TEXT_EXTENSIONS)) {
-    return readFile(storagePath, "utf-8");
+    return buffer.toString("utf-8");
   }
 
   if (hasExtension(fileName, PDF_EXTENSIONS)) {
-    const buffer = await readFile(storagePath);
     const parser = new PDFParse({ data: buffer });
     try {
       const result = await parser.getText();
@@ -57,19 +72,16 @@ export async function extractDocumentText(
   }
 
   if (hasExtension(fileName, DOCX_EXTENSIONS)) {
-    const buffer = await readFile(storagePath);
     const result = await mammoth.extractRawText({ buffer });
     return result.value;
   }
 
   if (hasExtension(fileName, IMAGE_EXTENSIONS)) {
-    const buffer = await readFile(storagePath);
     const { data } = await recognize(buffer, "eng");
     return data.text;
   }
 
   if (hasExtension(fileName, SPREADSHEET_EXTENSIONS)) {
-    const buffer = await readFile(storagePath);
     const workbook = read(buffer, { type: "buffer" });
     return workbook.SheetNames.map((sheetName) => {
       const sheet = workbook.Sheets[sheetName];
@@ -79,7 +91,6 @@ export async function extractDocumentText(
   }
 
   if (hasExtension(fileName, AUDIO_VIDEO_EXTENSIONS)) {
-    const buffer = await readFile(storagePath);
     return transcribeAudio(buffer, fileName);
   }
 

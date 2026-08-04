@@ -3,6 +3,7 @@ import { existsSync } from "fs";
 import { createHash } from "crypto";
 import path from "path";
 import { recordAuditEvent } from "./auditLog";
+import { encryptFile } from "./crypto";
 import db, { toPlain } from "./db";
 import type { ReferenceDocument } from "./types";
 
@@ -22,7 +23,7 @@ export async function addReferenceDocument(file: File): Promise<ReferenceDocumen
   const storagePath = path.join(REFERENCE_DIR, `${id}-${file.name}`);
   const bytes = Buffer.from(await file.arrayBuffer());
   const contentHash = createHash("sha256").update(bytes).digest("hex");
-  await writeFile(storagePath, bytes);
+  await writeFile(storagePath, await encryptFile(bytes));
 
   const document: ReferenceDocument = {
     id,

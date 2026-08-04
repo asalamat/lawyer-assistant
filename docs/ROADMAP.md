@@ -220,6 +220,22 @@ see git log for exact history.
       model/Transcription/Independent review/Integrations/Security/Software
       updates, each its own route under `/settings/*`) — replaces the
       earlier single long-scroll page for each
+- [x] Encryption at rest for API keys/SMTP password (`src/lib/settings.ts`,
+      AES-256-GCM via `src/lib/crypto.ts`) and uploaded documents
+      (`src/lib/matters.ts`, `src/lib/referenceLibrary.ts`) — the master key
+      lives in the macOS Keychain (`src/lib/masterKey.ts`), separate from the
+      disk holding the encrypted data, with a file-based fallback for
+      non-macOS/headless environments. Both are self-migrating: settings
+      written before this shipped, and documents uploaded before it shipped,
+      transparently upgrade to encrypted-at-rest the next time they're read —
+      no separate migration script, no risk of a one-time script missing a
+      file. Passwords/session tokens were already salted hashes / random
+      tokens, not reversible secrets, so they weren't in scope for this.
+      Deliberately *not* in scope: encrypting document text/chat content
+      inside the SQLite DB itself, which would break the existing plain-SQL
+      `LIKE` search (`/search`) unless replaced with searchable/vector
+      retrieval — see Phase 2-equivalent RAG work below. FileVault (already
+      on) covers whole-disk-at-rest for the DB file in the meantime.
 
 ## Dependency notes
 
