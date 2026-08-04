@@ -28,7 +28,13 @@ const LINKS = [
   { href: "/help", label: "Help", Icon: HelpIcon },
 ];
 
-export default function AppSidebar({ version }: { version: AppVersion }) {
+export default function AppSidebar({
+  version,
+  user,
+}: {
+  version: AppVersion;
+  user: { name: string; role: string } | null;
+}) {
   const pathname = usePathname();
   const collapsed = useSidebarCollapsed();
 
@@ -76,6 +82,12 @@ export default function AppSidebar({ version }: { version: AppVersion }) {
       </nav>
 
       <div className="flex flex-col gap-3 border-t border-border px-3 py-4">
+        {user && !collapsed && (
+          <p className="truncate px-1 text-xs text-muted" title={user.name}>
+            Signed in as <span className="font-medium">{user.name}</span>
+            {user.role === "admin" && " (admin)"}
+          </p>
+        )}
         <div
           className={`flex items-center gap-3 ${collapsed ? "flex-col" : "px-1"}`}
         >

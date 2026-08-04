@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
-import { setPassword, verifyPassword } from "@/lib/auth";
+import { changeOwnPassword, getCurrentUser } from "@/lib/auth";
 import { checkLoginRateLimit, recordFailedLogin, recordSuccessfulLogin } from "@/lib/rateLimit";
 
 export async function POST(request: Request) {
-  const rateLimit = checkLoginRateLimit();
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const rateLimit = checkLoginRateLimit(user.email);
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: `Too many failed attempts. Try again in ${rateLimit.retryAfterSeconds}s.` },
@@ -28,13 +31,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const valid = await verifyPassword(currentPassword);
-  if (!valid) {
-    recordFailedLogin();
+  const changed = await changeOwnPassword(user.id, currentPassword, newPassword);
+  if (!changed) {
+    recordFailedLogin(user.email);
     return NextResponse.json({ error: "Current password is incorrect" }, { status: 401 });
   }
 
-  recordSuccessfulLogin();
-  await setPassword(newPassword);
+  recordSuccessfulLogin(user.email);
   return NextResponse.json({ success: true });
 }

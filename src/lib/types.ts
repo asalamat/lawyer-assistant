@@ -63,6 +63,8 @@ export interface AuditEntry {
   matterId: string | null;
   detail: string;
   createdAt: string;
+  userId: string | null;
+  userName: string | null;
 }
 
 export interface MatterDigest {

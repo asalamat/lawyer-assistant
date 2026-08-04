@@ -71,8 +71,8 @@ export default function ChangePasswordForm() {
         {submitting ? "Changing…" : "Change password"}
       </button>
       <p className="text-xs text-muted">
-        Forgot your password instead? Run <code>npm run reset-password</code> from the
-        terminal.
+        Forgot your password instead? An admin can reset it from Settings &gt; Users, or run{" "}
+        <code>npm run reset-password -- you@example.com</code> from the terminal.
       </p>
     </form>
   );

@@ -236,6 +236,34 @@ see git log for exact history.
       `LIKE` search (`/search`) unless replaced with searchable/vector
       retrieval — see Phase 2-equivalent RAG work below. FileVault (already
       on) covers whole-disk-at-rest for the DB file in the meantime.
+- [x] Real multi-user accounts with roles (`src/lib/auth.ts`, `users` +
+      `sessions` tables in `src/lib/db.ts`) — replaces the single global
+      password/session-token model. Roles: admin (full access, including
+      Settings/API keys and user management), lawyer, staff (lawyer and
+      staff currently have identical permissions — everyone sees every
+      matter by design choice, not an oversight; per-matter ethical walls
+      were explicitly deferred until a real conflict scenario needs them).
+      Admin creates accounts from Settings > Users with a one-time-shown
+      temporary password; the new user must set their own password on
+      first login (`mustChangePassword`, enforced by a redirect in
+      `src/proxy.ts`). Sessions are stored as SHA-256 hashes in the
+      `sessions` table (not raw tokens), expire after 30 days, and are
+      invalidated on deactivation/password reset. Settings pages/APIs
+      (API keys, SMTP, integrations, system updates, user management) are
+      admin-only; Appearance and Security (own password change) are open
+      to everyone. The audit log now attributes every event to the acting
+      user (`recordAuditEvent` reads the session internally, so no call
+      site needed updating) — user-management actions themselves
+      (create/deactivate/role change/password reset) are also audited.
+      Existing single-user installs migrate automatically on first
+      startup after upgrading: the old password hash becomes the first
+      admin account (same password, no reset needed) — see "Decisions
+      that need the account owner" below for how *this* install's admin
+      email/name were chosen. `npm run reset-password -- <email>` now
+      takes an email argument. Verified live: full login/session/role-gating
+      round trip via throwaway test accounts (never the real admin
+      account), last-remaining-admin deactivation guard, audit
+      attribution — all throwaway data removed after testing.
 
 ## Dependency notes
 
@@ -276,3 +304,10 @@ they're not silently skipped or silently guessed:
    nothing will connect for these two until at least one OAuth app exists.
    ~~Yahoo~~ needs no such registration — it's **resolved** via an app
    password over IMAP instead (see above), which is already working.
+7. ~~**Multi-user access model**~~ — **Resolved 2026-08-04.** Confirmed:
+   every user sees every matter (roles gate admin/settings actions, not
+   matter visibility — per-matter ethical walls deferred until a real
+   conflict needs them); admin creates accounts manually with a
+   temporary password (no self-registration/invite-link surface). First
+   admin account: ali.salamat@cortexhq.ai / Ali Salamat, migrated from
+   the pre-existing single password (same password, no reset needed).

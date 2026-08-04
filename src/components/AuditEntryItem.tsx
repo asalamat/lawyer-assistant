@@ -16,6 +16,7 @@ export default function AuditEntryItem({
         <span className="text-xs text-muted">{new Date(entry.createdAt).toLocaleString()}</span>
       </div>
       <p className="text-muted">{entry.detail}</p>
+      {entry.userName && <p className="text-xs text-muted">By {entry.userName}</p>}
       {showMatterLink && entry.matterId && (
         <Link href={`/matters/${entry.matterId}`} className="text-xs text-accent hover:underline">
           View matter

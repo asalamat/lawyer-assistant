@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
-import { createSession, isPasswordSet, setPassword, verifyPassword } from "@/lib/auth";
+import { bootstrapFirstAdmin, createSession, hasAnyUsers, verifyLogin } from "@/lib/auth";
 import { checkLoginRateLimit, recordFailedLogin, recordSuccessfulLogin } from "@/lib/rateLimit";
 
 export async function POST(request: Request) {
-  const rateLimit = checkLoginRateLimit();
+  const body = await request.json();
+  const email = body?.email;
+  const password = body?.password;
+  if (typeof email !== "string" || !email.trim() || typeof password !== "string" || !password) {
+    return NextResponse.json({ error: "email and password are required" }, { status: 400 });
+  }
+
+  const rateLimit = checkLoginRateLimit(email);
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: `Too many failed attempts. Try again in ${rateLimit.retryAfterSeconds}s.` },
@@ -11,31 +18,30 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = await request.json();
-  const password = body?.password;
-  if (typeof password !== "string" || !password) {
-    return NextResponse.json({ error: "password is required" }, { status: 400 });
-  }
+  const bootstrapping = !(await hasAnyUsers());
+  let userId: string;
 
-  const alreadySet = await isPasswordSet();
-  if (!alreadySet) {
+  if (bootstrapping) {
+    const name = body?.name;
+    if (typeof name !== "string" || !name.trim()) {
+      return NextResponse.json({ error: "name is required" }, { status: 400 });
+    }
     if (password.length < 8) {
-      return NextResponse.json(
-        { error: "Password must be at least 8 characters" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
     }
-    await setPassword(password);
+    const user = await bootstrapFirstAdmin({ email, name, password });
+    userId = user.id;
   } else {
-    const valid = await verifyPassword(password);
-    if (!valid) {
-      recordFailedLogin();
-      return NextResponse.json({ error: "Incorrect password" }, { status: 401 });
+    const user = await verifyLogin(email, password);
+    if (!user) {
+      recordFailedLogin(email);
+      return NextResponse.json({ error: "Incorrect email or password" }, { status: 401 });
     }
+    userId = user.id;
   }
 
-  recordSuccessfulLogin();
-  const token = await createSession();
+  recordSuccessfulLogin(email);
+  const token = await createSession(userId);
   const response = NextResponse.json({ success: true });
   response.cookies.set("session", token, {
     httpOnly: true,

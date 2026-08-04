@@ -12,26 +12,29 @@ import {
   ReviewIcon,
   SecurityIcon,
   UpdateIcon,
+  UsersIcon,
 } from "./icons";
 
 const LINKS = [
-  { href: "/settings", label: "Appearance", Icon: MonitorIcon },
-  { href: "/settings/ai", label: "AI model", Icon: AiIcon },
-  { href: "/settings/transcription", label: "Transcription", Icon: MicIcon },
-  { href: "/settings/review", label: "Independent review", Icon: ReviewIcon },
-  { href: "/settings/legal-research", label: "Legal research", Icon: EvidenceIcon },
-  { href: "/settings/email", label: "Email", Icon: MailIcon },
-  { href: "/settings/integrations", label: "Integrations", Icon: IntegrationIcon },
-  { href: "/settings/security", label: "Security", Icon: SecurityIcon },
-  { href: "/settings/updates", label: "Software updates", Icon: UpdateIcon },
+  { href: "/settings", label: "Appearance", Icon: MonitorIcon, adminOnly: false },
+  { href: "/settings/ai", label: "AI model", Icon: AiIcon, adminOnly: true },
+  { href: "/settings/transcription", label: "Transcription", Icon: MicIcon, adminOnly: true },
+  { href: "/settings/review", label: "Independent review", Icon: ReviewIcon, adminOnly: true },
+  { href: "/settings/legal-research", label: "Legal research", Icon: EvidenceIcon, adminOnly: true },
+  { href: "/settings/email", label: "Email", Icon: MailIcon, adminOnly: true },
+  { href: "/settings/integrations", label: "Integrations", Icon: IntegrationIcon, adminOnly: true },
+  { href: "/settings/users", label: "Users", Icon: UsersIcon, adminOnly: true },
+  { href: "/settings/security", label: "Security", Icon: SecurityIcon, adminOnly: false },
+  { href: "/settings/updates", label: "Software updates", Icon: UpdateIcon, adminOnly: true },
 ];
 
-export default function SettingsSidebarNav() {
+export default function SettingsSidebarNav({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
+  const visibleLinks = LINKS.filter((link) => isAdmin || !link.adminOnly);
 
   return (
     <nav className="flex shrink-0 flex-col gap-1 sm:w-48">
-      {LINKS.map(({ href, label, Icon }) => {
+      {visibleLinks.map(({ href, label, Icon }) => {
         const active = href === "/settings" ? pathname === "/settings" : pathname.startsWith(href);
         return (
           <Link

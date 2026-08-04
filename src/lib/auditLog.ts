@@ -1,3 +1,4 @@
+import { getCurrentUser } from "./auth";
 import db, { toPlain } from "./db";
 import type { AuditEntry } from "./types";
 
@@ -33,6 +34,11 @@ export const ACTION_LABELS: Record<string, string> = {
   legislation_watch_added: "Legislation watch added",
   legislation_watch_removed: "Legislation watch removed",
   legislation_watch_changed: "Legislation watch detected a change",
+  user_created: "User account created",
+  user_activated: "User account reactivated",
+  user_deactivated: "User account deactivated",
+  user_role_changed: "User role changed",
+  user_password_reset: "User password reset by admin",
 };
 
 export async function recordAuditEvent(
@@ -40,9 +46,21 @@ export async function recordAuditEvent(
   matterId: string | null,
   detail: string,
 ): Promise<void> {
+  // Attributed to whoever's session made the request that triggered this
+  // event, if any — null for unattended paths (e.g. the legislation-watch
+  // cron endpoint, which has no session cookie).
+  const user = await getCurrentUser().catch(() => null);
   db.prepare(
-    "INSERT INTO audit_log (id, action, matterId, detail, createdAt) VALUES (?, ?, ?, ?, ?)",
-  ).run(crypto.randomUUID(), action, matterId, detail, new Date().toISOString());
+    "INSERT INTO audit_log (id, action, matterId, detail, createdAt, userId, userName) VALUES (?, ?, ?, ?, ?, ?, ?)",
+  ).run(
+    crypto.randomUUID(),
+    action,
+    matterId,
+    detail,
+    new Date().toISOString(),
+    user?.id ?? null,
+    user?.name ?? null,
+  );
 }
 
 export async function listAuditLog(limit = 200): Promise<AuditEntry[]> {

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { getCurrentUser } from "@/lib/auth";
 import { getAppVersion } from "@/lib/systemInfo";
 import ConditionalNav from "@/components/ConditionalNav";
 import ThemeScript from "@/components/ThemeScript";
@@ -36,6 +37,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const version = await getAppVersion();
+  const user = await getCurrentUser();
 
   return (
     <html
@@ -47,7 +49,7 @@ export default async function RootLayout({
         <ThemeScript />
       </head>
       <body className="min-h-full flex flex-col sm:flex-row">
-        <ConditionalNav version={version} />
+        <ConditionalNav version={version} user={user ? { name: user.name, role: user.role } : null} />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopUtilityBar />
           {children}

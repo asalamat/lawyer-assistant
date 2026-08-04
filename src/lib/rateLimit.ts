@@ -1,36 +1,47 @@
-// Global (not per-IP) rate limiting for the login endpoint. This app has
-// exactly one legitimate account, so a global counter is just as effective
-// against brute force as a per-IP one — and doesn't depend on reliably
-// extracting a client IP from behind whatever's in front of `next start`.
+// Per-account rate limiting for the login endpoint. Keyed by email rather
+// than a single global counter (which used to be fine with exactly one
+// account) so one attacker guessing against a single mailbox can't lock
+// every other user out of the app too.
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 15 * 60 * 1000;
 const LOCKOUT_MS = 15 * 60 * 1000;
 
-let failureCount = 0;
-let windowStartedAt = 0;
-let lockedUntil = 0;
+interface LimitState {
+  failureCount: number;
+  windowStartedAt: number;
+  lockedUntil: number;
+}
 
-export function checkLoginRateLimit(): { allowed: boolean; retryAfterSeconds: number } {
+const stateByEmail = new Map<string, LimitState>();
+
+function keyFor(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+export function checkLoginRateLimit(email: string): { allowed: boolean; retryAfterSeconds: number } {
+  const state = stateByEmail.get(keyFor(email));
   const now = Date.now();
-  if (now < lockedUntil) {
-    return { allowed: false, retryAfterSeconds: Math.ceil((lockedUntil - now) / 1000) };
+  if (state && now < state.lockedUntil) {
+    return { allowed: false, retryAfterSeconds: Math.ceil((state.lockedUntil - now) / 1000) };
   }
   return { allowed: true, retryAfterSeconds: 0 };
 }
 
-export function recordFailedLogin(): void {
+export function recordFailedLogin(email: string): void {
+  const key = keyFor(email);
   const now = Date.now();
-  if (now - windowStartedAt > WINDOW_MS) {
-    windowStartedAt = now;
-    failureCount = 0;
+  const state = stateByEmail.get(key) ?? { failureCount: 0, windowStartedAt: now, lockedUntil: 0 };
+  if (now - state.windowStartedAt > WINDOW_MS) {
+    state.windowStartedAt = now;
+    state.failureCount = 0;
   }
-  failureCount += 1;
-  if (failureCount >= MAX_ATTEMPTS) {
-    lockedUntil = now + LOCKOUT_MS;
+  state.failureCount += 1;
+  if (state.failureCount >= MAX_ATTEMPTS) {
+    state.lockedUntil = now + LOCKOUT_MS;
   }
+  stateByEmail.set(key, state);
 }
 
-export function recordSuccessfulLogin(): void {
-  failureCount = 0;
-  lockedUntil = 0;
+export function recordSuccessfulLogin(email: string): void {
+  stateByEmail.delete(keyFor(email));
 }

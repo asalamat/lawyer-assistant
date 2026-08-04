@@ -1,5 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
-import { existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -197,6 +197,27 @@ execWithRetry(`
     createdAt TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL,
+    passwordHash TEXT NOT NULL,
+    passwordSalt TEXT NOT NULL,
+    mustChangePassword INTEGER NOT NULL DEFAULT 0,
+    active INTEGER NOT NULL DEFAULT 1,
+    createdAt TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS sessions (
+    tokenHash TEXT PRIMARY KEY,
+    userId TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    expiresAt TEXT NOT NULL,
+    FOREIGN KEY (userId) REFERENCES users(id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_sessions_userId ON sessions(userId);
   CREATE INDEX IF NOT EXISTS idx_matter_notes_matterId ON matter_notes(matterId);
   CREATE INDEX IF NOT EXISTS idx_reference_documents_contentHash ON reference_documents(contentHash);
   CREATE INDEX IF NOT EXISTS idx_matter_reference_documents_matterId ON matter_reference_documents(matterId);
@@ -228,6 +249,49 @@ ensureColumn("matters", "clientEmail", "TEXT");
 ensureColumn("matters", "hourlyRate", "REAL");
 ensureColumn("time_entries", "invoiceId", "TEXT");
 ensureColumn("time_entries", "rate", "REAL");
+ensureColumn("audit_log", "userId", "TEXT");
+ensureColumn("audit_log", "userName", "TEXT");
+
+// One-time migration: this app used to have exactly one global password
+// (data/auth.json). Promote it into the first admin user in the `users`
+// table, preserving the existing password hash/salt so the current
+// password keeps working — no reset needed. Runs once: skipped once any
+// row exists in `users`.
+function migrateLegacySingleUserToUsersTable(): void {
+  const { count } = db.prepare("SELECT COUNT(*) as count FROM users").get() as { count: number };
+  if (count > 0) return;
+
+  const authPath = path.join(DATA_DIR, "auth.json");
+  if (!existsSync(authPath)) return;
+
+  const auth = JSON.parse(readFileSync(authPath, "utf-8")) as {
+    passwordHash?: string;
+    passwordSalt?: string;
+    activeSessionToken?: string;
+  };
+  if (!auth.passwordHash || !auth.passwordSalt) return;
+
+  db.prepare(
+    `INSERT INTO users (id, email, name, role, passwordHash, passwordSalt, mustChangePassword, active, createdAt)
+     VALUES (?, ?, ?, 'admin', ?, ?, 0, 1, ?)`,
+  ).run(
+    crypto.randomUUID(),
+    "ali.salamat@cortexhq.ai",
+    "Ali Salamat",
+    auth.passwordHash,
+    auth.passwordSalt,
+    new Date().toISOString(),
+  );
+
+  // Sessions now live in the `sessions` table; the password fields are
+  // superseded by the users table row just created.
+  delete auth.passwordHash;
+  delete auth.passwordSalt;
+  delete auth.activeSessionToken;
+  writeFileSync(authPath, JSON.stringify(auth, null, 2), { encoding: "utf-8", mode: 0o600 });
+}
+
+migrateLegacySingleUserToUsersTable();
 
 // Backfill file numbers for any matter created before this column existed,
 // numbering sequentially per calendar year in creation order.
