@@ -493,9 +493,71 @@ see git log for exact history.
       from it — parties/allegations/evidence/gaps and their connections
       were all correct, zero dangling edge references. Audit hash chain
       confirmed intact after cleanup.
+      Follow-up fixes after initial feedback: node text was unreadable
+      (no explicit text color set against the light node backgrounds —
+      inherited color could be invisible depending on theme); fixed with
+      explicit dark text plus larger/bolder labels and readable edge-label
+      backgrounds. "Open in new tab" used `window.open()`, which popup
+      blockers can silently swallow with no visible feedback — replaced
+      with a real `<a target="_blank">` link (never popup-blocked, since
+      it's a normal navigation, not a script-initiated window). The graph
+      canvas is dark-mode aware (`dark:bg-neutral-900`) with a
+      dark-appropriate dot-grid color; node backgrounds stay fixed light
+      pastels with dark text in both themes, which is what actually keeps
+      them readable — the canvas going dark doesn't affect node contrast.
+      Graph data for the new-tab view hands off via `sessionStorage`
+      (spec-behavior: `window.open()` to a same-origin URL copies
+      `sessionStorage` into the new tab) rather than re-running the AI
+      extraction a second time.
+- [x] Backup & restore, with scheduling (`src/lib/backup.ts`,
+      `/api/backup*`, Settings > Backup, `BackupManager.tsx`) — one-click
+      backup of the entire `data/` directory into a `.tar.gz` under a
+      sibling `backups/` folder (last 10 kept, older ones pruned
+      automatically), downloadable, deletable, and restorable from the
+      Settings UI. The SQLite file is snapshotted via `VACUUM INTO`
+      rather than tarring `app.db` directly — a consistent single-file
+      snapshot regardless of WAL state, not a copy that could land
+      mid-write. Restore requires typing "RESTORE" to confirm, moves the
+      *current* `data/` directory aside (to `data.before-restore-{time}`)
+      rather than deleting it — nothing is ever destroyed by a restore,
+      even a restore you didn't mean to do — and responds telling you the
+      app must be restarted immediately, since the running process
+      already has the old database file open and can't safely have it
+      swapped out from underneath it. Scheduled backups reuse the exact
+      unattended-cron pattern already established for legislation
+      watches: an admin-only page shows a bearer-token command to wire
+      into an OS-level scheduled task (cron on macOS/Linux, Task
+      Scheduler on Windows) — this app still has no built-in background
+      scheduler, consistent with that earlier decision.
+      **Not backed up**: the AES encryption master key. On macOS it lives
+      in the Keychain, which isn't part of `data/` and isn't exportable
+      by this feature — documented in `docs/INSTALLATION.md` as something
+      to back up separately (Keychain on macOS, a key file at
+      `~/.lawyer-assistant/masterkey` on Windows/Linux). A restore without
+      the matching key can't decrypt the restored secrets/documents.
+      Verified live: created/listed/downloaded/deleted a real backup via
+      the actual admin UI; confirmed a path-traversal filename is
+      rejected; confirmed non-admins get 403; confirmed the scheduled
+      endpoint accepts the real cron secret and rejects a wrong or missing
+      one. Did **not** test restore against the real `data/` directory —
+      restore is genuinely destructive to whatever's currently in place
+      (even with the move-aside safety net) and testing it live risked
+      the two real matters for no real benefit. Instead verified the
+      complete backup→mutate→restore cycle in full isolation, running the
+      actual `backup.ts` code against a throwaway fake project directory
+      (via `process.chdir`, never touching the real `data/`): confirmed
+      the pre-backup state was correctly restored, confirmed data written
+      *after* the backup was correctly excluded from the restore, and
+      confirmed that data was preserved (not lost) in the moved-aside
+      directory rather than being silently discarded.
 
 ## Dependency notes
 
+- **`tar`** — creates/extracts the `.tar.gz` archives for backup/restore.
+  Adds zero vulnerabilities of its own per `npm audit` (confirmed the same
+  way as `@xyflow/react` above: diffing `package-lock.json` before/after
+  showed no change to the pre-existing high-severity findings, which come
+  from Next.js's own dependency tree).
 - **`xlsx` (SheetJS)** is installed from `https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`
   (pinned exact version), not the npm registry package of the same name. The
   npm-published `xlsx` build has unpatched high-severity prototype-pollution

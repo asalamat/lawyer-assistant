@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   AiIcon,
+  BackupIcon,
   EvidenceIcon,
   IntegrationIcon,
   MailIcon,
@@ -24,6 +25,7 @@ const LINKS = [
   { href: "/settings/email", label: "Email", Icon: MailIcon, adminOnly: true },
   { href: "/settings/integrations", label: "Integrations", Icon: IntegrationIcon, adminOnly: true },
   { href: "/settings/users", label: "Users", Icon: UsersIcon, adminOnly: true },
+  { href: "/settings/backup", label: "Backup", Icon: BackupIcon, adminOnly: true },
   { href: "/settings/security", label: "Security", Icon: SecurityIcon, adminOnly: false },
   { href: "/settings/updates", label: "Software updates", Icon: UpdateIcon, adminOnly: true },
 ];

@@ -1,17 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 
-// The legislation-watches check-all route is meant for an unattended OS
-// cron job (no browser session exists there) — it does its own bearer-token
-// check against a separate cron secret instead (see settings.ts
-// getOrCreateCronSecret and the route itself).
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/legislation-watches/check-all"];
+// The legislation-watches check-all and backup/scheduled routes are meant
+// for an unattended OS cron job (no browser session exists there) — each
+// does its own bearer-token check against the cron secret instead (see
+// settings.ts getOrCreateCronSecret and the routes themselves).
+const PUBLIC_PATHS = [
+  "/login",
+  "/api/auth/login",
+  "/api/legislation-watches/check-all",
+  "/api/backup/scheduled",
+];
 
 // Settings pages/API routes configure shared, firm-wide resources (API
-// keys, SMTP, integrations, system updates) — restricted to admins.
-// /settings/security is the exception: every user needs it to change their
-// own password.
-const ADMIN_ONLY_API_PREFIXES = ["/api/settings", "/api/users", "/api/integrations", "/api/system/update"];
+// keys, SMTP, integrations, system updates, backups) — restricted to
+// admins. /settings/security is the exception: every user needs it to
+// change their own password.
+const ADMIN_ONLY_API_PREFIXES = [
+  "/api/settings",
+  "/api/users",
+  "/api/integrations",
+  "/api/system/update",
+  "/api/backup",
+];
 
 function isAdminOnlyPage(pathname: string): boolean {
   if (!pathname.startsWith("/settings")) return false;

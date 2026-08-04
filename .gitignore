@@ -43,6 +43,8 @@ next-env.d.ts
 
 # local data store (Phase 1 MVP uses a local JSON/file store, not a real DB)
 /data
+/data.before-restore-*
+/backups
 /.claude-flow
 .claude/settings.local.json
 

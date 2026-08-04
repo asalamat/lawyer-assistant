@@ -4,6 +4,13 @@ import { Background, Controls, ReactFlow, type Edge, type Node } from "@xyflow/r
 import "@xyflow/react/dist/style.css";
 import { useMemo, useState } from "react";
 
+function useIsDarkMode(): boolean {
+  const [isDark] = useState(
+    () => typeof document !== "undefined" && document.documentElement.classList.contains("dark"),
+  );
+  return isDark;
+}
+
 interface GraphNode {
   id: string;
   label: string;
@@ -43,11 +50,18 @@ const COLUMN_X: Record<GraphNode["type"], number> = {
 };
 const ROW_HEIGHT = 90;
 
-export default function EvidenceGraphView({ graph }: { graph: Graph }) {
+export default function EvidenceGraphView({
+  graph,
+  height = 500,
+}: {
+  graph: Graph;
+  height?: number | string;
+}) {
   const [visibleTypes, setVisibleTypes] = useState<Set<GraphNode["type"]>>(
     new Set(TYPE_ORDER),
   );
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  const isDark = useIsDarkMode();
 
   const filteredNodes = graph.nodes.filter((n) => visibleTypes.has(n.type));
   const filteredIds = new Set(filteredNodes.map((n) => n.id));
@@ -77,11 +91,14 @@ export default function EvidenceGraphView({ graph }: { graph: Graph }) {
       data: { label: n.label },
       style: {
         background: colors.bg,
+        color: "#1c1917",
         border: `2px solid ${colors.border}`,
         borderRadius: 8,
-        padding: 8,
-        fontSize: 12,
-        width: 220,
+        padding: "8px 10px",
+        fontSize: 14,
+        fontWeight: 500,
+        lineHeight: 1.35,
+        width: 240,
         opacity: dimmed ? 0.25 : 1,
       },
     };
@@ -95,8 +112,10 @@ export default function EvidenceGraphView({ graph }: { graph: Graph }) {
       target: e.target,
       label: e.label ?? undefined,
       animated: false,
-      style: { opacity: dimmed ? 0.15 : 0.8 },
-      labelStyle: { fontSize: 10 },
+      style: { opacity: dimmed ? 0.15 : 0.8, strokeWidth: 1.5 },
+      labelStyle: { fontSize: 12, fontWeight: 500, fill: "#1c1917" },
+      labelBgStyle: { fill: "#ffffff", fillOpacity: 0.85 },
+      labelBgPadding: [4, 2],
     };
   });
 
@@ -113,7 +132,7 @@ export default function EvidenceGraphView({ graph }: { graph: Graph }) {
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-3">
         {TYPE_ORDER.map((type) => (
-          <label key={type} className="flex items-center gap-1.5 text-xs">
+          <label key={type} className="flex items-center gap-1.5 text-sm">
             <input
               type="checkbox"
               checked={visibleTypes.has(type)}
@@ -136,7 +155,7 @@ export default function EvidenceGraphView({ graph }: { graph: Graph }) {
         )}
       </div>
       <div
-        style={{ height: 500 }}
+        style={{ height }}
         className="overflow-hidden rounded-lg border border-border bg-white dark:bg-neutral-900"
       >
         <ReactFlow
@@ -146,7 +165,7 @@ export default function EvidenceGraphView({ graph }: { graph: Graph }) {
           fitView
           proOptions={{ hideAttribution: true }}
         >
-          <Background />
+          <Background color={isDark ? "#525252" : "#d4d4d4"} />
           <Controls />
         </ReactFlow>
       </div>

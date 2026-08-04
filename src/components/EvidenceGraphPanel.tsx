@@ -37,6 +37,7 @@ export default function EvidenceGraphPanel({
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Failed to build graph");
       setGraph(body);
+      window.sessionStorage.setItem(`evidenceGraph:${matterId}`, JSON.stringify(body));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -50,9 +51,26 @@ export default function EvidenceGraphPanel({
     <div className="surface-card flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-lg">Evidence graph</h2>
-        <button onClick={handleVisualize} disabled={loading} className="btn-secondary px-3 py-1.5 text-sm">
-          {loading ? "Building…" : graph ? "Rebuild graph" : "Visualize"}
-        </button>
+        <div className="flex items-center gap-2">
+          {graph && (
+            <a
+              href={`/matters/${matterId}/evidence-graph-view`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-secondary px-3 py-1.5 text-sm"
+            >
+              Open in new tab
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={handleVisualize}
+            disabled={loading}
+            className="btn-secondary px-3 py-1.5 text-sm"
+          >
+            {loading ? "Building…" : graph ? "Rebuild graph" : "Visualize"}
+          </button>
+        </div>
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
       {graph && <EvidenceGraphView graph={graph} />}

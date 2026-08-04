@@ -180,6 +180,12 @@ export const HELP_SECTIONS: HelpSection[] = [
         detail:
           "Admin-only. Add a lawyer or staff account with a role (admin/lawyer/staff) — a temporary password is shown once for you to pass along; they're required to set their own password on first login. Change anyone's role, reset a password, or deactivate an account (deactivating immediately signs them out everywhere). Everyone can see every matter today; roles control access to Settings/API keys and user management, not matter visibility.",
       },
+      {
+        slug: "backup",
+        name: "Backup & restore",
+        detail:
+          "Admin-only. \"Backup now\" saves the entire app — matters, documents, clients, users, settings — into one downloadable file; the last 10 are kept automatically. Restoring replaces all current data with a backup's contents (current data is moved aside on disk, not deleted, but you must restart the app right after for the restore to take effect) — typing \"RESTORE\" is required to confirm. For automatic backups on a schedule, this page shows a command to wire into an OS-level scheduled task (cron on macOS/Linux, Task Scheduler on Windows) — there's no built-in scheduler. Note: the encryption key isn't included in the backup (it lives in the macOS Keychain, or a separate file on Windows/Linux) — back that up separately too, or a restored backup's secrets/documents can't be decrypted.",
+      },
     ],
   },
 ];
