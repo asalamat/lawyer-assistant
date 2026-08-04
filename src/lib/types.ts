@@ -117,6 +117,7 @@ export const DRAFT_TYPES = [
   "Research memo",
   "Demand letter",
   "Client correspondence",
+  "Defence strategy memo",
 ] as const;
 export type DraftType = (typeof DRAFT_TYPES)[number];
 

@@ -550,6 +550,26 @@ see git log for exact history.
       *after* the backup was correctly excluded from the restore, and
       confirmed that data was preserved (not lost) in the moved-aside
       directory rather than being silently discarded.
+- [x] Defence strategy memo — a new drafting type (`DRAFT_TYPES` in
+      `src/lib/types.ts`), reusing all of the existing drafting
+      infrastructure (dictation, page citations, storage, UI) rather than
+      building a separate feature. Gets its own tailored system prompt
+      (`DEFENCE_STRATEGY_SYSTEM` in `src/lib/claude.ts`) instead of the
+      generic drafting prompt, since a defence strategy memo needs a
+      structurally different output: opposing-case summary, weaknesses in
+      that case, viable defence theories *ranked by how well the
+      documents actually support each one*, procedural/evidentiary issues
+      worth raising, and recommended next investigative steps. Same
+      honesty discipline as every other AI feature here — cites sources,
+      says "Not stated in the provided documents" rather than inventing
+      supporting facts, explicitly does not predict an outcome. Verified
+      live via a throwaway matter with a short fact pattern (weak
+      identification evidence, no physical evidence, an unobtained
+      original video): output correctly identified and ranked the
+      identification-weakness theory as strongest, correctly flagged the
+      alibi theory as unsupported rather than inventing one, and gave
+      concrete disclosure requests as next steps. Audit hash chain
+      confirmed intact after cleanup.
 
 ## Dependency notes
 

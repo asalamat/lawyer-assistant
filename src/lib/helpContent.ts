@@ -100,7 +100,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "drafting",
         name: "Drafting",
         detail:
-          "Generates a first-draft research memo, demand letter, or client correspondence grounded in matter documents, with page-number citations for PDF sources. Dictate your instructions instead of typing if you prefer. Unsupported sections are marked for lawyer input rather than invented — always a draft for review, never a final document.",
+          "Generates a first-draft research memo, demand letter, client correspondence, or defence strategy memo grounded in matter documents, with page-number citations for PDF sources. The defence strategy memo specifically covers the opposing case, its weaknesses, viable defence theories ranked by evidentiary support, procedural issues worth raising, and recommended next investigative steps. Dictate your instructions instead of typing if you prefer. Unsupported sections are marked for lawyer input rather than invented — always a draft for review, never a final document.",
       },
       {
         slug: "ai-redundancy",

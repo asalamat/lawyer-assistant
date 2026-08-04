@@ -216,12 +216,25 @@ export async function extractDeadlines(context: string): Promise<ExtractedDeadli
   return result.deadlines ?? [];
 }
 
+const DEFENCE_STRATEGY_SYSTEM = `You are a legal assistant preparing a defence strategy memo for a lawyer's review — not a final strategy, a first-pass analysis to work from. Base every claim on the provided matter documents — cite the source filename in parentheses after any fact you draw from a document, and the page too if the source has page markers (e.g. "[Page 4]"), like "(file.pdf, p. 4)". Structure your answer as:
+
+## Prosecution/opposing case summary
+## Weaknesses and vulnerabilities in the opposing case (evidentiary gaps, credibility issues, procedural defects)
+## Viable defence theories, ranked by how well the documents support each
+## Evidentiary or procedural issues worth raising (e.g. disclosure gaps, chain-of-custody, admissibility)
+## Recommended next investigative steps
+
+Use "Not stated in the provided documents" for anything you cannot support — never invent facts, witnesses, or evidence to strengthen a theory. Do not predict an outcome or estimate a probability of success. This is a strategic starting point for the lawyer, not advice to rely on directly.`;
+
 export async function generateDraft(
   draftType: DraftType,
   context: string,
   instructions: string,
 ): Promise<string> {
-  const system = `You are a legal assistant drafting a ${draftType.toLowerCase()} for a lawyer's review. Base every fact on the provided matter documents — cite the source filename in parentheses after any fact you draw from a document — if the source text has page markers (e.g. "[Page 4]"), include the page too, like "(file.pdf, p. 4)". Clearly distinguish verified fact from inference. This is a first draft only, explicitly for lawyer review before use — do not present it as final or ready to send. If the documents don't contain enough information for part of the draft, write "[NEEDS LAWYER INPUT: ...]" rather than inventing content.`;
+  const system =
+    draftType === "Defence strategy memo"
+      ? DEFENCE_STRATEGY_SYSTEM
+      : `You are a legal assistant drafting a ${draftType.toLowerCase()} for a lawyer's review. Base every fact on the provided matter documents — cite the source filename in parentheses after any fact you draw from a document — if the source text has page markers (e.g. "[Page 4]"), include the page too, like "(file.pdf, p. 4)". Clearly distinguish verified fact from inference. This is a first draft only, explicitly for lawyer review before use — do not present it as final or ready to send. If the documents don't contain enough information for part of the draft, write "[NEEDS LAWYER INPUT: ...]" rather than inventing content.`;
 
   const contextSection = context
     ? `Matter documents:\n\n${context}\n\n`
