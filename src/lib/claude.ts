@@ -296,3 +296,78 @@ Use "Not stated in the provided documents" for anything you cannot support. Do n
     maxTokens: 2048,
   });
 }
+
+export interface EvidenceGraphNode {
+  id: string;
+  label: string;
+  type: "party" | "allegation" | "evidence" | "gap";
+}
+
+export interface EvidenceGraphEdge {
+  source: string;
+  target: string;
+  label: string | null;
+}
+
+export interface EvidenceGraph {
+  nodes: EvidenceGraphNode[];
+  edges: EvidenceGraphEdge[];
+}
+
+const EVIDENCE_GRAPH_SCHEMA = {
+  type: "object",
+  properties: {
+    nodes: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "short unique slug, e.g. 'evidence-1'" },
+          label: { type: "string", description: "a few words, shown on the graph" },
+          type: { type: "string", enum: ["party", "allegation", "evidence", "gap"] },
+        },
+        required: ["id", "label", "type"],
+        additionalProperties: false,
+      },
+    },
+    edges: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          source: { type: "string" },
+          target: { type: "string" },
+          label: {
+            anyOf: [{ type: "string" }, { type: "null" }],
+            description: "e.g. 'supports', 'alleges against', 'missing for' — or null",
+          },
+        },
+        required: ["source", "target", "label"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["nodes", "edges"],
+  additionalProperties: false,
+};
+
+// Reformats an already-generated evidence matrix into graph data — this is
+// a parsing/restructuring pass over that existing analysis, not a fresh
+// extraction from the raw documents, so it doesn't introduce a second,
+// possibly-inconsistent, AI reading of the source material.
+export async function extractEvidenceGraph(matrixContent: string): Promise<EvidenceGraph> {
+  const system = `You convert an already-generated legal evidence matrix into graph data for visualization. Do not invent any party, allegation, evidence, or relationship beyond what the matrix already states — this is a reformatting task, not a new analysis. Create one node per party/entity, per allegation/claim/charge, per distinct evidence item, and per evidentiary gap named in the matrix. Create an edge from each evidence node to the allegation it supports, from each party node to the allegation(s) involving them, and from each gap node to the allegation it's missing evidence for. Keep labels short (a few words).`;
+
+  return completeJSON<EvidenceGraph>({
+    system,
+    messages: [
+      {
+        role: "user",
+        content: `Here is the evidence matrix:\n\n${matrixContent}\n\nConvert it to graph data.`,
+      },
+    ],
+    schema: EVIDENCE_GRAPH_SCHEMA,
+    schemaName: "evidence_graph",
+    maxTokens: 2048,
+  });
+}

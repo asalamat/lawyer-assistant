@@ -468,6 +468,31 @@ see git log for exact history.
       testing (SMTP delivery, and reading/decrypting a document's bytes)
       are both already independently verified elsewhere. Audit hash chain
       confirmed intact after cleanup.
+- [x] Evidence graph visualization (`EvidenceGraphView.tsx`,
+      `EvidenceGraphPanel.tsx`, `/api/matters/[id]/evidence-graph`,
+      `extractEvidenceGraph()` in `src/lib/claude.ts`) — a node graph of
+      parties, allegations, evidence, and evidentiary gaps, with click-to-
+      focus (highlights only a node's direct connections, dims the rest)
+      and type checkboxes to narrow down what's shown. Confirmed with the
+      account owner before building: nodes/edges represent entities and
+      evidence (not a timeline or a document-relationship map), and the
+      graph is built by reformatting the matter's *already-generated*
+      evidence matrix rather than a fresh extraction pass over the raw
+      documents — cheaper, and avoids a second, possibly-inconsistent AI
+      reading of the same source material. Rendered with `@xyflow/react`
+      (new dependency — confirmed it adds zero vulnerabilities of its own;
+      the `npm audit` high-severity findings that show up after installing
+      it are pre-existing in Next.js's own dependency tree via
+      postcss/sharp, unrelated to this change, confirmed by diffing
+      `package-lock.json`). Layout is a simple deterministic column-per-
+      type placement, not a physics-based auto-layout — proportionate for
+      the node counts a single matter's evidence matrix produces.
+      Verified live via a throwaway matter: uploaded a document with two
+      claims (one with supporting evidence, one with a stated evidentiary
+      gap), generated a real evidence matrix, then generated the graph
+      from it — parties/allegations/evidence/gaps and their connections
+      were all correct, zero dangling edge references. Audit hash chain
+      confirmed intact after cleanup.
 
 ## Dependency notes
 
@@ -478,6 +503,11 @@ see git log for exact history.
   `exceljs` was evaluated as an alternative and rejected — it pulls in more
   vulnerable transitive dependencies, not fewer. Re-check this decision if a
   cleaner-audited spreadsheet library becomes available.
+- **`@xyflow/react`** — node-graph rendering for the evidence graph feature.
+  Adds zero vulnerabilities of its own per `npm audit`; the high-severity
+  findings visible after installing it are pre-existing in Next.js's own
+  dependency tree (postcss/sharp), confirmed unrelated by diffing
+  `package-lock.json` before/after.
 
 ## Decisions that need the account owner, not a default
 

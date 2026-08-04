@@ -94,7 +94,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "evidence-matrix",
         name: "Evidence matrix",
         detail:
-          "Maps allegations/charges to the elements that must be proven, the supporting evidence for each, and evidentiary gaps. Does not predict outcomes.",
+          "Maps allegations/charges to the elements that must be proven, the supporting evidence for each, and evidentiary gaps. Does not predict outcomes. Once generated, click Visualize to see it as a node graph — parties, allegations, evidence, and gaps, with their connections. Click any node to highlight just its direct connections, or use the checkboxes to show/hide a whole category and narrow down what you're looking at.",
       },
       {
         slug: "drafting",
