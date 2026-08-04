@@ -33,7 +33,16 @@ async function completeAnthropic(params: {
   });
 
   const textBlock = response.content.find((block) => block.type === "text");
-  return textBlock?.text ?? "";
+  if (!textBlock?.text) {
+    // Not thrown by the SDK — a "successful" response with no text block
+    // (observed on very large inputs, e.g. a matter with many/large
+    // documents). Must throw here, not return "", or forEachConfiguredProvider
+    // treats this as a completed success and never tries the next provider
+    // — the caller ends up silently persisting an empty result instead of
+    // getting an error or a real fallback attempt.
+    throw new Error("The AI returned an empty response. Try regenerating.");
+  }
+  return textBlock.text;
 }
 
 // Uses structured-output mode (json_schema) instead of asking for JSON in
@@ -60,7 +69,18 @@ async function completeJSONAnthropic<T>(params: {
   if (!textBlock?.text) {
     throw new Error("The AI returned an empty response. Try regenerating.");
   }
-  return JSON.parse(textBlock.text) as T;
+  try {
+    return JSON.parse(textBlock.text) as T;
+  } catch {
+    // A raw JSON.parse SyntaxError ("Unterminated string in JSON at
+    // position N") is meaningless to a user — this specific failure mode
+    // means the response was cut off mid-structure, almost always because
+    // maxTokens was too small for how much content this generated (seen
+    // for real on a large matter's evidence graph).
+    throw new Error(
+      "The AI's response was cut off before finishing — try regenerating. If it keeps happening, this matter may have too much content for one pass.",
+    );
+  }
 }
 
 async function isProviderConfigured(provider: AiProvider): Promise<boolean> {
@@ -133,6 +153,7 @@ export async function askClaude(params: {
   return complete({
     system,
     messages: [...history, { role: "user", content: question }],
+    maxTokens: 2048,
   });
 }
 
@@ -158,7 +179,11 @@ export async function generateMatterDigest(context: string): Promise<string> {
         content: `Here are the matter documents:\n\n${context}\n\nProduce the digest.`,
       },
     ],
-    maxTokens: 2048,
+    // 2048 was too small for a real, data-rich matter — the model's output
+    // got cut off with no visible text at all (see the empty-digest bug
+    // this session), so it's bumped generously here rather than just
+    // detecting the failure better.
+    maxTokens: 4096,
   });
 }
 
@@ -210,7 +235,7 @@ export async function extractDeadlines(context: string): Promise<ExtractedDeadli
     ],
     schema: DEADLINES_SCHEMA,
     schemaName: "deadlines",
-    maxTokens: 1024,
+    maxTokens: 2048,
   });
 
   return result.deadlines ?? [];
@@ -248,7 +273,7 @@ export async function generateDraft(
         content: `${contextSection}Draft a ${draftType.toLowerCase()}. ${instructions || ""}`.trim(),
       },
     ],
-    maxTokens: 2048,
+    maxTokens: 4096,
   });
 }
 
@@ -275,7 +300,7 @@ Subject: <subject line>
         content: `${contextSection}Draft a client email. ${instructions || ""}`.trim(),
       },
     ],
-    maxTokens: 1024,
+    maxTokens: 2048,
   });
 
   const match = raw.match(/^Subject:\s*(.+?)\n+([\s\S]*)$/);
@@ -306,7 +331,7 @@ Use "Not stated in the provided documents" for anything you cannot support. Do n
         content: `Here are the matter documents:\n\n${context}\n\nProduce the evidence matrix.`,
       },
     ],
-    maxTokens: 2048,
+    maxTokens: 4096,
   });
 }
 
@@ -381,6 +406,11 @@ export async function extractEvidenceGraph(matrixContent: string): Promise<Evide
     ],
     schema: EVIDENCE_GRAPH_SCHEMA,
     schemaName: "evidence_graph",
-    maxTokens: 2048,
+    // A real evidence matrix for a data-rich matter needs real headroom
+    // for graph JSON — each node/edge carries a label plus structural
+    // overhead, and 2048 was observed truncating mid-string on a real
+    // matter (a JSON.parse "Unterminated string" failure), not just
+    // running short on prose the way the plain-text generators above did.
+    maxTokens: 8192,
   });
 }

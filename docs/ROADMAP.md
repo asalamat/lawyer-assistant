@@ -623,6 +623,64 @@ see git log for exact history.
       button renders; confirmed `/export/pdf` has zero sidebar/top-bar
       markup, matching the evidence graph's chromeless-route pattern.
       Audit hash chain confirmed intact after cleanup.
+- [x] **Bug fix — AI generation silently saving empty content on real,
+      large matters.** Reported live: the matter digest showed nothing,
+      and independent review then failed with "sourceType
+      (digest|evidence_matrix|chat_message), sourceId, and content are
+      required" — both symptoms traced to the same root cause.
+      `completeAnthropic()` and `completeWithOpenAI()` (`src/lib/claude.ts`,
+      `src/lib/openaiText.ts`) both returned `?? ""` when a provider's
+      response had no visible text (observed on a real matter with a
+      large document set — likely reasoning/internal tokens consuming the
+      whole output budget before any visible answer text). Their sibling
+      structured-output functions (`completeJSONAnthropic`,
+      `completeJSONWithOpenAI`) already correctly threw in this case; the
+      plain-text path was missed. Returning `""` instead of throwing meant
+      `forEachConfiguredProvider` saw a "successful" (non-throwing) result
+      and never tried the next provider — the empty string then got
+      persisted as a real digest by `addDigest()`, and an empty string is
+      falsy in JS, so the independent-review endpoint's `!content` guard
+      correctly rejected it afterward — a second, correct error hiding the
+      real, silent first one.
+      Fixed by making both functions throw the same
+      "returned an empty response" error their JSON siblings already used,
+      so an empty completion now correctly triggers provider fallback or
+      surfaces a real error, instead of a false success.
+      Found and fixed against the actual real matter that triggered it:
+      confirmed three existing digest rows for the real "ali" matter had
+      `length(content) = 0` (two from today, one from 2026-08-02 — a
+      recurring issue, not a one-off), removed those broken rows (kept the
+      two genuinely good ones), then regenerated the digest live against
+      the real matter post-fix — 5156 characters of real, correct content
+      instead of empty, and a follow-up independent-review request on
+      that same content succeeded where it previously would have failed
+      validation. The regenerated digest and its independent review are
+      genuinely good real output, not test data, so they were left in
+      place rather than cleaned up. Audit hash chain confirmed intact.
+- [x] **Bug fix — evidence graph failing with "Unterminated string in JSON
+      at position N" on a real matter.** Same underlying category as the
+      empty-digest bug above (insufficient `maxTokens` for a real,
+      data-rich matter), different symptom: instead of an empty response,
+      `extractEvidenceGraph`'s response got cut off *mid-JSON-string*,
+      producing a technically non-empty but unparseable response — the
+      raw `JSON.parse` `SyntaxError` was surfacing straight to the user
+      as-is, a meaningless message for a lawyer to see. Fixed two ways:
+      (1) raised `maxTokens` across every generation function in
+      `claude.ts` — evidence graph specifically to 8192 (graph JSON has
+      real per-node/edge overhead beyond just prose length), digest/
+      evidence-matrix/drafts to 4096, deadlines/email-draft to 2048, chat
+      to an explicit 2048 (previously relied on `complete()`'s bare 1024
+      default) — none of these were sized for a genuinely large real
+      matter, only for the small test-sized ones exercised during
+      development; (2) wrapped the `JSON.parse` call in both
+      `completeJSONAnthropic` and `completeJSONWithOpenAI` so a parse
+      failure now throws a clear, actionable message instead of a raw
+      technical one, as a safety net for if a matter is ever large enough
+      to hit even the new, larger budget.
+      Verified against the real "ali" matter's real, existing evidence
+      matrix (4330 characters) post-fix: 13 nodes, 15 edges, zero dangling
+      edge references — succeeded cleanly where it previously failed to
+      parse. Audit hash chain confirmed intact after cleanup.
 
 ## Dependency notes
 

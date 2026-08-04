@@ -27,7 +27,15 @@ export async function completeWithOpenAI(params: {
     input: [{ role: "system", content: params.system }, ...params.messages],
     max_output_tokens: params.maxTokens ?? 1024,
   });
-  return response.output_text ?? "";
+  if (!response.output_text) {
+    // Same reasoning as completeJSONWithOpenAI below: a 200 response with
+    // no visible output text (e.g. reasoning tokens consuming the whole
+    // budget on a large input) must throw, not return "", or the caller
+    // in claude.ts's forEachConfiguredProvider treats it as a completed
+    // success and silently persists an empty result.
+    throw new Error("OpenAI returned an empty response.");
+  }
+  return response.output_text;
 }
 
 export async function completeJSONWithOpenAI<T>(params: {
@@ -54,5 +62,14 @@ export async function completeJSONWithOpenAI<T>(params: {
   if (!response.output_text) {
     throw new Error("OpenAI returned an empty response.");
   }
-  return JSON.parse(response.output_text) as T;
+  try {
+    return JSON.parse(response.output_text) as T;
+  } catch {
+    // See the matching catch in claude.ts's completeJSONAnthropic — a raw
+    // JSON.parse SyntaxError means the response was cut off mid-structure,
+    // almost always because maxTokens was too small for this input.
+    throw new Error(
+      "The AI's response was cut off before finishing — try regenerating. If it keeps happening, this matter may have too much content for one pass.",
+    );
+  }
 }
