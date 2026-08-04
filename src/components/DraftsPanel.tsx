@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { DRAFT_TYPES, type Draft, type DraftType } from "@/lib/types";
+import DictateButton from "./DictateButton";
 
 export default function DraftsPanel({
   matterId,
@@ -55,6 +56,10 @@ export default function DraftsPanel({
           onChange={(e) => setInstructions(e.target.value)}
           placeholder="Optional instructions (recipient, tone, key points)…"
           className="surface-input flex-1"
+        />
+        <DictateButton
+          disabled={generating}
+          onText={(text) => setInstructions((prev) => (prev ? `${prev} ${text}` : text))}
         />
         <button onClick={handleGenerate} disabled={generating} className="btn-primary">
           {generating ? "Drafting…" : "Generate draft"}

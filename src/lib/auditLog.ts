@@ -43,6 +43,7 @@ export const ACTION_LABELS: Record<string, string> = {
   matter_legal_hold_applied: "Matter placed on legal hold",
   matter_legal_hold_released: "Matter legal hold released",
   matter_retention_date_set: "Matter retention date set",
+  email_draft_generated: "Smart email draft generated",
 };
 
 export async function recordAuditEvent(

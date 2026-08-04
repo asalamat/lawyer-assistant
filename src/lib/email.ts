@@ -22,11 +22,17 @@ async function getTransport() {
   return { transport, from };
 }
 
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+}
+
 export async function sendEmail(message: {
   to: string;
   subject: string;
   text: string;
   html?: string;
+  attachments?: EmailAttachment[];
 }): Promise<void> {
   const { transport, from } = await getTransport();
   await transport.sendMail({
@@ -35,6 +41,7 @@ export async function sendEmail(message: {
     subject: message.subject,
     text: message.text,
     html: message.html,
+    attachments: message.attachments,
   });
 }
 

@@ -441,6 +441,33 @@ see git log for exact history.
       Duplicate-document detection (SHA-256 content hash) was already
       built in an earlier pass — see "Also built" above; it wasn't
       actually part of what needed doing here.
+- [x] Voice dictation on every major free-text input (chat question, matter
+      notes, draft instructions, email draft instructions, email message —
+      `DictateButton.tsx`, `/api/transcribe`). Deliberately record-then-
+      transcribe via the existing OpenAI Whisper pipeline rather than the
+      browser's built-in SpeechRecognition API — that API doesn't exist in
+      Firefox and is inconsistent in Safari, while this works anywhere
+      `getUserMedia` does and reuses infrastructure already configured for
+      audio/video document transcription.
+- [x] Smart email drafting + attachments (`ComposeEmailPanel.tsx`,
+      `generateEmailDraft()` in `src/lib/claude.ts`,
+      `/api/matters/[id]/email-draft`) — describe what the email should
+      say, get a grounded subject+body draft (same citation discipline as
+      other drafting features), review and edit before sending. Sending
+      can now attach any of the matter's own uploaded documents
+      (`/api/matters/[id]/send-email` accepts `documentIds`, verifies they
+      belong to the matter, decrypts them via the same helper
+      `textExtraction.ts` uses for reading documents, and passes them to
+      nodemailer as attachments).
+      Verified live via a throwaway matter: smart draft correctly grounded
+      itself in an uploaded document's content (cited the source
+      filename), attachment ownership validation correctly rejected a
+      documentId that didn't belong to the matter. Did not live-test an
+      actual send-with-attachment — that would deliver a real message via
+      the real configured SMTP account, and the two things it would be
+      testing (SMTP delivery, and reading/decrypting a document's bytes)
+      are both already independently verified elsewhere. Audit hash chain
+      confirmed intact after cleanup.
 
 ## Dependency notes
 

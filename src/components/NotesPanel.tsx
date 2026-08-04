@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { MatterNote } from "@/lib/types";
+import DictateButton from "./DictateButton";
 
 export default function NotesPanel({
   matterId,
@@ -57,9 +58,15 @@ export default function NotesPanel({
           rows={3}
           className="surface-input"
         />
-        <button type="submit" disabled={submitting} className="btn-primary self-start">
-          {submitting ? "Adding…" : "Add note"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button type="submit" disabled={submitting} className="btn-primary">
+            {submitting ? "Adding…" : "Add note"}
+          </button>
+          <DictateButton
+            disabled={submitting}
+            onText={(text) => setContent((prev) => (prev ? `${prev} ${text}` : text))}
+          />
+        </div>
       </form>
       {error && <p className="text-sm text-red-600">{error}</p>}
 

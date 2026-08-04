@@ -41,7 +41,9 @@ export function isExtractableDocument(fileName: string): boolean {
 // Documents on disk are encrypted at rest. Files uploaded before that
 // shipped are still plaintext there — detect and migrate those in place the
 // first time they're read, rather than requiring a separate migration step.
-async function readPlaintextFile(storagePath: string): Promise<Buffer> {
+// Exported for reuse anywhere else that needs a document's raw bytes (e.g.
+// attaching an uploaded document to an outgoing email).
+export async function readPlaintextFile(storagePath: string): Promise<Buffer> {
   const raw = await readFile(storagePath);
   if (isEncryptedFile(raw)) return decryptFile(raw);
 

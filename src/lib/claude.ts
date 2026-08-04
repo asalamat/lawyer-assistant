@@ -239,6 +239,37 @@ export async function generateDraft(
   });
 }
 
+export interface EmailDraft {
+  subject: string;
+  body: string;
+}
+
+export async function generateEmailDraft(context: string, instructions: string): Promise<EmailDraft> {
+  const system = `You are a legal assistant drafting an email to a client on a lawyer's behalf, for the lawyer's review before sending — never send anything yourself, this is a first draft only. Base every fact on the provided matter documents — cite the source filename in parentheses after any fact you draw from a document. Keep the tone professional and appropriately concise for a client email, not a formal memo. Respond in exactly this format, with nothing before or after it:
+Subject: <subject line>
+
+<email body>`;
+
+  const contextSection = context
+    ? `Matter documents:\n\n${context}\n\n`
+    : "No documents have been uploaded for this matter yet.\n\n";
+
+  const raw = await complete({
+    system,
+    messages: [
+      {
+        role: "user",
+        content: `${contextSection}Draft a client email. ${instructions || ""}`.trim(),
+      },
+    ],
+    maxTokens: 1024,
+  });
+
+  const match = raw.match(/^Subject:\s*(.+?)\n+([\s\S]*)$/);
+  if (!match) return { subject: "", body: raw.trim() };
+  return { subject: match[1].trim(), body: match[2].trim() };
+}
+
 export async function generateEvidenceMatrix(context: string): Promise<string> {
   const system = `You are a legal assistant building an evidence-mapping matrix for a lawyer. Base every statement only on the provided matter documents — never invent allegations, evidence, or elements. Cite the source filename in parentheses after any fact you draw from a document — if the source text has page markers (e.g. "[Page 4]"), include the page too, like "(file.pdf, p. 4)". Structure your answer as:
 

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { verifyCitations } from "@/lib/citationCheck";
 import type { ChatMessage, IndependentReview } from "@/lib/types";
+import DictateButton from "./DictateButton";
 
 type Rating = "up" | "down";
 
@@ -181,6 +182,10 @@ export default function ChatMessages({
           disabled={sending}
           placeholder="Ask about this matter..."
           className="surface-input flex-1"
+        />
+        <DictateButton
+          disabled={sending}
+          onText={(text) => setQuestion((prev) => (prev ? `${prev} ${text}` : text))}
         />
         <button type="submit" disabled={sending} className="btn-primary">
           {sending ? "Asking…" : "Send"}
