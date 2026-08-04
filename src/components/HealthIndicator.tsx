@@ -41,7 +41,7 @@ export default function HealthIndicator() {
         <span className={`h-2 w-2 rounded-full ${dotColor}`} />
       </button>
       {open && (
-        <div className="absolute right-0 z-10 mt-2 w-72 rounded-lg border border-border bg-card p-3 text-sm shadow-lg">
+        <div className="absolute left-0 z-20 mt-2 w-72 rounded-lg border border-border bg-card p-3 text-sm shadow-lg">
           <p className="mb-2 font-medium">System health</p>
           <ul className="flex flex-col gap-1.5">
             {status.checks.map((check) => (

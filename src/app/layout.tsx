@@ -46,10 +46,12 @@ export default async function RootLayout({
       <head>
         <ThemeScript />
       </head>
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col sm:flex-row">
         <ConditionalNav />
-        {children}
-        <ConditionalFooter version={version} />
+        <div className="flex min-w-0 flex-1 flex-col">
+          {children}
+          <ConditionalFooter version={version} />
+        </div>
       </body>
     </html>
   );

@@ -261,3 +261,34 @@ export const LibraryIcon = (props: IconProps) =>
     </>,
     props,
   );
+
+export const ScaleIcon = (props: IconProps) =>
+  base(
+    <>
+      <path d="M12 3v18M8 21h8" />
+      <path d="M5 7h6M13 7h6" />
+      <path d="M3 7l2.5 6a2.5 2.5 0 0 0 5 0L8 7" />
+      <path d="M13 7l2.5 6a2.5 2.5 0 0 0 5 0L18 7" />
+    </>,
+    props,
+  );
+
+export const PanelCollapseIcon = (props: IconProps) =>
+  base(
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9 4v16" />
+      <path d="M14.5 9.5L12 12l2.5 2.5" />
+    </>,
+    props,
+  );
+
+export const PanelExpandIcon = (props: IconProps) =>
+  base(
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9 4v16" />
+      <path d="M12.5 9.5L15 12l-2.5 2.5" />
+    </>,
+    props,
+  );
