@@ -17,25 +17,37 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "create-manage-matters",
         name: "Create & manage matters",
         detail:
-          "Create a matter with a title, client name, client email, matter type, and an optional default hourly billing rate. Search/filter the matters list by text or open/closed/archived status. Close, reopen, archive, or permanently delete a matter at any time from its Overview tab.",
+          "Create a matter with a title, client name, client email, matter type, and an optional default hourly billing rate. A conflict-of-interest check runs automatically against every existing client name (exact and near-miss spelling) when you fill in the client name. Search/filter the matters list by text or open/closed/archived status. Close, reopen, archive, or permanently delete a matter at any time from its Overview tab — a matter placed on legal hold (see Compliance below) can't be deleted until the hold is released.",
+      },
+      {
+        slug: "compliance",
+        name: "Compliance",
+        detail:
+          "Each matter has a classification (standard/privileged/highly-sensitive), an optional retention date (informational — nothing auto-deletes on it), and a legal hold toggle. A matter on legal hold shows a badge in its header and can't be deleted, even from the danger zone, until the hold is released. All changes here are recorded in the audit log.",
       },
       {
         slug: "document-upload",
         name: "Document upload",
         detail:
-          "Drag and drop files onto a matter. Text, PDF, Word (.docx), Excel/CSV, images (via OCR), and audio/video recordings (via OpenAI Whisper, once configured) are readable by chat and AI features — other file types still upload but aren't used as AI context. Identical files uploaded twice are flagged as duplicates.",
+          "Drag and drop files onto a matter. Text, PDF, Word (.docx), Excel/CSV, images (via OCR), and audio/video recordings (via OpenAI Whisper, once configured) are readable by chat and AI features — other file types still upload but aren't used as AI context. Identical files uploaded twice are flagged as duplicates. Documents are encrypted at rest and decrypted transparently when read.",
       },
       {
         slug: "notes",
         name: "Notes",
         detail:
-          "Add free-text notes or findings to a matter. Notes are included as context for the matter digest, alongside uploaded documents.",
+          "Add free-text notes or findings to a matter — dictate them with the microphone button instead of typing if you prefer. Notes are included as context for the matter digest, alongside uploaded documents.",
       },
       {
         slug: "reference-library",
         name: "Reference library",
         detail:
           "Upload statutes, case law, or other reference material once (nav > Reference library), then attach whichever documents are relevant to a specific matter from that matter's Overview tab. Attached reference documents are included in that matter's chat/digest/drafts/evidence-matrix context — attaching is per matter on purpose, so an unrelated matter doesn't get, say, the entire Criminal Code stuffed into its AI context.",
+      },
+      {
+        slug: "clients",
+        name: "Clients",
+        detail:
+          "Every matter is automatically linked to a client record (nav > Clients) — creating a second matter for the same client (same name and email) links it to the same client instead of creating a duplicate, so a client's detail page shows their full matter history in one place.",
       },
       {
         slug: "timesheet-invoicing",
@@ -47,7 +59,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "email",
         name: "Email",
         detail:
-          "Compose and send an email directly from a matter once SMTP is configured in Settings. Connected inboxes (Gmail/Microsoft via OAuth, or Yahoo via an app password) can also be browsed and a message imported into the matter as a document.",
+          "Compose and send an email directly from a matter once SMTP is configured in Settings. Use Smart draft to describe what the email should say and get a grounded subject+body draft citing the matter documents it's based on — always review before sending. Attach any of the matter's own uploaded documents when sending. Connected inboxes (Gmail/Microsoft via OAuth, or Yahoo via an app password) can also be browsed and a message imported into the matter as a document.",
       },
     ],
   },
@@ -58,7 +70,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "chat",
         name: "Chat",
         detail:
-          "Ask questions grounded only in that matter's uploaded documents and notes. Any filename cited is checked against the matter's real documents — an unverified citation is flagged in the answer. Rate answers with a thumbs up/down for later review.",
+          "Ask questions grounded in that matter's uploaded documents and notes — dictate the question instead of typing if you prefer. Under the hood, chat retrieves the most relevant passages from your documents (rather than dumping every document into every question), so it stays accurate and fast even on matters with a large volume of material. Citations include a page number when the source is a PDF, e.g. \"(file.pdf, p. 4)\". Any filename cited is checked against the matter's real documents — an unverified citation is flagged in the answer. Rate answers with a thumbs up/down, or request an independent second-opinion review of any answer from Google Gemini (requires a Gemini key in Settings).",
       },
       {
         slug: "matter-digest",
@@ -70,7 +82,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "independent-review",
         name: "Independent review",
         detail:
-          "Get a second opinion from Google Gemini on a generated digest or evidence matrix, to catch blind spots a single model might share with itself. Requires a Gemini key in Settings.",
+          "Get a second opinion from Google Gemini on a generated digest, evidence matrix, or any individual chat answer, to catch blind spots a single model might share with itself. Requires a Gemini key in Settings.",
       },
       {
         slug: "deadlines",
@@ -88,7 +100,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "drafting",
         name: "Drafting",
         detail:
-          "Generates a first-draft research memo, demand letter, or client correspondence grounded in matter documents. Unsupported sections are marked for lawyer input rather than invented — always a draft for review, never a final document.",
+          "Generates a first-draft research memo, demand letter, or client correspondence grounded in matter documents, with page-number citations for PDF sources. Dictate your instructions instead of typing if you prefer. Unsupported sections are marked for lawyer input rather than invented — always a draft for review, never a final document.",
       },
       {
         slug: "ai-redundancy",
@@ -111,7 +123,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "audit-log",
         name: "Audit log & matter timeline",
         detail:
-          "Every matter/document/chat/digest/feedback/status/invoice/email action is recorded with a timestamp — viewable app-wide at Audit log, or filtered to one matter in its Activity timeline section. Also flags duplicate document uploads (same file content uploaded twice).",
+          "Every matter/document/chat/digest/feedback/status/invoice/email/user-management action is recorded with a timestamp and who did it — viewable app-wide at Audit log, or filtered to one matter in its Activity timeline section. Also flags duplicate document uploads (same file content uploaded twice). The log is tamper-evident: each entry is cryptographically chained to the one before it, so an edit or deletion made outside the app is detectable. Admins can check this any time with the \"Verify log integrity\" button on the Audit log page.",
       },
     ],
   },
@@ -160,7 +172,13 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "security",
         name: "Security",
         detail:
-          "Change your login password (or reset a forgotten one from the terminal with npm run reset-password). Login is rate-limited after repeated failed attempts.",
+          "Change your own login password here — this page is available to every user, not just admins (or reset a forgotten one from the terminal with npm run reset-password -- you@example.com). Login is rate-limited per account after repeated failed attempts.",
+      },
+      {
+        slug: "users",
+        name: "Users",
+        detail:
+          "Admin-only. Add a lawyer or staff account with a role (admin/lawyer/staff) — a temporary password is shown once for you to pass along; they're required to set their own password on first login. Change anyone's role, reset a password, or deactivate an account (deactivating immediately signs them out everywhere). Everyone can see every matter today; roles control access to Settings/API keys and user management, not matter visibility.",
       },
     ],
   },

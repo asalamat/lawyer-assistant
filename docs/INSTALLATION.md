@@ -2,15 +2,45 @@
 
 This app runs as a single Next.js process on one machine, with a local SQLite
 database (`node:sqlite`, built into Node — no separate database server to
-install or run) and local file storage for uploaded documents.
+install or run) and local file storage for uploaded documents. It runs
+identically on macOS, Windows, and Linux — nothing in the codebase is
+platform-specific (encryption keys use the macOS Keychain when available
+and fall back to a local file everywhere else, automatically).
 
 ## Prerequisites
 
 - **Node.js 22.5 or newer** (24.x recommended — this is what's used throughout
   development). `node:sqlite` requires at least 22.5.
+  Download: https://nodejs.org (choose the LTS installer for your OS —
+  this also installs npm).
 - **npm** (ships with Node).
 - **git**, if installing from the GitHub repo (also needed for the in-app
-  "check for updates" feature in Settings > Software updates).
+  "check for updates" feature in Settings > Software updates). macOS
+  prompts to install git automatically the first time you run a `git`
+  command, if it isn't already present. Windows: https://git-scm.com/download/win
+
+## Quick install (one command)
+
+Once Node.js and git are installed, this single command clones the repo,
+installs dependencies, and starts the app:
+
+**macOS / Linux (Terminal):**
+```bash
+git clone https://github.com/asalamat/lawyer-assistant.git && cd lawyer-assistant && npm install && npm run dev
+```
+
+**Windows (Command Prompt or PowerShell):**
+```bat
+git clone https://github.com/asalamat/lawyer-assistant.git && cd lawyer-assistant && npm install && npm run dev
+```
+(The same command works in both — `&&` chaining works in Command Prompt and
+in PowerShell 7+. If you're on the older Windows PowerShell 5.1 and it
+errors on `&&`, run the four commands one line at a time instead, or use
+`;` as the separator.)
+
+Then open `http://localhost:3000` in a browser. The step-by-step breakdown
+below explains what each part of that command does, plus how to configure
+AI features afterward.
 
 ## 1. Get the code
 
@@ -41,16 +71,22 @@ npm run start
 update checker to pull new commits, restart the process manually afterward
 to pick up the change (`npm run dev` hot-reloads automatically instead).
 
-## 3. First run: set a password
+## 3. First run: create the first account
 
-The app has no default password. The first time you open it, you'll land on
-`/login` and be prompted to set one — this is stored locally (scrypt-hashed)
-in `data/auth.json`, not sent anywhere. There's no "forgot password" flow in
-the UI by design (a recovery flow would be a bypass path for a single-user
-app); if you forget it, reset from the terminal:
+The app has no default account. The first time you open it, you'll land on
+`/login` and be prompted to create the first admin account (email, name,
+password) — the password is stored locally (scrypt-hashed) in the SQLite
+database, never sent anywhere. Once that account exists, the admin can add
+further lawyer/staff accounts from Settings > Users (each gets a temporary
+password to change on first login) — see Settings > Security and Settings >
+Users in the in-app Help for details.
+
+There's no "forgot password" flow in the UI by design (a self-service
+recovery flow would be a bypass path); if an account is locked out, reset it
+from the terminal, in the project directory:
 
 ```bash
-npm run reset-password
+npm run reset-password -- you@example.com
 ```
 
 ## 4. Configure AI features (Settings)
@@ -99,12 +135,23 @@ None of these are required for the app's core matter-management features.
 Everything the app stores lives under `data/` in the project directory
 (gitignored, never committed):
 
-- `data/app.db` — the SQLite database (matters, documents metadata, chat,
-  digests, invoices, etc.)
-- `data/uploads/` — uploaded document files
-- `data/settings.json` — API keys and integration config
-- `data/auth.json` — password hash and session token
+- `data/app.db` — the SQLite database: matters, clients, documents
+  metadata, chat, digests, invoices, users/sessions/roles, and the audit log
+- `data/uploads/` — uploaded document files, encrypted at rest
+- `data/reference-uploads/` — shared reference-library files, also encrypted
+- `data/settings.json` — API keys, SMTP credentials, and integration
+  config; secrets are encrypted at rest (AES-256-GCM)
+- `data/auth.json` — legacy file, kept only for one-time migration from
+  versions before multi-user accounts existed; empty on a fresh install
 - `data/oauth.json` — OAuth app credentials for email integrations
+
+Encryption key: on macOS the AES key used to encrypt secrets/documents
+lives in the Keychain (separate from `data/`, so a copy of `data/` alone
+isn't decryptable without also having Keychain access on that same Mac).
+On Windows/Linux it falls back to a key file outside `data/`, at
+`~/.lawyer-assistant/masterkey` (`%USERPROFILE%\.lawyer-assistant\masterkey`
+on Windows) — **back that file up too**, alongside `data/`, or encrypted
+documents/secrets can't be decrypted after a restore.
 
 To back up the app, copy the entire `data/` directory. There is no separate
 database server or external storage to worry about.
