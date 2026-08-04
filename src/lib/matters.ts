@@ -6,6 +6,12 @@ import { recordAuditEvent } from "./auditLog";
 import { encryptFile } from "./crypto";
 import db, { toPlain } from "./db";
 import { listAttachedReferenceDocuments } from "./referenceLibrary";
+import {
+  buildContextFromChunks,
+  ensureDocumentChunks,
+  ensureReferenceDocumentChunks,
+  getRelevantChunks,
+} from "./rag";
 import { extractDocumentText, isExtractableDocument } from "./textExtraction";
 import type { ExtractedDeadline } from "./claude";
 import type {
@@ -787,4 +793,50 @@ export async function getMatterTextContext(matterId: string): Promise<string> {
     ...referenceSections.filter((section) => section !== null),
     ...notesSection,
   ].join("\n\n");
+}
+
+// Chat context, built via retrieval instead of concatenating every document
+// in full — see rag.ts. Digest/evidence-matrix/deadlines/drafts still use
+// getMatterTextContext above: those need comprehensive coverage of every
+// document to summarize correctly, not "the parts most similar to a
+// query" (there isn't a query for "summarize everything"). Chat is
+// specifically query-driven, which is what makes retrieval the right fit
+// there and not elsewhere.
+export async function getMatterChatContext(matterId: string, question: string): Promise<string> {
+  const documents = await listDocuments(matterId);
+  const extractable = documents.filter((doc) => isExtractableDocument(doc.fileName));
+  const docResults = await Promise.all(
+    extractable.map(async (doc) => ({ fileName: doc.fileName, result: await ensureDocumentChunks(doc) })),
+  );
+
+  const referenceDocs = await listAttachedReferenceDocuments(matterId);
+  const refResults = await Promise.all(
+    referenceDocs
+      .filter((doc) => isExtractableDocument(doc.fileName))
+      .map(async (doc) => ({
+        fileName: doc.fileName,
+        result: await ensureReferenceDocumentChunks(doc),
+      })),
+  );
+
+  const unreadable = [...docResults, ...refResults]
+    .filter((r) => r.result === "unreadable")
+    .map((r) => r.fileName);
+  const unreadableSection =
+    unreadable.length > 0
+      ? `--- Could not extract text from these uploaded files: ${unreadable.join(", ")} ---`
+      : null;
+
+  const relevantChunks = await getRelevantChunks(matterId, question);
+  const chunkContext = buildContextFromChunks(relevantChunks);
+
+  const notes = await listMatterNotes(matterId);
+  const notesSection =
+    notes.length > 0
+      ? `--- Lawyer's notes ---\n${notes
+          .map((n) => `[${n.createdAt.slice(0, 10)}] ${n.content}`)
+          .join("\n\n")}`
+      : null;
+
+  return [chunkContext, unreadableSection, notesSection].filter(Boolean).join("\n\n");
 }

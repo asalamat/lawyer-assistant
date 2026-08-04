@@ -218,6 +218,22 @@ execWithRetry(`
     FOREIGN KEY (userId) REFERENCES users(id)
   );
 
+  CREATE TABLE IF NOT EXISTS document_chunks (
+    id TEXT PRIMARY KEY,
+    documentId TEXT,
+    referenceDocumentId TEXT,
+    matterId TEXT,
+    fileName TEXT NOT NULL,
+    pageNumber INTEGER,
+    chunkIndex INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    embedding TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_document_chunks_documentId ON document_chunks(documentId);
+  CREATE INDEX IF NOT EXISTS idx_document_chunks_referenceDocumentId ON document_chunks(referenceDocumentId);
+  CREATE INDEX IF NOT EXISTS idx_document_chunks_matterId ON document_chunks(matterId);
   CREATE INDEX IF NOT EXISTS idx_sessions_userId ON sessions(userId);
   CREATE INDEX IF NOT EXISTS idx_matter_notes_matterId ON matter_notes(matterId);
   CREATE INDEX IF NOT EXISTS idx_reference_documents_contentHash ON reference_documents(contentHash);

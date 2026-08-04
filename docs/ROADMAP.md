@@ -344,6 +344,53 @@ see git log for exact history.
       (filename + page, see above) is unaffected and works today; this
       item is specifically about verifying case-law/legislation citations
       an AI answer generates against an external authority.
+- [x] Real RAG for chat — chunking + embeddings + cosine-similarity
+      retrieval, replacing full-context injection **for chat specifically**
+      (`src/lib/rag.ts`, `src/lib/chunking.ts`, `src/lib/embeddings.ts`, new
+      `document_chunks` table). Deliberately *not* applied to digest/
+      evidence-matrix/deadlines/drafts — those need comprehensive coverage
+      of every document to summarize correctly ("summarize everything" has
+      no query to retrieve against), so they still use the full-context
+      `getMatterTextContext`. Chat is specifically query-driven, which is
+      what makes retrieval the right fit there and nowhere else in this
+      app — this is a deliberate split, not partial/incomplete work.
+      No vector-search database was added: `node:sqlite` has no vector
+      extension available to it, and at this app's actual scale (a solo/
+      small firm's document corpus, not web-scale) brute-force cosine
+      similarity in JS over stored embeddings is genuinely fast enough —
+      adding pgvector or a dedicated vector DB would be overkill, not a
+      correctness requirement. Embeddings via OpenAI
+      (`text-embedding-3-small`, already-configured key); chunks are
+      ~1500 characters with overlap, tagged with page number when the
+      source has `[Page N]` markers (PDFs, from the P1 work above) so
+      retrieved chunks keep their citation. Chunking is self-migrating and
+      idempotent, same pattern as the encryption-at-rest migration
+      earlier: the first chat message on a matter after this ships embeds
+      its documents once and caches the result; every later message
+      reuses the cached chunks. A document that fails to extract is
+      explicitly listed to the model as unreadable rather than silently
+      disappearing from context — the RAG path had briefly dropped this
+      compared to the old full-context builder; caught and fixed before
+      shipping. Retrieval quality (re-ranking, query expansion) isn't
+      tuned in this pass — top-K is generous (15) specifically so small
+      matters lose nothing versus full-context injection.
+      **Bug found and fixed along the way**: while verifying this against
+      the real configured OpenAI key, confirmed a second, unrelated model
+      issue exists only in `gemini.ts` (already fixed in the P1 commit
+      above) — OpenAI's embeddings model was fine, no changes needed there.
+      Verified live end-to-end via a throwaway matter: a buried unique
+      fact in an uploaded text file was correctly retrieved and cited by
+      chat; a second unrelated question against the same matter correctly
+      retrieved different, relevant content without re-embedding (chunk
+      count unchanged); page-tagged chunking logic verified directly
+      (page numbers correctly threaded through, including a page long
+      enough to split into multiple chunks); a synthetic PDF failed to
+      parse (a limitation of the hand-rolled test file, not the real
+      pipeline — page-tagged extraction was already verified earlier
+      against a copy of a real document); the unreadable-file fix
+      confirmed live by asking chat to list every document, including
+      ones it couldn't read. Audit hash chain confirmed intact (78 real
+      rows, unbroken) after all test-data cleanup. All test data removed.
 
 ## Dependency notes
 

@@ -4,7 +4,7 @@ import { askClaude } from "@/lib/claude";
 import {
   addChatMessage,
   getMatter,
-  getMatterTextContext,
+  getMatterChatContext,
   listChatMessages,
 } from "@/lib/matters";
 
@@ -36,7 +36,7 @@ export async function POST(
   const priorMessages = await listChatMessages(id);
   await addChatMessage(id, "user", question);
 
-  const context = await getMatterTextContext(id);
+  const context = await getMatterChatContext(id, question);
   try {
     const answer = await askClaude({
       question,
