@@ -3,10 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { setSidebarCollapsed, useSidebarCollapsed } from "@/lib/useSidebarCollapsed";
+import type { AppVersion } from "@/lib/systemInfo";
 import HealthIndicator from "./HealthIndicator";
 import LogoutButton from "./LogoutButton";
-import ThemeToggle from "./ThemeToggle";
-import WeatherDisplay from "./WeatherDisplay";
 import {
   AuditIcon,
   DashboardIcon,
@@ -29,7 +28,7 @@ const LINKS = [
   { href: "/help", label: "Help", Icon: HelpIcon },
 ];
 
-export default function AppSidebar() {
+export default function AppSidebar({ version }: { version: AppVersion }) {
   const pathname = usePathname();
   const collapsed = useSidebarCollapsed();
 
@@ -76,26 +75,19 @@ export default function AppSidebar() {
         })}
       </nav>
 
-      <div className={`flex flex-col gap-3 border-t border-border px-3 py-4`}>
+      <div className="flex flex-col gap-3 border-t border-border px-3 py-4">
         <div
-          className={`flex items-center gap-3 ${collapsed ? "flex-col" : "justify-between px-1"}`}
+          className={`flex items-center gap-3 ${collapsed ? "flex-col" : "px-1"}`}
         >
-          <div className={`flex items-center gap-3 ${collapsed ? "flex-col" : ""}`}>
-            <HealthIndicator />
-            <Link
-              href="/search"
-              aria-label="Search"
-              title="Search everything"
-              className="text-foreground/75 transition-colors hover:text-accent"
-            >
-              <SearchIcon className="h-4 w-4" />
-            </Link>
-          </div>
-          {!collapsed && <WeatherDisplay />}
-        </div>
-
-        <div className={collapsed ? "flex justify-center" : ""}>
-          <ThemeToggle />
+          <HealthIndicator />
+          <Link
+            href="/search"
+            aria-label="Search"
+            title="Search everything"
+            className="text-foreground/75 transition-colors hover:text-accent"
+          >
+            <SearchIcon className="h-4 w-4" />
+          </Link>
         </div>
 
         <div className={`flex items-center ${collapsed ? "flex-col gap-3" : "justify-between"}`}>
@@ -113,6 +105,13 @@ export default function AppSidebar() {
             )}
           </button>
         </div>
+
+        {!collapsed && (
+          <p className="px-1 text-left text-xs text-muted">
+            v{version.appVersion}
+            {version.gitCommit && ` (${version.gitCommit.shortSha})`}
+          </p>
+        )}
       </div>
     </aside>
   );

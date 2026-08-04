@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Fraunces, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import { getAppVersion } from "@/lib/systemInfo";
-import ConditionalFooter from "@/components/ConditionalFooter";
 import ConditionalNav from "@/components/ConditionalNav";
 import ThemeScript from "@/components/ThemeScript";
+import TopUtilityBar from "@/components/TopUtilityBar";
 import "./globals.css";
 
 const bodyFont = IBM_Plex_Sans({
@@ -47,10 +47,10 @@ export default async function RootLayout({
         <ThemeScript />
       </head>
       <body className="min-h-full flex flex-col sm:flex-row">
-        <ConditionalNav />
+        <ConditionalNav version={version} />
         <div className="flex min-w-0 flex-1 flex-col">
+          <TopUtilityBar />
           {children}
-          <ConditionalFooter version={version} />
         </div>
       </body>
     </html>
