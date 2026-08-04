@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isValidSession } from "@/lib/auth";
 
-const PUBLIC_PATHS = ["/login", "/api/auth/login"];
+// The legislation-watches check-all route is meant for an unattended OS
+// cron job (no browser session exists there) — it does its own bearer-token
+// check against a separate cron secret instead (see settings.ts
+// getOrCreateCronSecret and the route itself).
+const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/legislation-watches/check-all"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

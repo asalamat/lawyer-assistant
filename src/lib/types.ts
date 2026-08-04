@@ -34,6 +34,21 @@ export interface ReferenceDocument {
   contentHash: string;
 }
 
+// A CanLII legislation record being watched for changes. CanLII's API only
+// exposes metadata + a part/section list, not the actual statute text, so
+// "changed" means the repeal status, effective dates, or section structure
+// differ from the last check — not that specific wording was amended.
+export interface LegislationWatch {
+  id: string;
+  databaseId: string;
+  legislationId: string;
+  label: string;
+  lastSnapshot: string | null;
+  lastCheckedAt: string | null;
+  lastChangedAt: string | null;
+  createdAt: string;
+}
+
 export interface ChatMessage {
   id: string;
   matterId: string;

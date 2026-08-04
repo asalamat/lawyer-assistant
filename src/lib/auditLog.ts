@@ -30,6 +30,9 @@ export const ACTION_LABELS: Record<string, string> = {
   reference_document_deleted: "Reference document deleted",
   reference_document_attached: "Reference document attached to matter",
   reference_document_detached: "Reference document detached from matter",
+  legislation_watch_added: "Legislation watch added",
+  legislation_watch_removed: "Legislation watch removed",
+  legislation_watch_changed: "Legislation watch detected a change",
 };
 
 export async function recordAuditEvent(

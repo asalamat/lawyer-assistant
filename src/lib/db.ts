@@ -186,6 +186,17 @@ execWithRetry(`
     FOREIGN KEY (referenceDocumentId) REFERENCES reference_documents(id)
   );
 
+  CREATE TABLE IF NOT EXISTS legislation_watches (
+    id TEXT PRIMARY KEY,
+    databaseId TEXT NOT NULL,
+    legislationId TEXT NOT NULL,
+    label TEXT NOT NULL,
+    lastSnapshot TEXT,
+    lastCheckedAt TEXT,
+    lastChangedAt TEXT,
+    createdAt TEXT NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_matter_notes_matterId ON matter_notes(matterId);
   CREATE INDEX IF NOT EXISTS idx_reference_documents_contentHash ON reference_documents(contentHash);
   CREATE INDEX IF NOT EXISTS idx_matter_reference_documents_matterId ON matter_reference_documents(matterId);

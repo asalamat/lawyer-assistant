@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { readSecureJson, writeSecureJson } from "./secureStore";
 
 const SETTINGS_FILE = "settings.json";
@@ -30,6 +31,7 @@ interface Settings {
   smtp?: SmtpConfig;
   location?: WeatherLocation;
   aiProviderOrder?: AiProvider[];
+  cronSecret?: string;
 }
 
 async function readSettings(): Promise<Settings> {
@@ -211,4 +213,17 @@ export async function getOpenaiApiKeyStatus(): Promise<{
     source: settings.openaiApiKey ? "settings" : "env",
     preview: `••••${key.slice(-4)}`,
   };
+}
+
+// A separate secret for unattended endpoints (e.g. an OS cron job checking
+// legislation watches) that can't go through the normal browser session
+// login. Auto-generated on first access so there's always a value to check
+// against, distinct from the user's login password.
+export async function getOrCreateCronSecret(): Promise<string> {
+  const settings = await readSettings();
+  if (settings.cronSecret) return settings.cronSecret;
+  const secret = randomBytes(32).toString("hex");
+  settings.cronSecret = secret;
+  await writeSettings(settings);
+  return secret;
 }

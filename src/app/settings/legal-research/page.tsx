@@ -1,5 +1,7 @@
-import { getCanliiApiKeyStatus } from "@/lib/settings";
+import { getCanliiApiKeyStatus, getOrCreateCronSecret } from "@/lib/settings";
+import { listLegislationWatches } from "@/lib/legislationWatch";
 import CanliiTestButton from "@/components/CanliiTestButton";
+import LegislationWatchPanel from "@/components/LegislationWatchPanel";
 import SettingsForm from "@/components/SettingsForm";
 import SettingsSection from "@/components/SettingsSection";
 import { EvidenceIcon } from "@/components/icons";
@@ -8,6 +10,8 @@ export const dynamic = "force-dynamic";
 
 export default async function LegalResearchSettingsPage() {
   const status = await getCanliiApiKeyStatus();
+  const watches = await listLegislationWatches();
+  const cronSecret = await getOrCreateCronSecret();
 
   return (
     <SettingsSection
@@ -23,6 +27,7 @@ export default async function LegalResearchSettingsPage() {
         bodyKey="canliiApiKey"
       />
       {status.configured && <CanliiTestButton />}
+      <LegislationWatchPanel initialWatches={watches} cronSecret={cronSecret} />
     </SettingsSection>
   );
 }
