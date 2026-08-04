@@ -54,7 +54,7 @@ export default function EvidenceGraphPanel({
         <div className="flex items-center gap-2">
           {graph && (
             <a
-              href={`/matters/${matterId}/evidence-graph-view`}
+              href={`/evidence-graph/${matterId}`}
               target="_blank"
               rel="noopener noreferrer"
               className="btn-secondary px-3 py-1.5 text-sm"

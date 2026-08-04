@@ -19,6 +19,11 @@ interface Graph {
   edges: GraphEdge[];
 }
 
+// Deliberately outside src/app/matters/[id]/ — that segment's layout adds
+// the matter header/tabs, and the root layout adds the app-wide sidebar +
+// top bar (see ConditionalNav.tsx/TopUtilityBar.tsx, which both hide
+// themselves specifically for this route) — the point of "open in new tab"
+// is a distraction-free, graph-only view, not the full app chrome around it.
 export default function EvidenceGraphFullscreenPage() {
   const { id } = useParams<{ id: string }>();
   const [graph, setGraph] = useState<Graph | null | "missing">(null);
@@ -34,7 +39,7 @@ export default function EvidenceGraphFullscreenPage() {
 
   if (graph === "missing") {
     return (
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+      <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
         <p className="text-sm text-muted">
           No graph data found in this tab. Generate the graph from the matter&apos;s Evidence
           matrix page first, then use &quot;Open in new tab&quot; again.
@@ -47,7 +52,7 @@ export default function EvidenceGraphFullscreenPage() {
     <main className="flex min-h-screen w-full flex-col gap-3 px-4 py-6">
       <h1 className="font-display text-2xl italic">Evidence graph</h1>
       <div className="flex-1">
-        <EvidenceGraphView graph={graph} height="calc(100vh - 160px)" />
+        <EvidenceGraphView graph={graph} height="calc(100vh - 100px)" />
       </div>
     </main>
   );

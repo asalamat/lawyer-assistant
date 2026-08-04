@@ -509,6 +509,22 @@ see git log for exact history.
       (spec-behavior: `window.open()` to a same-origin URL copies
       `sessionStorage` into the new tab) rather than re-running the AI
       extraction a second time.
+      Second round of feedback: the new tab opened correctly (the `<a
+      target="_blank">` fix worked) but showed the *entire app* around the
+      graph — sidebar, matter header, matter tabs — not just the graph.
+      Root cause: the page lived at `matters/[id]/evidence-graph-view`,
+      nested inside both the matter layout (which adds the header/tabs)
+      and the root layout (which adds the app-wide sidebar/top bar) —
+      layouts in the Next.js App Router are inherited by nested routes
+      regardless of what the page itself renders. Fixed by moving it to
+      its own top-level route, `evidence-graph/[id]`, outside the
+      `matters/` segment entirely, and adding a shared
+      `isChromelessRoute()` check (`src/lib/chromelessRoutes.ts`) so
+      `ConditionalNav`/`TopUtilityBar` also hide themselves for this
+      route, the same way they already did for `/login`. Verified live:
+      diffed the raw HTML of the graph route against a normal matter page
+      with the same authenticated session — zero sidebar/top-bar markup
+      on the graph route, both present on the normal page.
 - [x] Backup & restore, with scheduling (`src/lib/backup.ts`,
       `/api/backup*`, Settings > Backup, `BackupManager.tsx`) — one-click
       backup of the entire `data/` directory into a `.tar.gz` under a
