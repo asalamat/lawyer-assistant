@@ -505,10 +505,7 @@ see git log for exact history.
       dark-appropriate dot-grid color; node backgrounds stay fixed light
       pastels with dark text in both themes, which is what actually keeps
       them readable — the canvas going dark doesn't affect node contrast.
-      Graph data for the new-tab view hands off via `sessionStorage`
-      (spec-behavior: `window.open()` to a same-origin URL copies
-      `sessionStorage` into the new tab) rather than re-running the AI
-      extraction a second time.
+      Graph data for the new-tab view hands off via `localStorage`.
       Second round of feedback: the new tab opened correctly (the `<a
       target="_blank">` fix worked) but showed the *entire app* around the
       graph — sidebar, matter header, matter tabs — not just the graph.
@@ -525,6 +522,18 @@ see git log for exact history.
       diffed the raw HTML of the graph route against a normal matter page
       with the same authenticated session — zero sidebar/top-bar markup
       on the graph route, both present on the normal page.
+      Third round: the chromeless route worked, but the new tab then
+      showed "No graph data found" — the original `sessionStorage`
+      handoff (see above, now corrected) was wrong. The spec behavior
+      it relied on (a new same-origin browsing context inheriting
+      `sessionStorage`) applies specifically to browsing contexts created
+      *by a script* (`window.open()`) — it explicitly does not apply to
+      "following a link," which is exactly what the `<a target="_blank">`
+      fix for the popup-blocker issue switched to. Fixed by switching the
+      handoff from `sessionStorage` to `localStorage`, which is shared
+      across all same-origin tabs unconditionally, regardless of how the
+      tab was opened — the correct mechanism for this case from the
+      start.
 - [x] Backup & restore, with scheduling (`src/lib/backup.ts`,
       `/api/backup*`, Settings > Backup, `BackupManager.tsx`) — one-click
       backup of the entire `data/` directory into a `.tar.gz` under a

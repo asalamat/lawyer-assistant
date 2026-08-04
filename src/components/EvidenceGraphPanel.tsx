@@ -37,7 +37,13 @@ export default function EvidenceGraphPanel({
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Failed to build graph");
       setGraph(body);
-      window.sessionStorage.setItem(`evidenceGraph:${matterId}`, JSON.stringify(body));
+      // localStorage, not sessionStorage — sessionStorage only carries over
+      // to a new tab when it's opened via window.open() (script-initiated);
+      // a real <a target="_blank"> link (used below, deliberately, so the
+      // popup blocker never intercepts it) is "following a link" per the
+      // spec, which does NOT copy sessionStorage. localStorage is shared
+      // across tabs of the same origin regardless of how the tab opened.
+      window.localStorage.setItem(`evidenceGraph:${matterId}`, JSON.stringify(body));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {

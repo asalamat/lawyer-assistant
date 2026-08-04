@@ -30,7 +30,7 @@ export default function EvidenceGraphFullscreenPage() {
 
   useEffect(() => {
     Promise.resolve().then(() => {
-      const raw = window.sessionStorage.getItem(`evidenceGraph:${id}`);
+      const raw = window.localStorage.getItem(`evidenceGraph:${id}`);
       setGraph(raw ? JSON.parse(raw) : "missing");
     });
   }, [id]);
