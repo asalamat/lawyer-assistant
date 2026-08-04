@@ -132,7 +132,8 @@ export const HELP_SECTIONS: HelpSection[] = [
       {
         slug: "legal-research",
         name: "Legal research",
-        detail: "Configure a CanLII API key to enable case-law lookup and citation history.",
+        detail:
+          "Configure a CanLII API key to enable case-law lookup, citation history, and legislation watches — add a specific statute/regulation to watch for repeal-status, effective-date, or section-structure changes (CanLII's API doesn't expose statute text, so in-place wording amendments can't be detected). Check manually, or set up an OS-level cron job against the check-all endpoint using the auto-generated cron secret shown on this page.",
       },
       {
         slug: "email-smtp",

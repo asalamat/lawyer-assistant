@@ -86,15 +86,26 @@ see git log for exact history.
       wired into `textExtraction.ts` for `.mp3/.mp4/.mpeg/.mpga/.m4a/.wav/.webm`
       uploads (25MB limit, OpenAI's own cap). Needs an OpenAI API key in
       Settings > Audio & video transcription to activate.
-- [ ] New-law monitoring agent — **blocked on the same CanLII key** as above, plus
-      needs a decision on scope (which jurisdictions/practice areas to monitor)
+- [x] New-law monitoring agent scaffold — Settings > Legal research > Legislation
+      watches: add a specific statute/regulation by CanLII database+legislation
+      ID, manual "Check now" per watch, plus a `check-all` endpoint for an
+      external OS cron job (this app has no built-in scheduler), authenticated
+      via a separate auto-generated cron secret rather than the login session.
+      **Honest limitation, not a bug**: CanLII's API exposes metadata and a
+      section list, not the actual statute text, so this detects repeal
+      status/effective-date/section-structure changes only — not in-place
+      wording amendments to an existing section. **Not fully activated**: needs
+      the same pending CanLII key as above; scaffold is generic (not tied to
+      any practice area) per the account owner's choice rather than guessed.
 
 ## Phase 5 — Institutional learning
 
 - [x] Lawyer approval/correction workflow on chat answers (thumbs up/down,
       `message_feedback` table, recorded in the audit log)
 - [ ] Everything past that (precedent library, formal eval sets, fine-tuning) is
-      premature before there's real usage data to learn from
+      premature before there's real usage data to learn from — reconfirmed
+      2026-08-04 (only 2 real matters exist so far; revisit once real usage
+      volume and feedback history make this worth designing for)
 
 ## Also built, not in the original phase list
 
