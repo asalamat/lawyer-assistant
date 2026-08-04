@@ -6,6 +6,7 @@ export interface Matter {
   title: string;
   clientName: string;
   clientEmail: string | null;
+  clientId: string | null;
   matterType: string;
   status: "open" | "closed" | "archived";
   hourlyRate: number | null;
@@ -13,6 +14,15 @@ export interface Matter {
   legalHold: number;
   legalHoldReason: string | null;
   retentionDate: string | null;
+  createdAt: string;
+}
+
+export interface Client {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  notes: string | null;
   createdAt: string;
 }
 

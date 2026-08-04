@@ -218,6 +218,17 @@ execWithRetry(`
     FOREIGN KEY (userId) REFERENCES users(id)
   );
 
+  CREATE TABLE IF NOT EXISTS clients (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT,
+    phone TEXT,
+    notes TEXT,
+    createdAt TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_clients_name ON clients(name);
+
   CREATE TABLE IF NOT EXISTS document_chunks (
     id TEXT PRIMARY KEY,
     documentId TEXT,
@@ -273,6 +284,41 @@ ensureColumn("matters", "classification", "TEXT NOT NULL DEFAULT 'standard'");
 ensureColumn("matters", "legalHold", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("matters", "legalHoldReason", "TEXT");
 ensureColumn("matters", "retentionDate", "TEXT");
+ensureColumn("matters", "clientId", "TEXT");
+
+// One-time migration: matters used to store client identity only as free
+// text (clientName/clientEmail), with no real entity linking one client's
+// several matters together. Backfill a clients row per distinct
+// name+email pair already on file, and link each matter to it — matters
+// keep clientName/clientEmail too (every existing feature reads those
+// directly), the clients table is additive, not a replacement.
+function backfillClientsFromMatters(): void {
+  const unlinked = db
+    .prepare("SELECT id, clientName, clientEmail FROM matters WHERE clientId IS NULL")
+    .all() as { id: string; clientName: string; clientEmail: string | null }[];
+  if (unlinked.length === 0) return;
+
+  const findClient = db.prepare(
+    "SELECT id FROM clients WHERE name = ? AND COALESCE(email, '') = COALESCE(?, '')",
+  );
+  const insertClient = db.prepare(
+    "INSERT INTO clients (id, name, email, phone, notes, createdAt) VALUES (?, ?, ?, NULL, NULL, ?)",
+  );
+  const linkMatter = db.prepare("UPDATE matters SET clientId = ? WHERE id = ?");
+
+  for (const matter of unlinked) {
+    const existing = findClient.get(matter.clientName, matter.clientEmail) as
+      | { id: string }
+      | undefined;
+    const clientId = existing?.id ?? crypto.randomUUID();
+    if (!existing) {
+      insertClient.run(clientId, matter.clientName, matter.clientEmail, new Date().toISOString());
+    }
+    linkMatter.run(clientId, matter.id);
+  }
+}
+
+backfillClientsFromMatters();
 
 // One-time migration: this app used to have exactly one global password
 // (data/auth.json). Promote it into the first admin user in the `users`

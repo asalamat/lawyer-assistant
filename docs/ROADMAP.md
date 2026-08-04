@@ -392,6 +392,56 @@ see git log for exact history.
       ones it couldn't read. Audit hash chain confirmed intact (78 real
       rows, unbroken) after all test-data cleanup. All test data removed.
 
+- [x] Separate Client entity (`clients` table, `src/lib/clients.ts`,
+      `/clients` + `/clients/[id]`) — matters now link to a real client via
+      `matters.clientId` instead of only free-text `clientName`/
+      `clientEmail`. Additive, not a replacement: matters still store
+      `clientName`/`clientEmail` directly since every existing feature
+      (matter cards, invoices, emails) reads those fields already, and
+      rewriting all of them to join through `clients` for this pass wasn't
+      worth the risk. `findOrCreateClient()` reuses an existing client on
+      an exact name+email match when a matter is created, so a repeat
+      client's matters land under one entity instead of duplicating it —
+      this is what makes the new client detail page ("all matters for
+      this client") possible at all. Existing matters were backfilled
+      with a client row each on first startup after this shipped.
+- [x] Improved conflict-of-interest check — still not a full conflicts
+      system (see caveat below), but no longer purely an exact-substring
+      match: `checkConflicts()` now also runs a fuzzy name-similarity pass
+      (`src/lib/fuzzyMatch.ts`, Levenshtein-based, 80% similarity
+      threshold) against every existing client name, so a near-miss
+      spelling ("Jon Smith" vs "John Smith") surfaces as a flagged
+      possible match instead of being silently missed. The UI
+      (`MatterList.tsx`) labels fuzzy matches "(similar spelling, not
+      exact)" so a lawyer can tell the difference from an exact hit.
+      **Still not comprehensive**: this only compares against names
+      already in this app (clients + matter records) — it doesn't check
+      opposing parties, witnesses, or other entities that only appear
+      inside uploaded documents, which would need extracting party names
+      from document text (a materially bigger feature, not attempted
+      here). Verified live: exact-substring matches still work, a
+      deliberately misspelled name correctly triggers a "similar-name"
+      match, and creating two matters with an identical client
+      name+email correctly reused the same client entity rather than
+      creating a duplicate.
+- [ ] **Malware scanning on upload — deliberately skipped, not just
+      deferred.** No pure-code option exists: ClamAV would mean installing
+      system-level antivirus software on the host outside this project;
+      cloud scanners (VirusTotal etc.) mean sending every uploaded file's
+      hash — and for full scanning, content — to a third party, a real
+      confidentiality consideration for what are often privileged client
+      documents. Asked the account owner directly rather than picking one
+      silently; decision: skip for now. Rationale that made this the
+      right default: uploaded files are only ever stored and
+      text-extracted in this app, never executed, so the specific risk
+      malware scanning defends against (a malicious file running) doesn't
+      apply here the way it would for, say, an email attachment opened
+      locally. Revisit if this app ever accepts uploads from untrusted
+      third parties directly (e.g. a public intake form).
+      Duplicate-document detection (SHA-256 content hash) was already
+      built in an earlier pass — see "Also built" above; it wasn't
+      actually part of what needed doing here.
+
 ## Dependency notes
 
 - **`xlsx` (SheetJS)** is installed from `https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`

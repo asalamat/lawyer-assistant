@@ -136,6 +136,9 @@ export default function MatterList({ matters }: { matters: Matter[] }) {
               {conflicts.map((c) => (
                 <li key={c.matterId}>
                   {c.matterTitle} ({c.fileNumber}) &middot; client on file: {c.matchedOn}
+                  {c.matchType === "similar-name" && (
+                    <span className="ml-1 text-xs italic">(similar spelling, not exact)</span>
+                  )}
                 </li>
               ))}
             </ul>

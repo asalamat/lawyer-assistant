@@ -3,8 +3,10 @@ import { existsSync } from "fs";
 import { createHash } from "crypto";
 import path from "path";
 import { recordAuditEvent } from "./auditLog";
+import { findOrCreateClient } from "./clients";
 import { encryptFile } from "./crypto";
 import db, { toPlain } from "./db";
+import { nameSimilarity } from "./fuzzyMatch";
 import { listAttachedReferenceDocuments } from "./referenceLibrary";
 import {
   buildContextFromChunks,
@@ -58,20 +60,56 @@ export interface ConflictMatch {
   matterTitle: string;
   fileNumber: string;
   matchedOn: string;
+  matchType: "substring" | "similar-name";
 }
+
+// Substring matching alone misses near-miss spellings ("Jon Smith" vs
+// "John Smith") — this adds a fuzzy pass over every existing client name,
+// in addition to the exact substring check. Still not a full conflicts
+// system (it only compares against this app's own client names, not
+// opposing parties, witnesses, or related entities mentioned inside
+// documents — that would need party extraction from document text, a much
+// bigger feature not attempted here).
+const SIMILARITY_THRESHOLD = 0.8;
 
 export async function checkConflicts(clientName: string): Promise<ConflictMatch[]> {
   const trimmed = clientName.trim();
   if (!trimmed) return [];
-  const rows = db
+
+  const substringRows = db
     .prepare("SELECT id, title, fileNumber, clientName FROM matters WHERE clientName LIKE ?")
     .all(`%${trimmed}%`) as { id: string; title: string; fileNumber: string; clientName: string }[];
-  return rows.map((row) => ({
+
+  const matchedMatterIds = new Set(substringRows.map((r) => r.id));
+  const matches: ConflictMatch[] = substringRows.map((row) => ({
     matterId: row.id,
     matterTitle: row.title,
     fileNumber: row.fileNumber,
     matchedOn: row.clientName,
+    matchType: "substring",
   }));
+
+  const allRows = db.prepare("SELECT id, title, fileNumber, clientName FROM matters").all() as {
+    id: string;
+    title: string;
+    fileNumber: string;
+    clientName: string;
+  }[];
+  for (const row of allRows) {
+    if (matchedMatterIds.has(row.id)) continue;
+    if (nameSimilarity(trimmed, row.clientName) >= SIMILARITY_THRESHOLD) {
+      matches.push({
+        matterId: row.id,
+        matterTitle: row.title,
+        fileNumber: row.fileNumber,
+        matchedOn: row.clientName,
+        matchType: "similar-name",
+      });
+      matchedMatterIds.add(row.id);
+    }
+  }
+
+  return matches;
 }
 
 export async function createMatter(input: {
@@ -82,12 +120,15 @@ export async function createMatter(input: {
   hourlyRate?: number;
 }): Promise<Matter> {
   const createdAt = new Date().toISOString();
+  const clientEmail = input.clientEmail?.trim() || null;
+  const clientId = await findOrCreateClient(input.clientName, clientEmail);
   const matter: Matter = {
     id: crypto.randomUUID(),
     fileNumber: generateFileNumber(createdAt),
     title: input.title,
     clientName: input.clientName,
-    clientEmail: input.clientEmail?.trim() || null,
+    clientEmail,
+    clientId,
     matterType: input.matterType,
     status: "open",
     hourlyRate: input.hourlyRate ?? null,
@@ -98,13 +139,14 @@ export async function createMatter(input: {
     createdAt,
   };
   db.prepare(
-    "INSERT INTO matters (id, fileNumber, title, clientName, clientEmail, matterType, status, hourlyRate, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO matters (id, fileNumber, title, clientName, clientEmail, clientId, matterType, status, hourlyRate, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
   ).run(
     matter.id,
     matter.fileNumber,
     matter.title,
     matter.clientName,
     matter.clientEmail,
+    matter.clientId,
     matter.matterType,
     matter.status,
     matter.hourlyRate,
