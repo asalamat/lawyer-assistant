@@ -100,7 +100,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "drafting",
         name: "Drafting",
         detail:
-          "Generates a first-draft research memo, demand letter, client correspondence, or defence strategy memo grounded in matter documents, with page-number citations for PDF sources. The defence strategy memo specifically covers the opposing case, its weaknesses, viable defence theories ranked by evidentiary support, procedural issues worth raising, and recommended next investigative steps. Dictate your instructions instead of typing if you prefer. Unsupported sections are marked for lawyer input rather than invented — always a draft for review, never a final document. Export PDF opens a clean, printable copy in a new tab.",
+          "Generates a first-draft research memo, demand letter, client correspondence, or defence strategy memo grounded in matter documents, with page-number citations for PDF sources. The defence strategy memo specifically covers the opposing case, its weaknesses, viable defence theories ranked by evidentiary support, procedural issues worth raising, and recommended next investigative steps. Dictate your instructions instead of typing if you prefer. Unsupported sections are marked for lawyer input rather than invented — always a draft for review, never a final document. Export PDF opens a clean, printable copy in a new tab. Once a defence strategy memo exists, click Visualize on the Defence graph below it to see weaknesses/theories/issues/next-steps as a node graph — same click-to-focus and type-filter controls as the Evidence matrix graph.",
       },
       {
         slug: "ai-redundancy",
@@ -123,7 +123,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "audit-log",
         name: "Audit log & matter timeline",
         detail:
-          "Every matter/document/chat/digest/feedback/status/invoice/email/user-management action is recorded with a timestamp and who did it — viewable app-wide at Audit log, or filtered to one matter in its Activity timeline section. Also flags duplicate document uploads (same file content uploaded twice). The log is tamper-evident: each entry is cryptographically chained to the one before it, so an edit or deletion made outside the app is detectable. Admins can check this any time with the \"Verify log integrity\" button on the Audit log page.",
+          "Every matter/document/chat/digest/feedback/status/invoice/email/user-management action is recorded with a timestamp and who did it — viewable app-wide at Audit log, or filtered to one matter in its Activity timeline section. Also flags duplicate document uploads (same file content uploaded twice). The log is tamper-evident: each entry is cryptographically chained to the one before it, so an edit or deletion made outside the app is detectable. Admins can check this any time with the \"Verify log integrity\" button on the Audit log page. If it ever reports broken and you've identified and fixed a genuine cause (not unexplained tampering), an admin can re-anchor the chain from that point — this requires typing a reason, which is then recorded permanently as the next log entry, so there's always a record of why.",
       },
     ],
   },

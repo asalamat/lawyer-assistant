@@ -264,7 +264,17 @@ export async function deleteMatter(matterId: string): Promise<boolean> {
   db.prepare("DELETE FROM time_entries WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM matter_notes WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM matter_reference_documents WHERE matterId = ?").run(matterId);
-  db.prepare("DELETE FROM audit_log WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM document_chunks WHERE matterId = ?").run(matterId);
+  // Audit rows are deliberately NOT deleted here. Two reasons: an audit
+  // trail is supposed to survive deletion of the thing it audited (real
+  // compliance practice — "we deleted this matter" should still be
+  // provable after the fact); and audit_log is hash-chained
+  // (src/lib/db.ts) across the whole table, not per matter — deleting
+  // rows out of the middle of that global sequence breaks the chain for
+  // every row after them, which is exactly what happened here before this
+  // fix (confirmed live: two gaps, 6 rows, from an earlier matter
+  // deletion). The matter_deleted event itself, and every other row for
+  // this matterId, now stay in place permanently.
   db.prepare("DELETE FROM matters WHERE id = ?").run(matterId);
 
   const matterDir = path.join(UPLOADS_DIR, matterId);

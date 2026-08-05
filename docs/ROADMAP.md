@@ -681,6 +681,80 @@ see git log for exact history.
       matrix (4330 characters) post-fix: 13 nodes, 15 edges, zero dangling
       edge references — succeeded cleanly where it previously failed to
       parse. Audit hash chain confirmed intact after cleanup.
+- [x] Defence graph — the same node-graph visualization as the evidence
+      graph, built from the most recent **defence strategy memo** instead
+      of the evidence matrix (`DefenceGraphPanel.tsx`,
+      `/api/matters/[id]/defence-graph`, `extractDefenceGraph()` in
+      `src/lib/claude.ts`). Nodes: opposing-case weaknesses, defence
+      theories, evidentiary/procedural issues, next investigative steps.
+      Edges: weakness→theory ("supports"), theory→issue ("raises"),
+      theory→step and issue→step ("needs"/"requires"). Same
+      reformat-an-existing-document approach as the evidence graph — no
+      fresh extraction pass over raw documents. Shown on the matter's
+      Drafts page once at least one defence strategy memo exists.
+      The graph-rendering component was generalized from
+      evidence-graph-only (`EvidenceGraphView.tsx`, hardcoded to 4 fixed
+      node types) into a reusable `GraphView.tsx` parameterized by a
+      `typeConfig` (`src/lib/graphTypeConfigs.ts`) rather than duplicating
+      ~160 lines of layout/interaction logic for a second graph kind. The
+      "open in new tab" fullscreen route also became generic —
+      `/evidence-graph/[id]` is now `/graph-view/[id]?kind=evidence|
+      defence` — reading `{graph}` from a kind-scoped localStorage key
+      (`graphView:{matterId}:{kind}`) so both kinds can coexist for the
+      same matter without overwriting each other.
+      Verified live against the real "ali" matter's actual, substantial
+      defence strategy memo (18,939 characters — the account owner had
+      already been using this feature live, concurrently with this work):
+      32 nodes, 32 edges, all four node types present, zero dangling
+      references. Regression-tested the evidence graph through the same
+      refactored `GraphView` afterward (still 18 nodes, no change in
+      behavior) and confirmed the generic `/graph-view` route stays
+      chromeless for both kinds.
+- [x] **Second bug found the same way — and a design flaw in the audit
+      log's own tamper-evidence feature, found while investigating it.**
+      Live-testing the defence graph above surfaced a leftover empty
+      "Demand letter" draft (same empty-response bug as the digest/graph
+      fixes, from before those fixes shipped — removed). Cleaning up that
+      test round's temp admin account then showed the audit hash chain
+      had broken *for real*, not from test cleanup this time: two gaps
+      (rowids 68-69 and 72-75, 6 rows, dated 2026-08-02/03).
+      Root cause: `deleteMatter()` (`src/lib/matters.ts`) cascaded a
+      `DELETE FROM audit_log WHERE matterId = ?` on every matter deletion
+      — but `audit_log` is hash-chained *globally*, not per matter, so
+      deleting that matter's rows out of the middle of the global
+      sequence broke the chain for every row inserted after them. This
+      had been true since the hash-chain feature shipped; it just hadn't
+      been exercised by a matter deletion with interleaved concurrent
+      activity until now. Fixed by no longer deleting audit rows on
+      matter deletion at all — an audit trail should survive deletion of
+      what it audited (standard compliance practice, not just a hash-chain
+      fix) — and by cleaning up an unrelated small leak found in the same
+      function while there: `document_chunks` for a deleted matter's
+      documents were never removed.
+      The harder question: once broken, `verifyAuditLogIntegrity()` would
+      report "broken" at that same historical point *forever*, on every
+      future check — useless for telling a real new tampering event apart
+      from this one already-explained, now-fixed bug. Added
+      `reanchorAuditLogIntegrity()` — recomputes every row's hash over
+      whatever rows currently exist (healing the gap) and records a
+      permanent, visible `audit_chain_reanchored` event stating *why*,
+      exposed via an admin-only UI action (`AuditIntegrityCheck.tsx`) that
+      requires typing a reason before it will run, since that reason is
+      the only record of why a break was accepted rather than
+      investigated as tampering. This is a real trust trade-off, made
+      deliberately and transparently rather than either left broken
+      forever or silently patched: re-anchoring makes past, explained
+      damage stop crying wolf, at the cost of that damage no longer being
+      independently provable from the chain alone — the explanation lives
+      in the event itself, in git history, and here instead.
+      Executed for real against the actual broken chain (not a test):
+      confirmed broken (122 entries, break at a specific entry ID),
+      re-anchored with a full explanation of the root cause recorded as
+      the reason, re-verified valid (123 entries, including the
+      re-anchor event itself). Confirmed the temp admin account used to
+      run this could be removed afterward without touching a single
+      audit row — proof the fixed `deleteMatter()`/cleanup path no longer
+      has this failure mode.
 
 ## Dependency notes
 

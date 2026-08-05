@@ -414,3 +414,77 @@ export async function extractEvidenceGraph(matrixContent: string): Promise<Evide
     maxTokens: 8192,
   });
 }
+
+export interface DefenceGraphNode {
+  id: string;
+  label: string;
+  type: "weakness" | "theory" | "issue" | "step";
+}
+
+export interface DefenceGraphEdge {
+  source: string;
+  target: string;
+  label: string | null;
+}
+
+export interface DefenceGraph {
+  nodes: DefenceGraphNode[];
+  edges: DefenceGraphEdge[];
+}
+
+const DEFENCE_GRAPH_SCHEMA = {
+  type: "object",
+  properties: {
+    nodes: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "short unique slug, e.g. 'weakness-1'" },
+          label: { type: "string", description: "a few words, shown on the graph" },
+          type: { type: "string", enum: ["weakness", "theory", "issue", "step"] },
+        },
+        required: ["id", "label", "type"],
+        additionalProperties: false,
+      },
+    },
+    edges: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          source: { type: "string" },
+          target: { type: "string" },
+          label: {
+            anyOf: [{ type: "string" }, { type: "null" }],
+            description: "e.g. 'supports', 'raises', 'needs' — or null",
+          },
+        },
+        required: ["source", "target", "label"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["nodes", "edges"],
+  additionalProperties: false,
+};
+
+// Same approach as extractEvidenceGraph above: reformats an already-
+// generated defence strategy memo into graph data, rather than a fresh
+// extraction pass over the raw documents.
+export async function extractDefenceGraph(memoContent: string): Promise<DefenceGraph> {
+  const system = `You convert an already-generated defence strategy memo into graph data for visualization. Do not invent any weakness, theory, issue, or step beyond what the memo already states — this is a reformatting task, not a new analysis. Create one node per opposing-case weakness, per defence theory, per evidentiary/procedural issue, and per recommended next step named in the memo. Create an edge from each weakness to the defence theory it supports, from each theory to the evidentiary/procedural issue(s) it raises, from each theory to the step(s) needed to develop it, and from each issue to the step(s) needed to resolve or investigate it. Keep labels short (a few words).`;
+
+  return completeJSON<DefenceGraph>({
+    system,
+    messages: [
+      {
+        role: "user",
+        content: `Here is the defence strategy memo:\n\n${memoContent}\n\nConvert it to graph data.`,
+      },
+    ],
+    schema: DEFENCE_GRAPH_SCHEMA,
+    schemaName: "defence_graph",
+    maxTokens: 8192,
+  });
+}

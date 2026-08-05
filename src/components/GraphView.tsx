@@ -3,6 +3,7 @@
 import { Background, Controls, ReactFlow, type Edge, type Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useMemo, useState } from "react";
+import type { GraphTypeConfig } from "@/lib/graphTypeConfigs";
 
 function useIsDarkMode(): boolean {
   const [isDark] = useState(
@@ -14,7 +15,7 @@ function useIsDarkMode(): boolean {
 interface GraphNode {
   id: string;
   label: string;
-  type: "party" | "allegation" | "evidence" | "gap";
+  type: string;
 }
 
 interface GraphEdge {
@@ -23,43 +24,30 @@ interface GraphEdge {
   label: string | null;
 }
 
-interface Graph {
+export interface Graph {
   nodes: GraphNode[];
   edges: GraphEdge[];
 }
 
-const TYPE_ORDER: GraphNode["type"][] = ["party", "allegation", "evidence", "gap"];
-const TYPE_LABELS: Record<GraphNode["type"], string> = {
-  party: "Parties",
-  allegation: "Allegations",
-  evidence: "Evidence",
-  gap: "Gaps",
-};
-const TYPE_COLORS: Record<GraphNode["type"], { bg: string; border: string }> = {
-  party: { bg: "#eef2ff", border: "#6366f1" },
-  allegation: { bg: "#fef3c7", border: "#d97706" },
-  evidence: { bg: "#dcfce7", border: "#16a34a" },
-  gap: { bg: "#fee2e2", border: "#dc2626" },
-};
-
-const COLUMN_X: Record<GraphNode["type"], number> = {
-  party: 0,
-  allegation: 340,
-  evidence: 680,
-  gap: 1020,
-};
 const ROW_HEIGHT = 90;
 
-export default function EvidenceGraphView({
+// Generic node-graph renderer shared by every graph visualization in the
+// app (evidence graph, defence graph, and any future one) — the only
+// thing that varies between them is which node types exist and how
+// they're labeled/colored/columned, captured in typeConfig
+// (src/lib/graphTypeConfigs.ts). The layout/interaction logic (focus,
+// filtering, dark mode) is identical regardless of what the graph
+// represents.
+export default function GraphView({
   graph,
+  typeConfig,
   height = 500,
 }: {
   graph: Graph;
+  typeConfig: GraphTypeConfig;
   height?: number | string;
 }) {
-  const [visibleTypes, setVisibleTypes] = useState<Set<GraphNode["type"]>>(
-    new Set(TYPE_ORDER),
-  );
+  const [visibleTypes, setVisibleTypes] = useState<Set<string>>(new Set(typeConfig.order));
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const isDark = useIsDarkMode();
 
@@ -84,10 +72,10 @@ export default function EvidenceGraphView({
     const col = columnCounts[n.type] ?? 0;
     columnCounts[n.type] = col + 1;
     const dimmed = connectedIds ? !connectedIds.has(n.id) : false;
-    const colors = TYPE_COLORS[n.type];
+    const colors = typeConfig.colors[n.type] ?? { bg: "#e5e5e5", border: "#737373" };
     return {
       id: n.id,
-      position: { x: COLUMN_X[n.type], y: col * ROW_HEIGHT },
+      position: { x: typeConfig.columnX[n.type] ?? 0, y: col * ROW_HEIGHT },
       data: { label: n.label },
       style: {
         background: colors.bg,
@@ -119,7 +107,7 @@ export default function EvidenceGraphView({
     };
   });
 
-  function toggleType(type: GraphNode["type"]) {
+  function toggleType(type: string) {
     setVisibleTypes((prev) => {
       const next = new Set(prev);
       if (next.has(type)) next.delete(type);
@@ -131,7 +119,7 @@ export default function EvidenceGraphView({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-3">
-        {TYPE_ORDER.map((type) => (
+        {typeConfig.order.map((type) => (
           <label key={type} className="flex items-center gap-1.5 text-sm">
             <input
               type="checkbox"
@@ -140,9 +128,9 @@ export default function EvidenceGraphView({
             />
             <span
               className="inline-block h-2.5 w-2.5 rounded-full"
-              style={{ background: TYPE_COLORS[type].border }}
+              style={{ background: typeConfig.colors[type]?.border }}
             />
-            {TYPE_LABELS[type]}
+            {typeConfig.labels[type] ?? type}
           </label>
         ))}
         {focusedId && (

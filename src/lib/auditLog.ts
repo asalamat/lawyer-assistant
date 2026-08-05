@@ -45,8 +45,10 @@ export const ACTION_LABELS: Record<string, string> = {
   matter_retention_date_set: "Matter retention date set",
   email_draft_generated: "Smart email draft generated",
   evidence_graph_generated: "Evidence graph generated",
+  defence_graph_generated: "Defence graph generated",
   backup_created: "Backup created",
   backup_deleted: "Backup deleted",
+  audit_chain_reanchored: "Audit chain re-anchored",
 };
 
 export async function recordAuditEvent(
@@ -80,9 +82,12 @@ export interface AuditIntegrityResult {
 }
 
 // Recomputes the hash chain over the entire audit log and compares it to
-// what's stored. A mismatch means a row was edited, deleted, or inserted
-// out of band since it was written — this can't happen through the app's
-// own code paths, only via direct DB access.
+// what's stored. A mismatch means a row was edited or deleted since it was
+// written — including, historically, by the app's own deleteMatter()
+// cascading a DELETE FROM audit_log WHERE matterId = ?, which broke the
+// global chain for every row after it (fixed — audit rows are no longer
+// deleted on matter deletion — but see reanchorAuditLogIntegrity() below
+// for what to do about damage from before that fix).
 export async function verifyAuditLogIntegrity(): Promise<AuditIntegrityResult> {
   const rows = db
     .prepare(
@@ -99,6 +104,45 @@ export async function verifyAuditLogIntegrity(): Promise<AuditIntegrityResult> {
     prevHash = expected;
   }
   return { valid: true, checkedCount: rows.length, brokenAtId: null };
+}
+
+// Recomputes every row's hash from genesis over whatever rows currently
+// exist (i.e. it heals gaps left by rows that were legitimately deleted —
+// like the deleteMatter() bug above — by re-chaining around them), then
+// records a permanent, visible audit_chain_reanchored event explaining
+// why. This is NOT a silent fix: re-anchoring makes past damage from a
+// known, root-caused, now-fixed bug stop permanently flagging as "broken"
+// on every future check, at the cost of that past damage no longer being
+// independently provable from the chain alone — the record of it having
+// happened lives in this event, in the git history of the fix, and in
+// docs/ROADMAP.md instead. Only ever call this after confirming *why* the
+// chain broke — re-anchoring over unexplained tampering would defeat the
+// entire point of the feature.
+export async function reanchorAuditLogIntegrity(reason: string): Promise<{ reanchoredCount: number }> {
+  const rows = db
+    .prepare(
+      "SELECT rowid as rowid, id, action, matterId, detail, createdAt, userId FROM audit_log ORDER BY rowid ASC",
+    )
+    .all() as unknown as {
+    rowid: number;
+    id: string;
+    action: string;
+    matterId: string | null;
+    detail: string;
+    createdAt: string;
+    userId: string | null;
+  }[];
+
+  let prevHash = AUDIT_GENESIS_HASH;
+  const update = db.prepare("UPDATE audit_log SET hash = ? WHERE rowid = ?");
+  for (const row of rows) {
+    const hash = computeAuditRowHash(prevHash, row);
+    update.run(hash, row.rowid);
+    prevHash = hash;
+  }
+
+  await recordAuditEvent("audit_chain_reanchored", null, reason);
+  return { reanchoredCount: rows.length };
 }
 
 export async function listAuditLog(limit = 200): Promise<AuditEntry[]> {
