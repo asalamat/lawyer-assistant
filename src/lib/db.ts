@@ -240,6 +240,22 @@ execWithRetry(`
 
   CREATE INDEX IF NOT EXISTS idx_clients_name ON clients(name);
 
+  -- Full transparency trace for agentic (tool-calling loop) features, not
+  -- just the one-shot generations everything else in this app uses. Kept
+  -- as a single JSON blob rather than a normalized steps table since a
+  -- trace is only ever displayed whole, never queried by step.
+  CREATE TABLE IF NOT EXISTS agent_runs (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    draftId TEXT,
+    iterations INTEGER NOT NULL,
+    traceJson TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_agent_runs_draftId ON agent_runs(draftId);
+
   CREATE TABLE IF NOT EXISTS document_chunks (
     id TEXT PRIMARY KEY,
     documentId TEXT,

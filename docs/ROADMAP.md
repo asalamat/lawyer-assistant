@@ -77,6 +77,58 @@ see git log for exact history.
 
 ## Phase 4 — Controlled agents
 
+- [x] **Self-checking drafting agent** (`src/lib/draftingAgent.ts`,
+      `src/lib/agentRuns.ts`, `agent_runs` table,
+      `POST /api/matters/[id]/drafts {agentic: true}`,
+      `AgentTraceButton.tsx`) — this app's first genuinely agentic
+      feature; everything else is one-shot (single prompt → single
+      response). Given a draft type + instructions, runs a real Anthropic
+      tool-use loop: the model can call a `search_matter_documents` tool
+      (the same `getRelevantChunks()` retrieval chat uses, scoped to one
+      matter) whenever it wants to verify a fact or find the right source
+      before citing it, instead of only working from the context it was
+      given up front. After a draft is produced, every citation is
+      deterministically checked against the matter's real
+      document/reference-library filenames (`verifyCitations()`,
+      `src/lib/citationCheck.ts` — plain string matching, not another AI
+      call); if any citation doesn't match a real file, that's fed back
+      to the model as a correction instruction and it searches/redrafts
+      again. Every tool call, tool result, and revision is logged to a
+      trace, persisted per-draft, viewable via "Agent trace" on that
+      draft.
+      **Guardrails, matching what this feature needs to be safe rather
+      than a generic framework for hypothetical future agents**: only one
+      tool exists and it's read-only (search, nothing else — no send,
+      no delete, no file write); hard iteration caps (4 tool-loop steps
+      per pass, 2 revision rounds, so at most ~12 Anthropic calls for one
+      draft — a bounded cost/time ceiling, not unlimited
+      self-improvement); Anthropic-only (no OpenAI fallback for this
+      specific feature — tool-calling shapes differ enough between
+      providers that replicating the loop for both wasn't worth it for a
+      first agent; the plain one-shot "Generate draft" is unaffected and
+      still supports both); scoped to one matter's own documents, same as
+      every other retrieval feature in this app.
+      Verified live with real Anthropic tool-use calls, not mocked: on a
+      brand-new matter that had never used chat (so `document_chunks` was
+      empty), the agent's first search still returned real, relevant
+      passages — found and fixed a real bug where the search tool relied
+      on chunking that previously only happened lazily via chat, so a
+      matter's very first agentic draft would have silently found
+      nothing; `runDraftingAgent()` now ensures chunking itself,
+      matching `getMatterChatContext()`'s existing pattern. Also found
+      and fixed a second real bug: `deleteMatter()` didn't clean up
+      `agent_runs`, leaving orphaned trace rows referencing a deleted
+      matter — added the missing delete, confirmed zero orphaned rows
+      after a real matter deletion (deliberately NOT alongside the
+      audit_log line, which stays by design — a trace log has no
+      audit-trail persistence requirement once the draft it explains is
+      also gone). An adversarial test (a documentless matter, instructed
+      to cite a nonexistent file) correctly failed to produce any fake
+      citation — the model declined to invent a source rather than
+      complying, so the self-correction path itself didn't need to fire
+      in that case, which is the expected/safe outcome, not a gap.
+      Confirmed the audit hash chain stayed valid (192 entries) after all
+      cleanup.
 - [x] Deadline extraction (`extractDeadlines()`, `matter_deadlines` table,
       replaced-on-regenerate so it reflects current documents; surfaced on both
       the matter page and a dashboard-wide upcoming-deadlines list)

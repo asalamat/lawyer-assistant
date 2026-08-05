@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { DRAFT_TYPES, type Draft, type DraftType } from "@/lib/types";
+import { DRAFT_TYPES, type AgentRun, type Draft, type DraftType } from "@/lib/types";
+import AgentTraceButton from "./AgentTraceButton";
 import DictateButton from "./DictateButton";
+
+type DraftWithAgentRun = Draft & { agentRun?: AgentRun };
 
 export default function DraftsPanel({
   matterId,
@@ -11,9 +14,10 @@ export default function DraftsPanel({
   matterId: string;
   initialDrafts: Draft[];
 }) {
-  const [drafts, setDrafts] = useState(initialDrafts);
+  const [drafts, setDrafts] = useState<DraftWithAgentRun[]>(initialDrafts);
   const [draftType, setDraftType] = useState<DraftType>(DRAFT_TYPES[0]);
   const [instructions, setInstructions] = useState("");
+  const [agentic, setAgentic] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,7 +28,7 @@ export default function DraftsPanel({
       const res = await fetch(`/api/matters/${matterId}/drafts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ draftType, instructions }),
+        body: JSON.stringify({ draftType, instructions, agentic }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Failed to generate draft");
@@ -65,6 +69,12 @@ export default function DraftsPanel({
           {generating ? "Drafting…" : "Generate draft"}
         </button>
       </div>
+      <label className="flex items-center gap-2 text-xs text-muted">
+        <input type="checkbox" checked={agentic} onChange={(e) => setAgentic(e.target.checked)} />
+        Self-checking (agent) — drafts, then searches the matter&apos;s documents to verify its own
+        citations and revises itself if any don&apos;t hold up. Slower, requires an Anthropic API
+        key.
+      </label>
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       {drafts.length === 0 ? (
@@ -80,6 +90,9 @@ export default function DraftsPanel({
                 </span>
               </div>
               <div className="whitespace-pre-wrap">{draft.content}</div>
+              <div className="mt-2">
+                <AgentTraceButton matterId={matterId} draftId={draft.id} initialAgentRun={draft.agentRun} />
+              </div>
             </li>
           ))}
         </ul>

@@ -67,6 +67,13 @@ allegations, evidence, gaps; or weaknesses, theories, issues, next steps)
 you can click through to narrow down what you're looking at, opened
 full-screen in a distraction-free view.
 
+**Self-checking drafting agent** — an optional, more advanced way to
+generate a draft: instead of one prompt and done, it actively searches the
+matter's own documents to verify its own citations and revises itself
+(bounded to a couple of rounds) if one doesn't hold up, with a full
+step-by-step trace you can inspect. Read-only, one matter at a time, no
+irreversible actions.
+
 **Practice management** — timesheets, invoicing with configurable rates
 and discounts, direct email sending with attachments and AI-assisted
 drafting, connected-inbox browsing (Gmail/Microsoft/Yahoo) with import to
@@ -115,6 +122,10 @@ independent review. Runs identically on macOS, Windows, and Linux.
 
 ## Recent changes
 
+- Self-checking drafting agent — this app's first agentic (tool-calling)
+  feature, alongside boolean/document-content search, saved searches,
+  similar-document search, a reference-library approval workflow, and
+  bulk ZIP document import
 - Configurable default translation language (Settings > Translation),
   used by every Translate button across the app
 - Visual evidence & defence graphs — click-through node graphs of a
@@ -177,6 +188,22 @@ reasoning behind each decision, is in
   a transparent, admin-gated, written-reason-required re-anchor tool was
   added for the already-affected chain — recorded as its own permanent
   audit event, not a silent patch.
+- **The drafting agent's search tool would have silently found nothing on
+  a matter's very first agentic use.** Its `search_matter_documents` tool
+  read from the same chunk store chat retrieval uses, but that store was
+  previously only ever populated lazily by chat itself — so on a
+  brand-new matter that had never been chatted with, the agent's tool
+  calls would all come back "no relevant passages found" despite real,
+  relevant documents existing. Fixed by having the drafting agent ensure
+  its own chunking up front, the same way chat already does.
+- **Deleting a matter left orphaned agentic-trace rows behind.** The new
+  `agent_runs` table (the drafting agent's step-by-step trace log) wasn't
+  included in matter deletion's cleanup, unlike every other per-matter
+  table — confirmed live: rows referencing a deleted matter's ID survived
+  deletion. Fixed by adding the missing delete, deliberately *not*
+  alongside the audit log's deletion (which stays by design) since a
+  trace log has no audit-trail persistence requirement once the draft it
+  explains is also gone.
 
 ## Known limitations (by design, not oversight)
 

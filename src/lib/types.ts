@@ -141,6 +141,22 @@ export interface Draft {
   createdAt: string;
 }
 
+export interface AgentTraceStep {
+  type: "tool_call" | "tool_result" | "revision" | "final";
+  detail: string;
+  createdAt: string;
+}
+
+export interface AgentRun {
+  id: string;
+  matterId: string;
+  kind: string;
+  draftId: string | null;
+  iterations: number;
+  trace: AgentTraceStep[];
+  createdAt: string;
+}
+
 export interface EvidenceMatrix {
   id: string;
   matterId: string;

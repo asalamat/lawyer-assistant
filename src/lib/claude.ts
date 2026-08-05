@@ -251,28 +251,27 @@ const DEFENCE_STRATEGY_SYSTEM = `You are a legal assistant preparing a defence s
 
 Use "Not stated in the provided documents" for anything you cannot support — never invent facts, witnesses, or evidence to strengthen a theory. Do not predict an outcome or estimate a probability of success. This is a strategic starting point for the lawyer, not advice to rely on directly.`;
 
+export function buildDraftSystemPrompt(draftType: DraftType): string {
+  return draftType === "Defence strategy memo"
+    ? DEFENCE_STRATEGY_SYSTEM
+    : `You are a legal assistant drafting a ${draftType.toLowerCase()} for a lawyer's review. Base every fact on the provided matter documents — cite the source filename in parentheses after any fact you draw from a document — if the source text has page markers (e.g. "[Page 4]"), include the page too, like "(file.pdf, p. 4)". Clearly distinguish verified fact from inference. This is a first draft only, explicitly for lawyer review before use — do not present it as final or ready to send. If the documents don't contain enough information for part of the draft, write "[NEEDS LAWYER INPUT: ...]" rather than inventing content.`;
+}
+
+export function buildDraftUserPrompt(draftType: DraftType, context: string, instructions: string): string {
+  const contextSection = context
+    ? `Matter documents:\n\n${context}\n\n`
+    : "No documents have been uploaded for this matter yet.\n\n";
+  return `${contextSection}Draft a ${draftType.toLowerCase()}. ${instructions || ""}`.trim();
+}
+
 export async function generateDraft(
   draftType: DraftType,
   context: string,
   instructions: string,
 ): Promise<string> {
-  const system =
-    draftType === "Defence strategy memo"
-      ? DEFENCE_STRATEGY_SYSTEM
-      : `You are a legal assistant drafting a ${draftType.toLowerCase()} for a lawyer's review. Base every fact on the provided matter documents — cite the source filename in parentheses after any fact you draw from a document — if the source text has page markers (e.g. "[Page 4]"), include the page too, like "(file.pdf, p. 4)". Clearly distinguish verified fact from inference. This is a first draft only, explicitly for lawyer review before use — do not present it as final or ready to send. If the documents don't contain enough information for part of the draft, write "[NEEDS LAWYER INPUT: ...]" rather than inventing content.`;
-
-  const contextSection = context
-    ? `Matter documents:\n\n${context}\n\n`
-    : "No documents have been uploaded for this matter yet.\n\n";
-
   return complete({
-    system,
-    messages: [
-      {
-        role: "user",
-        content: `${contextSection}Draft a ${draftType.toLowerCase()}. ${instructions || ""}`.trim(),
-      },
-    ],
+    system: buildDraftSystemPrompt(draftType),
+    messages: [{ role: "user", content: buildDraftUserPrompt(draftType, context, instructions) }],
     maxTokens: 4096,
   });
 }

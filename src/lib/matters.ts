@@ -266,6 +266,7 @@ export async function deleteMatter(matterId: string): Promise<boolean> {
   db.prepare("DELETE FROM matter_notes WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM matter_reference_documents WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM document_chunks WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM agent_runs WHERE matterId = ?").run(matterId);
   // Audit rows are deliberately NOT deleted here. Two reasons: an audit
   // trail is supposed to survive deletion of the thing it audited (real
   // compliance practice — "we deleted this matter" should still be
