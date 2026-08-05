@@ -51,13 +51,21 @@ to whichever matters need them.
 
 **AI features, grounded and cited** — chat Q&A (retrieval-based, so it
 stays fast and accurate even on large matters), executive digests,
-evidence-mapping matrices, deadline extraction, first-draft
-memos/letters/correspondence, and smart email drafting — every fact cited
-to its source document and page number, unsupported claims explicitly
-flagged rather than invented. An independent second AI model (Google
-Gemini) can review any digest, evidence matrix, or chat answer for blind
-spots. Voice dictation on every free-text field, for anyone who'd rather
-speak than type.
+evidence-mapping matrices, defence strategy memos, deadline extraction,
+first-draft memos/letters/correspondence, and smart email drafting — every
+fact cited to its source document and page number, unsupported claims
+explicitly flagged rather than invented. An independent second AI model
+(Google Gemini) can review any digest, evidence matrix, or chat answer for
+blind spots. Voice dictation on every free-text field, for anyone who'd
+rather speak than type. Any AI-generated output can be translated into a
+configurable language (Settings > Translation), with citations and
+markdown structure preserved, and exported as a clean, printable PDF.
+
+**Visual evidence & defence graphs** — turns a generated evidence matrix
+or defence strategy memo into an interactive node graph (parties,
+allegations, evidence, gaps; or weaknesses, theories, issues, next steps)
+you can click through to narrow down what you're looking at, opened
+full-screen in a distraction-free view.
 
 **Practice management** — timesheets, invoicing with configurable rates
 and discounts, direct email sending with attachments and AI-assisted
@@ -67,7 +75,15 @@ a matter.
 **Security & governance** — real multi-user accounts and roles; API keys,
 SMTP credentials, and uploaded documents encrypted at rest; a
 cryptographically tamper-evident audit log with a one-click integrity
-check; per-matter legal holds and classification.
+check (and an admin-gated, written-reason-required re-anchor path for the
+rare case the chain needs deliberate repair); per-matter legal holds and
+classification.
+
+**Backup & restore** — one-click backup of the entire app (matters,
+documents, clients, users, settings) to a downloadable archive, with
+automatic pruning to the last 10; restore moves current data aside rather
+than deleting it; an unattended scheduled-backup endpoint for wiring into
+an OS-level cron job/Task Scheduler.
 
 Full detail on every feature, including what's deliberately *not* built
 and why, is in [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -99,6 +115,15 @@ independent review. Runs identically on macOS, Windows, and Linux.
 
 ## Recent changes
 
+- Configurable default translation language (Settings > Translation),
+  used by every Translate button across the app
+- Visual evidence & defence graphs — click-through node graphs of a
+  generated evidence matrix or defence strategy memo, openable full-screen
+  in a new tab
+- Defence strategy memo draft type, with its own graph view
+- Translation of any AI-generated output into another language, and
+  browser-native PDF export, on every generated document/answer
+- Backup & restore, with a scheduled/unattended backup endpoint
 - Voice dictation, smart email drafting, and email attachments
 - Client entity with fuzzy (near-miss spelling) conflict-of-interest
   checking
@@ -131,6 +156,27 @@ reasoning behind each decision, is in
   text extraction from context entirely, instead of telling the model
   "this document exists but couldn't be read" the way the previous
   full-context builder did. Caught in testing, fixed before merging.
+- **Empty AI responses were silently saved as real content.** The
+  Anthropic/OpenAI completion helpers returned `""` instead of throwing
+  when a provider sent back no text — so a failed generation looked
+  identical to a genuinely empty one, and got saved rather than retried or
+  reported. Found via a real digest that had silently gone blank in
+  production. Fixed by throwing on empty output so the existing
+  provider-failover/retry logic actually kicks in.
+- **Large evidence graphs could be truncated mid-JSON** ("Unterminated
+  string in JSON…") on data-rich matters — the token budget for graph
+  generation was too small for a real matter's full evidence matrix.
+  Raised generation limits across every AI feature and made JSON parse
+  failures throw a clear, actionable message instead of a raw parser
+  error.
+- **A real production audit-log integrity break**, root-caused to matter
+  deletion removing rows from the middle of the *globally* hash-chained
+  audit log (each matter's rows aren't chained independently) — deleting a
+  matter could invalidate every audit entry recorded afterward. Fixed at
+  the source (matter deletion no longer touches the audit log at all), and
+  a transparent, admin-gated, written-reason-required re-anchor tool was
+  added for the already-affected chain — recorded as its own permanent
+  audit event, not a silent patch.
 
 ## Known limitations (by design, not oversight)
 
