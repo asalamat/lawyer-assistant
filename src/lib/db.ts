@@ -218,6 +218,17 @@ execWithRetry(`
     FOREIGN KEY (userId) REFERENCES users(id)
   );
 
+  CREATE TABLE IF NOT EXISTS saved_searches (
+    id TEXT PRIMARY KEY,
+    userId TEXT NOT NULL,
+    label TEXT NOT NULL,
+    query TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (userId) REFERENCES users(id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_saved_searches_userId ON saved_searches(userId);
+
   CREATE TABLE IF NOT EXISTS clients (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,

@@ -175,6 +175,21 @@ see git log for exact history.
       in a query term acted as a SQL wildcard instead of a literal
       character. Confirmed the audit hash chain stayed valid (152 entries)
       after cleanup.
+- [x] Saved searches (`saved_searches` table, `src/lib/savedSearches.ts`,
+      `/api/saved-searches`, `SavedSearchesPanel.tsx` on `/search`) —
+      personal to the user who saved it (like Appearance/Translation), not
+      shared firm-wide; a saved search is just a label + the raw query
+      string, so it automatically benefits from whatever the search syntax
+      supports later. Verified live with two throwaway users: create/list/
+      delete round-trips correctly, and — the actual point of scoping by
+      `userId`, not just displaying it — user B's delete request against
+      user A's saved search silently no-ops (`DELETE ... WHERE id = ? AND
+      userId = ?`) rather than deleting it or erroring in a way that would
+      leak whether the ID exists; user B's own list never showed user A's
+      search. Confirmed the audit hash chain stayed valid (152 entries)
+      after cleanup; saved-search create/delete deliberately isn't
+      audit-logged, same as other personal-preference settings
+      (translation language, appearance).
 - [ ] **Email integration — Gmail / Microsoft (Outlook.com, Hotmail, Office
       365)** — OAuth 2.0 flow fully built (`src/lib/emailIntegration.ts`,
       Settings > Integrations) but **not functional yet for these two**:

@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { searchAll } from "@/lib/search";
+import { listSavedSearches } from "@/lib/savedSearches";
+import { getCurrentUser } from "@/lib/auth";
 import SearchHighlight from "@/components/SearchHighlight";
+import SavedSearchesPanel from "@/components/SavedSearchesPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +36,8 @@ export default async function SearchPage({
   const query = (q ?? "").trim();
   const results = query.length > 0 ? await searchAll(query) : null;
   const terms = results?.terms ?? [];
+  const user = await getCurrentUser();
+  const savedSearches = user ? await listSavedSearches(user.id) : [];
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-10">
@@ -56,6 +61,9 @@ export default async function SearchPage({
           <code>&quot;show cause hearing&quot;</code>) and a leading minus to exclude a term (
           <code>-adjourned</code>).
         </p>
+        <div className="mt-3">
+          <SavedSearchesPanel initialSearches={savedSearches} currentQuery={query} />
+        </div>
       </div>
 
       {!results ? (

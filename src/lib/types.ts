@@ -26,6 +26,14 @@ export interface Client {
   createdAt: string;
 }
 
+export interface SavedSearch {
+  id: string;
+  userId: string;
+  label: string;
+  query: string;
+  createdAt: string;
+}
+
 export interface Document {
   id: string;
   matterId: string;
