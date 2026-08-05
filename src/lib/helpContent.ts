@@ -41,7 +41,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "reference-library",
         name: "Reference library",
         detail:
-          "Upload statutes, case law, or other reference material once (nav > Reference library), then attach whichever documents are relevant to a specific matter from that matter's Overview tab. Attached reference documents are included in that matter's chat/digest/drafts/evidence-matrix context — attaching is per matter on purpose, so an unrelated matter doesn't get, say, the entire Criminal Code stuffed into its AI context.",
+          "Upload statutes, case law, or other reference material once (nav > Reference library), then attach whichever documents are relevant to a specific matter from that matter's Overview tab. Attached reference documents are included in that matter's chat/digest/drafts/evidence-matrix context — attaching is per matter on purpose, so an unrelated matter doesn't get, say, the entire Criminal Code stuffed into its AI context. A newly uploaded document is pending approval and can't be attached to any matter until a lawyer or admin approves it — meant to catch a client-specific document being uploaded here by mistake before it becomes reusable across other clients' matters. An automatic check flags text that looks like a real client's personal or privileged details (a warning to review, not an automatic block — a published case naming real parties will often trip it too).",
       },
       {
         slug: "clients",

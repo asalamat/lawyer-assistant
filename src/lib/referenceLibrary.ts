@@ -3,8 +3,10 @@ import { existsSync } from "fs";
 import { createHash } from "crypto";
 import path from "path";
 import { recordAuditEvent } from "./auditLog";
+import { scanReferenceDocumentForSensitiveContent } from "./claude";
 import { encryptFile } from "./crypto";
 import db, { toPlain } from "./db";
+import { extractDocumentText, isExtractableDocument } from "./textExtraction";
 import type { ReferenceDocument } from "./types";
 
 const REFERENCE_DIR = path.join(process.cwd(), "data", "reference-uploads");
@@ -25,6 +27,21 @@ export async function addReferenceDocument(file: File): Promise<ReferenceDocumen
   const contentHash = createHash("sha256").update(bytes).digest("hex");
   await writeFile(storagePath, await encryptFile(bytes));
 
+  // Flag likely one-client personal/privileged content before it enters a
+  // shelf meant for cross-matter reuse — a lawyer still has to approve
+  // either way, this just surfaces a reason to look closer. Best-effort:
+  // if extraction or the AI call fails, upload still succeeds unflagged
+  // rather than blocking on it.
+  let sensitivityFlag: string | null = null;
+  if (isExtractableDocument(file.name)) {
+    try {
+      const text = await extractDocumentText(file.name, storagePath);
+      if (text) sensitivityFlag = await scanReferenceDocumentForSensitiveContent(text);
+    } catch {
+      sensitivityFlag = null;
+    }
+  }
+
   const document: ReferenceDocument = {
     id,
     fileName: file.name,
@@ -32,9 +49,15 @@ export async function addReferenceDocument(file: File): Promise<ReferenceDocumen
     uploadedAt: new Date().toISOString(),
     storagePath,
     contentHash,
+    approved: 0,
+    approvedBy: null,
+    approvedAt: null,
+    sensitivityFlag,
   };
   db.prepare(
-    "INSERT INTO reference_documents (id, fileName, sizeBytes, uploadedAt, storagePath, contentHash) VALUES (?, ?, ?, ?, ?, ?)",
+    `INSERT INTO reference_documents
+       (id, fileName, sizeBytes, uploadedAt, storagePath, contentHash, approved, approvedBy, approvedAt, sensitivityFlag)
+     VALUES (?, ?, ?, ?, ?, ?, 0, NULL, NULL, ?)`,
   ).run(
     document.id,
     document.fileName,
@@ -42,9 +65,39 @@ export async function addReferenceDocument(file: File): Promise<ReferenceDocumen
     document.uploadedAt,
     document.storagePath,
     document.contentHash,
+    document.sensitivityFlag,
   );
-  await recordAuditEvent("reference_document_uploaded", null, `Uploaded "${document.fileName}" to the reference library`);
+  await recordAuditEvent(
+    "reference_document_uploaded",
+    null,
+    `Uploaded "${document.fileName}" to the reference library, pending approval${
+      sensitivityFlag ? ` (flagged: ${sensitivityFlag})` : ""
+    }`,
+  );
   return document;
+}
+
+// Lawyer/admin sign-off before a reference document becomes attachable to
+// matters — the point of the vision doc's "lawyer approval before reuse"
+// step, kept lightweight (no separate review queue table) since the
+// reference_documents row itself carries everything needed to decide.
+export async function approveReferenceDocument(
+  id: string,
+  approvedByUserId: string,
+): Promise<void> {
+  const row = db
+    .prepare("SELECT fileName FROM reference_documents WHERE id = ?")
+    .get(id) as unknown as { fileName: string } | undefined;
+  if (!row) throw new Error("Reference document not found");
+
+  db.prepare(
+    "UPDATE reference_documents SET approved = 1, approvedBy = ?, approvedAt = ? WHERE id = ?",
+  ).run(approvedByUserId, new Date().toISOString(), id);
+  await recordAuditEvent(
+    "reference_document_approved",
+    null,
+    `Approved "${row.fileName}" for reuse across matters`,
+  );
 }
 
 export async function deleteReferenceDocument(id: string): Promise<void> {
@@ -77,9 +130,12 @@ export async function attachReferenceDocument(
   referenceDocumentId: string,
 ): Promise<void> {
   const doc = db
-    .prepare("SELECT fileName FROM reference_documents WHERE id = ?")
-    .get(referenceDocumentId) as unknown as { fileName: string } | undefined;
+    .prepare("SELECT fileName, approved FROM reference_documents WHERE id = ?")
+    .get(referenceDocumentId) as unknown as { fileName: string; approved: number } | undefined;
   if (!doc) throw new Error("Reference document not found");
+  if (!doc.approved) {
+    throw new Error("This reference document is pending approval and can't be attached yet");
+  }
 
   db.prepare(
     `INSERT INTO matter_reference_documents (matterId, referenceDocumentId, attachedAt) VALUES (?, ?, ?)

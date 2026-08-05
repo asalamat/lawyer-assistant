@@ -11,14 +11,38 @@ function formatBytes(bytes: number): string {
 
 export default function ReferenceLibraryPanel({
   initialDocuments,
+  canApprove,
 }: {
   initialDocuments: ReferenceDocument[];
+  canApprove: boolean;
 }) {
   const [documents, setDocuments] = useState(initialDocuments);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const pending = documents.filter((doc) => !doc.approved);
+  const approved = documents.filter((doc) => doc.approved);
+
+  async function handleApprove(id: string) {
+    setApprovingId(id);
+    try {
+      const res = await fetch(`/api/reference-library/${id}/approve`, { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.error ?? "Failed to approve");
+      }
+      setDocuments((prev) =>
+        prev.map((doc) => (doc.id === id ? { ...doc, approved: 1 } : doc)),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to approve");
+    } finally {
+      setApprovingId(null);
+    }
+  }
 
   async function upload(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -74,29 +98,74 @@ export default function ReferenceLibraryPanel({
         {error && <p className="text-red-600">{error}</p>}
       </div>
 
-      {documents.length === 0 ? (
+      {documents.length === 0 && (
         <p className="text-sm text-muted">
           No reference documents yet. Upload statutes, key cases, or other material you want
           available to attach across multiple matters.
         </p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {documents.map((doc) => (
-            <li key={doc.id} className="surface-row flex items-center justify-between text-sm">
-              <span>{doc.fileName}</span>
-              <span className="flex items-center gap-3 text-muted">
-                {formatBytes(doc.sizeBytes)}
-                <button
-                  onClick={() => handleDelete(doc.id)}
-                  className="text-xs text-muted hover:text-red-600"
-                  aria-label="Delete reference document"
-                >
-                  Remove
-                </button>
-              </span>
-            </li>
-          ))}
-        </ul>
+      )}
+
+      {pending.length > 0 && (
+        <div>
+          <h2 className="mb-2 font-display text-lg">Pending approval ({pending.length})</h2>
+          <ul className="flex flex-col gap-2">
+            {pending.map((doc) => (
+              <li key={doc.id} className="surface-row flex flex-col gap-1 text-sm">
+                <div className="flex items-center justify-between">
+                  <span>{doc.fileName}</span>
+                  <span className="flex items-center gap-3 text-muted">
+                    {formatBytes(doc.sizeBytes)}
+                    {canApprove && (
+                      <button
+                        onClick={() => handleApprove(doc.id)}
+                        disabled={approvingId === doc.id}
+                        className="text-xs text-accent underline decoration-accent/40 disabled:opacity-50"
+                      >
+                        {approvingId === doc.id ? "Approving…" : "Approve"}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(doc.id)}
+                      className="text-xs text-muted hover:text-red-600"
+                      aria-label="Delete reference document"
+                    >
+                      Remove
+                    </button>
+                  </span>
+                </div>
+                {doc.sensitivityFlag && (
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    ⚠ {doc.sensitivityFlag}
+                  </p>
+                )}
+                <p className="text-xs text-muted">Not attachable to any matter until approved.</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {approved.length > 0 && (
+        <div>
+          {pending.length > 0 && <h2 className="mb-2 font-display text-lg">Approved</h2>}
+          <ul className="flex flex-col gap-2">
+            {approved.map((doc) => (
+              <li key={doc.id} className="surface-row flex items-center justify-between text-sm">
+                <span>{doc.fileName}</span>
+                <span className="flex items-center gap-3 text-muted">
+                  {formatBytes(doc.sizeBytes)}
+                  <button
+                    onClick={() => handleDelete(doc.id)}
+                    className="text-xs text-muted hover:text-red-600"
+                    aria-label="Delete reference document"
+                  >
+                    Remove
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

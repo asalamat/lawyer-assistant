@@ -56,6 +56,10 @@ export interface ReferenceDocument {
   uploadedAt: string;
   storagePath: string;
   contentHash: string;
+  approved: number;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  sensitivityFlag: string | null;
 }
 
 // A CanLII legislation record being watched for changes. CanLII's API only

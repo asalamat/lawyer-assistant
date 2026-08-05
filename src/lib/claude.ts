@@ -502,3 +502,49 @@ export async function translateText(text: string, targetLanguage: string): Promi
     maxTokens: 8192,
   });
 }
+
+const SENSITIVITY_SCHEMA = {
+  type: "object",
+  properties: {
+    containsSensitiveContent: {
+      type: "boolean",
+      description:
+        "True if the text contains a real client's personal information (names, addresses, phone numbers, financial/health/identity details tied to a real person) or content that reads as privileged/confidential to a specific matter, rather than being genuinely general reference material (a statute, a published case, a firm template with no real client's details).",
+    },
+    reason: {
+      type: "string",
+      description:
+        "One sentence explaining what was found, or an empty string if containsSensitiveContent is false.",
+    },
+  },
+  required: ["containsSensitiveContent", "reason"],
+  additionalProperties: false,
+};
+
+// Reference-library documents are meant to be reused across many matters
+// (statutes, precedents, published case law) — a document that's actually
+// one client's personal/privileged material has no business being
+// reusable that way. This is a flag for the human approver to weigh, not
+// an automatic block: false positives (a case name that includes a real
+// person's name, e.g. a party in published case law) are expected and
+// normal, so the approver sees the reason and decides.
+export async function scanReferenceDocumentForSensitiveContent(text: string): Promise<string | null> {
+  if (!text.trim()) return null;
+
+  const system = `You review documents being added to a law firm's shared reference library — material meant to be reusable across many clients' matters (statutes, published case law, firm templates, research memos with identifying details removed). Flag documents that instead look like one specific client's personal or privileged material, which shouldn't be reused across unrelated matters.`;
+
+  const result = await completeJSON<{ containsSensitiveContent: boolean; reason: string }>({
+    system,
+    messages: [
+      {
+        role: "user",
+        content: `Here is the document text (may be truncated):\n\n${text.slice(0, 20000)}`,
+      },
+    ],
+    schema: SENSITIVITY_SCHEMA,
+    schemaName: "sensitivity_scan",
+    maxTokens: 512,
+  });
+
+  return result.containsSensitiveContent ? result.reason : null;
+}

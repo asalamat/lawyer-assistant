@@ -296,6 +296,15 @@ ensureColumn("matters", "legalHold", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("matters", "legalHoldReason", "TEXT");
 ensureColumn("matters", "retentionDate", "TEXT");
 ensureColumn("matters", "clientId", "TEXT");
+// Default 1 so reference documents uploaded before this feature shipped are
+// grandfathered in as already-approved rather than suddenly becoming
+// unattachable — new uploads explicitly insert approved=0 regardless of
+// this column default, so the migration-time default only affects
+// pre-existing rows.
+ensureColumn("reference_documents", "approved", "INTEGER NOT NULL DEFAULT 1");
+ensureColumn("reference_documents", "approvedBy", "TEXT");
+ensureColumn("reference_documents", "approvedAt", "TEXT");
+ensureColumn("reference_documents", "sensitivityFlag", "TEXT");
 
 // One-time migration: matters used to store client identity only as free
 // text (clientName/clientEmail), with no real entity linking one client's

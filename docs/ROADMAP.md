@@ -213,6 +213,41 @@ see git log for exact history.
       a document never appears in its own results, matter deletion
       cascades documents/chunks correctly, and the audit hash chain stayed
       valid (157 entries) after cleanup.
+- [x] Reference-library approval workflow (`reference_documents.approved`/
+      `approvedBy`/`approvedAt`/`sensitivityFlag` columns,
+      `approveReferenceDocument()`, `scanReferenceDocumentForSensitiveContent()`
+      in `src/lib/claude.ts`, `/api/reference-library/[id]/approve`) — the
+      closest practical stand-in for the original vision doc's "Layer 2
+      firm knowledge" approval + de-identification step, without building
+      a separate review-queue table. A newly uploaded reference document
+      is `approved=0` and cannot be attached to any matter — enforced in
+      `attachReferenceDocument()` itself, not just hidden in the UI —
+      until a lawyer or admin (not staff) approves it from
+      `/reference-library`'s new "Pending approval" section. An AI scan
+      flags text that reads like one specific client's personal/privileged
+      material rather than genuine shared reference material; this is a
+      warning surfaced to the approver, not an automatic block (a
+      published case naming real parties will often trip it too, which is
+      expected and fine — the approver decides). Pre-existing reference
+      documents were grandfathered in as already-approved via the column's
+      migration-time default, so nothing already relied upon suddenly
+      became unattachable.
+      Verified live with three real throwaway users (admin/lawyer/staff):
+      staff genuinely cannot approve (403 at the API), attaching an
+      unapproved document is genuinely rejected at the API regardless of
+      what the UI shows (400, not just hidden from the dropdown), the
+      sensitivity scanner correctly flagged a synthetic client-intake-notes
+      document (real name/DOB/SIN/custody-dispute details) and correctly
+      left a generic statute-style document unflagged, approval is
+      per-document (approving one pending document didn't affect
+      another), and a matter's attach dropdown genuinely excludes a
+      still-pending document from its options. Also found and cleaned up
+      unrelated leftover test artifacts from an earlier debugging session
+      (an orphaned "Digest Bug Test" matter and three orphaned throwaway
+      client rows) that a prior cleanup pass had missed — confirmed the
+      real "ali"/"test" matters and the one real pre-existing reference
+      document were untouched throughout. Audit hash chain re-verified
+      valid (166 entries) after all cleanup.
 - [ ] **Email integration — Gmail / Microsoft (Outlook.com, Hotmail, Office
       365)** — OAuth 2.0 flow fully built (`src/lib/emailIntegration.ts`,
       Settings > Integrations) but **not functional yet for these two**:

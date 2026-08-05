@@ -16,7 +16,10 @@ export default async function MatterOverviewPage({
   const matter = await getMatter(id);
   const documents = annotateDuplicates(await listDocuments(id));
   const attachedReferenceDocs = await listAttachedReferenceDocuments(id);
-  const referenceLibrary = await listReferenceDocuments();
+  // Only approved reference documents can be attached to a matter — a
+  // pending upload isn't available here yet, even to the person who
+  // uploaded it, until a lawyer/admin has signed off (see /reference-library).
+  const referenceLibrary = (await listReferenceDocuments()).filter((doc) => doc.approved);
 
   return (
     <div className="flex flex-col gap-6">
