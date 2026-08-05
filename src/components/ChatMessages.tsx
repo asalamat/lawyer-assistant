@@ -6,6 +6,7 @@ import type { ChatMessage, IndependentReview } from "@/lib/types";
 import DictateButton from "./DictateButton";
 import ExportPdfButton from "./ExportPdfButton";
 import MarkdownContent from "./MarkdownContent";
+import TranslateButton from "./TranslateButton";
 
 type Rating = "up" | "down";
 
@@ -174,10 +175,16 @@ export default function ChatMessages({
                     />
                   </div>
                 )}
+                {message.role === "assistant" && (
+                  <div className="mt-1">
+                    <TranslateButton content={message.content} />
+                  </div>
+                )}
                 {message.role === "assistant" && review && (
-                  <div className="surface-row mt-2 text-xs">
+                  <div className="surface-row mt-2 flex flex-col gap-2 text-xs">
                     <p className="mb-1 font-medium text-muted">Independent review (Gemini)</p>
                     <MarkdownContent content={review.content} />
+                    <TranslateButton content={review.content} />
                   </div>
                 )}
               </div>

@@ -488,3 +488,17 @@ export async function extractDefenceGraph(memoContent: string): Promise<DefenceG
     maxTokens: 8192,
   });
 }
+
+// Generic translation for any AI-generated output in this app (digests,
+// evidence matrices, drafts, chat answers, independent reviews, email
+// drafts) — not matter-specific, so it takes plain text/markdown rather
+// than a matter context.
+export async function translateText(text: string, targetLanguage: string): Promise<string> {
+  const system = `You are a professional legal translator. Translate the user's text into ${targetLanguage}. Preserve the original structure exactly — markdown headings, bullet/numbered lists, bold/italic, and any parenthetical source citations like "(file.pdf, p. 4)" must remain in the same form and position, with the filename inside a citation left untranslated. Translate only the prose content itself. Do not summarize, shorten, add commentary, or explain your translation — output only the translated text, nothing else.`;
+
+  return complete({
+    system,
+    messages: [{ role: "user", content: text }],
+    maxTokens: 8192,
+  });
+}

@@ -755,6 +755,34 @@ see git log for exact history.
       run this could be removed afterward without touching a single
       audit row — proof the fixed `deleteMatter()`/cleanup path no longer
       has this failure mode.
+- [x] Translation on every AI-generated output surface (`TranslateButton.tsx`,
+      `/api/translate`, `translateText()` in `src/lib/claude.ts`) —
+      digest, evidence matrix, drafts (including the defence strategy
+      memo), chat answers, independent reviews, and the smart email
+      draft. French first in the language list, given this app's
+      Canadian legal context, plus Spanish/Mandarin/Punjabi/Arabic/
+      Tagalog and a free-text "Other". Not matter-specific — pure
+      text-in/text-out via the already-configured AI provider, so no new
+      external translation service was added.
+      Two different UX patterns depending on whether the content is
+      read-only or editable: for read-only generated content
+      (digest/matrix/drafts/chat/reviews), translation appears as an
+      additive block below the original — `TranslateButton.tsx`,
+      rendered through `MarkdownContent` since legal text structure
+      (headings/lists) is worth preserving in the translation too. For
+      the smart email draft body, which is an editable field you're
+      about to send, translation replaces the textarea content in place
+      instead — a separate read-only block wouldn't make sense for
+      something you need to edit and send.
+      The prompt explicitly preserves markdown structure and leaves
+      parenthetical source citations (e.g. "(file.pdf, p. 4)") untouched
+      — translating the filename inside a citation would break its
+      ability to be checked against the matter's real documents.
+      Verified live: a synthetic legal snippet with two page citations
+      translated correctly into French, with both citations preserved
+      byte-for-byte and markdown headings intact. Confirmed the audit
+      hash chain stayed valid (147 entries, real ongoing activity) after
+      cleanup.
 
 ## Dependency notes
 

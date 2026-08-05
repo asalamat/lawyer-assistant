@@ -59,7 +59,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "email",
         name: "Email",
         detail:
-          "Compose and send an email directly from a matter once SMTP is configured in Settings. Use Smart draft to describe what the email should say and get a grounded subject+body draft citing the matter documents it's based on — always review before sending. Attach any of the matter's own uploaded documents when sending. Connected inboxes (Gmail/Microsoft via OAuth, or Yahoo via an app password) can also be browsed and a message imported into the matter as a document.",
+          "Compose and send an email directly from a matter once SMTP is configured in Settings. Use Smart draft to describe what the email should say and get a grounded subject+body draft citing the matter documents it's based on — always review before sending. Translate the message into French or another language right in the compose box (replaces the draft in place so you can review and send the translated version). Attach any of the matter's own uploaded documents when sending. Connected inboxes (Gmail/Microsoft via OAuth, or Yahoo via an app password) can also be browsed and a message imported into the matter as a document.",
       },
     ],
   },
@@ -70,13 +70,13 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "chat",
         name: "Chat",
         detail:
-          "Ask questions grounded in that matter's uploaded documents and notes — dictate the question instead of typing if you prefer. Under the hood, chat retrieves the most relevant passages from your documents (rather than dumping every document into every question), so it stays accurate and fast even on matters with a large volume of material. Citations include a page number when the source is a PDF, e.g. \"(file.pdf, p. 4)\". Any filename cited is checked against the matter's real documents — an unverified citation is flagged in the answer. Rate answers with a thumbs up/down, or request an independent second-opinion review of any answer from Google Gemini (requires a Gemini key in Settings).",
+          "Ask questions grounded in that matter's uploaded documents and notes — dictate the question instead of typing if you prefer. Under the hood, chat retrieves the most relevant passages from your documents (rather than dumping every document into every question), so it stays accurate and fast even on matters with a large volume of material. Citations include a page number when the source is a PDF, e.g. \"(file.pdf, p. 4)\". Any filename cited is checked against the matter's real documents — an unverified citation is flagged in the answer. Rate answers with a thumbs up/down, translate an answer (or its independent review) into French or another language, export it as PDF, or request an independent second-opinion review from Google Gemini (requires a Gemini key in Settings).",
       },
       {
         slug: "matter-digest",
         name: "Matter digest",
         detail:
-          "Generates an executive summary: parties, key dates, facts, evidence inventory, and open questions — all cited to source documents and notes. Renders as proper formatted text (real headings and lists, not literal \"##\"/\"-\" characters); use Export PDF to open a clean, printable copy in a new tab and save it via your browser's print dialog.",
+          "Generates an executive summary: parties, key dates, facts, evidence inventory, and open questions — all cited to source documents and notes. Renders as proper formatted text (real headings and lists, not literal \"##\"/\"-\" characters); use Translate for a copy in French or another language, or Export PDF to open a clean, printable copy in a new tab and save it via your browser's print dialog.",
       },
       {
         slug: "independent-review",
@@ -94,7 +94,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "evidence-matrix",
         name: "Evidence matrix",
         detail:
-          "Maps allegations/charges to the elements that must be proven, the supporting evidence for each, and evidentiary gaps. Does not predict outcomes. Once generated, click Visualize to see it as a node graph — parties, allegations, evidence, and gaps, with their connections. Click any node to highlight just its direct connections, or use the checkboxes to show/hide a whole category and narrow down what you're looking at.",
+          "Maps allegations/charges to the elements that must be proven, the supporting evidence for each, and evidentiary gaps. Does not predict outcomes. Translate it or export as PDF like any other generated document. Once generated, click Visualize to see it as a node graph — parties, allegations, evidence, and gaps, with their connections. Click any node to highlight just its direct connections, or use the checkboxes to show/hide a whole category and narrow down what you're looking at.",
       },
       {
         slug: "drafting",

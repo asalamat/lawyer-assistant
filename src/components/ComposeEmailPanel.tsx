@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import DictateButton from "./DictateButton";
 
+const TRANSLATE_LANGUAGES = ["French", "Spanish", "Mandarin Chinese", "Punjabi", "Arabic"];
+
 export default function ComposeEmailPanel({
   matterId,
   clientEmail,
@@ -25,6 +27,10 @@ export default function ComposeEmailPanel({
   const [draftInstructions, setDraftInstructions] = useState("");
   const [drafting, setDrafting] = useState(false);
   const [draftError, setDraftError] = useState<string | null>(null);
+
+  const [translateLanguage, setTranslateLanguage] = useState(TRANSLATE_LANGUAGES[0]);
+  const [translating, setTranslating] = useState(false);
+  const [translateError, setTranslateError] = useState<string | null>(null);
 
   if (!emailConfigured) {
     return (
@@ -61,6 +67,30 @@ export default function ComposeEmailPanel({
       setDraftError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setDrafting(false);
+    }
+  }
+
+  // Replaces the message body in place with a translation, rather than
+  // showing translation as a separate read-only block — this field is
+  // what actually gets sent, so translating it needs to leave something
+  // editable/sendable behind, not an additional block to copy from.
+  async function handleTranslateMessage() {
+    if (!message.trim()) return;
+    setTranslating(true);
+    setTranslateError(null);
+    try {
+      const res = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: message, targetLanguage: translateLanguage }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Translation failed");
+      setMessage(body.translated);
+    } catch (err) {
+      setTranslateError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setTranslating(false);
     }
   }
 
@@ -137,10 +167,32 @@ export default function ComposeEmailPanel({
             rows={8}
             className="surface-input"
           />
-          <DictateButton
-            disabled={sending}
-            onText={(text) => setMessage((prev) => (prev ? `${prev} ${text}` : text))}
-          />
+          <div className="flex items-center gap-2">
+            <DictateButton
+              disabled={sending}
+              onText={(text) => setMessage((prev) => (prev ? `${prev} ${text}` : text))}
+            />
+            <select
+              value={translateLanguage}
+              onChange={(e) => setTranslateLanguage(e.target.value)}
+              className="surface-input py-1 text-xs"
+            >
+              {TRANSLATE_LANGUAGES.map((lang) => (
+                <option key={lang} value={lang}>
+                  {lang}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={handleTranslateMessage}
+              disabled={translating || !message.trim()}
+              className="text-xs text-accent underline decoration-accent/40 disabled:opacity-50"
+            >
+              {translating ? "Translating…" : "Translate message"}
+            </button>
+          </div>
+          {translateError && <p className="text-xs text-red-600">{translateError}</p>}
         </div>
 
         {documents.length > 0 && (
