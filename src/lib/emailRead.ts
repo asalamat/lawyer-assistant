@@ -1,6 +1,6 @@
 import db from "./db";
-import { getYahooMessageBody, listRecentYahooMessages } from "./yahooImap";
-import type { EmailProvider } from "./types";
+import { getYahooMessageBody, listRecentYahooMessages, listYahooMailboxes } from "./yahooImap";
+import type { EmailFolder, EmailProvider } from "./types";
 
 export interface EmailMessageSummary {
   id: string;
@@ -140,11 +140,62 @@ function graphFrom(message: GraphMessage): string {
   return addr.address ?? addr.name ?? "";
 }
 
+interface GmailLabel {
+  id: string;
+  name: string;
+  type?: string;
+}
+
+// Gmail models folders as "labels" — a message can have several, so this
+// isn't a strict folder tree, but it's the closest equivalent and what a
+// user actually means by "folder" in Gmail. Skips labels that aren't
+// really folders a person would file mail into (CATEGORY_* tabs,
+// UNREAD/STARRED/IMPORTANT/CHAT, which are more like filters/flags).
+const GMAIL_SKIP_LABELS = new Set(["UNREAD", "STARRED", "IMPORTANT", "CHAT"]);
+
+async function listGmailLabels(accessToken: string): Promise<EmailFolder[]> {
+  const result = (await gmailFetch(accessToken, "labels")) as { labels?: GmailLabel[] };
+  return (result.labels ?? [])
+    .filter((label) => !label.id.startsWith("CATEGORY_") && !GMAIL_SKIP_LABELS.has(label.id))
+    .map((label) => ({ id: label.id, name: label.name }));
+}
+
+interface GraphMailFolder {
+  id: string;
+  displayName: string;
+}
+
+// Top-level mail folders only (Inbox, Sent Items, Drafts, Deleted Items,
+// Archive, and any folders the user created at the top level) — nested
+// subfolders aren't recursed into. Covers what "any folder under the main
+// email" means in practice for how most people organize mail; a deeper
+// folder tree can be added later if it turns out to matter.
+async function listGraphMailFolders(accessToken: string): Promise<EmailFolder[]> {
+  const result = (await graphFetch(accessToken, "mailFolders?$top=100")) as {
+    value?: GraphMailFolder[];
+  };
+  return (result.value ?? []).map((folder) => ({ id: folder.id, name: folder.displayName }));
+}
+
+export async function listFolders(provider: EmailProvider): Promise<EmailFolder[]> {
+  const account = await getEmailAccountWithToken(provider);
+  if (!account) throw notConnectedError(provider);
+
+  if (provider === "yahoo") {
+    return listYahooMailboxes(account.emailAddress, account.accessToken);
+  }
+  if (provider === "google") {
+    return listGmailLabels(account.accessToken);
+  }
+  return listGraphMailFolders(account.accessToken);
+}
+
 export async function listRecentMessages(
   provider: EmailProvider,
-  options?: { maxResults?: number },
+  options?: { maxResults?: number; folderId?: string },
 ): Promise<EmailMessageSummary[]> {
   const maxResults = options?.maxResults ?? 25;
+  const folderId = options?.folderId;
 
   const account = await getEmailAccountWithToken(provider);
   if (!account) throw notConnectedError(provider);
@@ -152,13 +203,14 @@ export async function listRecentMessages(
   if (provider === "yahoo") {
     // Yahoo account rows store an app password in the accessToken column,
     // not an OAuth token — see src/lib/yahooImap.ts for why.
-    return listRecentYahooMessages(account.emailAddress, account.accessToken, maxResults);
+    return listRecentYahooMessages(account.emailAddress, account.accessToken, maxResults, folderId);
   }
 
   if (provider === "google") {
+    const labelParam = folderId ? `&labelIds=${encodeURIComponent(folderId)}` : "";
     const list = (await gmailFetch(
       account.accessToken,
-      `messages?maxResults=${maxResults}`,
+      `messages?maxResults=${maxResults}${labelParam}`,
     )) as { messages?: { id: string }[] };
     const ids = (list.messages ?? []).map((m) => m.id);
 
@@ -182,9 +234,10 @@ export async function listRecentMessages(
   }
 
   // provider === "microsoft"
+  const basePath = folderId ? `mailFolders/${folderId}/messages` : "messages";
   const list = (await graphFetch(
     account.accessToken,
-    `messages?$top=${maxResults}&$select=subject,from,bodyPreview,receivedDateTime`,
+    `${basePath}?$top=${maxResults}&$select=subject,from,bodyPreview,receivedDateTime`,
   )) as { value?: GraphMessage[] };
   return (list.value ?? []).map((m) => ({
     id: m.id,
@@ -198,12 +251,15 @@ export async function listRecentMessages(
 export async function getMessageBody(
   provider: EmailProvider,
   messageId: string,
+  folderId?: string,
 ): Promise<EmailMessageBody> {
   const account = await getEmailAccountWithToken(provider);
   if (!account) throw notConnectedError(provider);
 
   if (provider === "yahoo") {
-    return getYahooMessageBody(account.emailAddress, account.accessToken, messageId);
+    // Yahoo UIDs are only unique within their own mailbox — must use the
+    // same folder the message was listed from, not a hardcoded default.
+    return getYahooMessageBody(account.emailAddress, account.accessToken, messageId, folderId);
   }
 
   if (provider === "google") {

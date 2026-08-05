@@ -1,6 +1,7 @@
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 import type { EmailMessageBody, EmailMessageSummary } from "./emailRead";
+import type { EmailFolder } from "./types";
 
 // Yahoo discontinued third-party OAuth mail scopes for self-registered apps
 // (confirmed via Yahoo's own developer docs — "mail scopes are not available
@@ -48,10 +49,35 @@ export async function testYahooImapLogin(emailAddress: string, appPassword: stri
   }
 }
 
+// IMAP mailboxes are just folders — "INBOX" is the default, but a real
+// account usually has others (Sent, Archive, client-specific folders a
+// lawyer set up manually). Excludes \Noselect mailboxes (pure containers
+// with no messages of their own, e.g. some servers' top-level "[Gmail]").
+export async function listYahooMailboxes(
+  emailAddress: string,
+  appPassword: string,
+): Promise<EmailFolder[]> {
+  const client = createClient(emailAddress, appPassword);
+  try {
+    await client.connect();
+  } catch (err) {
+    throw wrapLoginError(err);
+  }
+  try {
+    const mailboxes = await client.list();
+    return mailboxes
+      .filter((mailbox) => !mailbox.flags.has("\\Noselect"))
+      .map((mailbox) => ({ id: mailbox.path, name: mailbox.path }));
+  } finally {
+    await client.logout().catch(() => {});
+  }
+}
+
 export async function listRecentYahooMessages(
   emailAddress: string,
   appPassword: string,
   maxResults = 25,
+  mailbox = "INBOX",
 ): Promise<EmailMessageSummary[]> {
   const client = createClient(emailAddress, appPassword);
   try {
@@ -61,7 +87,7 @@ export async function listRecentYahooMessages(
   }
 
   try {
-    const lock = await client.getMailboxLock("INBOX");
+    const lock = await client.getMailboxLock(mailbox);
     try {
       const total = client.mailbox ? client.mailbox.exists : 0;
       if (total === 0) return [];
@@ -100,6 +126,7 @@ export async function getYahooMessageBody(
   emailAddress: string,
   appPassword: string,
   uid: string,
+  mailbox = "INBOX",
 ): Promise<EmailMessageBody> {
   const client = createClient(emailAddress, appPassword);
   try {
@@ -109,7 +136,11 @@ export async function getYahooMessageBody(
   }
 
   try {
-    const lock = await client.getMailboxLock("INBOX");
+    // A UID is only unique within its own mailbox — fetching by UID
+    // against the wrong mailbox silently returns the wrong message (or
+    // nothing), not an error, so the mailbox this UID was listed from
+    // must be threaded through here, not assumed to be INBOX.
+    const lock = await client.getMailboxLock(mailbox);
     let source: Buffer | undefined;
     try {
       const message = await client.fetchOne(uid, { source: true }, { uid: true });

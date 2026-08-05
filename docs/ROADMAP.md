@@ -359,6 +359,41 @@ see git log for exact history.
       messages and imports a selected one into a matter as a document.
       Functional for Yahoo now; functional for Gmail/Microsoft once their
       respective OAuth apps are registered per the item above.
+- [x] Browse any folder, not just the default inbox view (`listFolders()`
+      in `src/lib/emailRead.ts`, a Folder dropdown in
+      `ImportEmailPanel.tsx`) — Gmail labels (via `users.labels.list`,
+      passed as `labelIds` on `messages.list`), Microsoft top-level mail
+      folders (via `me/mailFolders`, then `mailFolders/{id}/messages`),
+      and Yahoo IMAP mailboxes (via `imapflow`'s `list()`, which — unlike
+      Gmail/Graph — returns the full nested folder tree, not just the top
+      level, so Yahoo actually gets deeper folder access than the other
+      two for free). The default "no folder selected" option keeps the
+      prior behaviour (Gmail's unfiltered view already spans every label
+      except spam/trash; Microsoft's spans the whole mailbox; Yahoo
+      defaults to INBOX).
+      **Real bug caught before this would have shipped**: Yahoo IMAP UIDs
+      are only unique *within* their own mailbox — the original
+      `getYahooMessageBody()` hardcoded `INBOX`, so importing a message
+      found in any other folder (once folder browsing existed) would have
+      fetched by that UID against the wrong mailbox: either the wrong
+      message entirely (if a message with the same UID happened to exist
+      in INBOX) or a "not found" error. Fixed by threading the folder
+      through end-to-end from the message list to the import call — the
+      one place, out of three providers, where this actually mattered
+      (Gmail/Graph message IDs are mailbox-wide unique, so they never had
+      this problem).
+      Verified live against the real, already-connected Yahoo account
+      (read-only for folder/message listing): folder listing correctly
+      returned the full real folder tree including nested folders (e.g.
+      `Parent/Child`); listing messages from a non-inbox folder (Sent)
+      returned real messages with the correct shape; importing a message
+      from that folder into a throwaway matter correctly stored *that*
+      message, confirmed by matching the imported document against the
+      originally listed message (not a UID-collision mismatch from
+      INBOX). Cleaned up the throwaway matter/document afterward — the
+      real account's mail was only ever read, nothing was sent, deleted,
+      or modified on the Yahoo side. Confirmed the audit hash chain
+      stayed valid (201 entries) after cleanup.
 - [x] Automatic file-number generation (`YYYY-NNNN`, sequential per calendar
       year) — assigned on matter creation, backfilled for pre-existing
       matters via an `ensureColumn`/migration pass in `src/lib/db.ts`,

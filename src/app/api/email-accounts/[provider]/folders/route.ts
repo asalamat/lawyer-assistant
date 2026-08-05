@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { listRecentMessages } from "@/lib/emailRead";
+import { listFolders } from "@/lib/emailRead";
 import { EMAIL_PROVIDERS, type EmailProvider } from "@/lib/types";
 
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ provider: string }> },
 ) {
   const { provider } = await params;
@@ -11,15 +11,12 @@ export async function GET(
     return NextResponse.json({ error: "Unknown provider" }, { status: 400 });
   }
 
-  const folderId = new URL(request.url).searchParams.get("folderId") ?? undefined;
-
   try {
-    const messages = await listRecentMessages(provider as EmailProvider, { folderId });
-    return NextResponse.json(messages);
+    const folders = await listFolders(provider as EmailProvider);
+    return NextResponse.json(folders);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to list messages";
-    const clientError =
-      message.includes("is connected") || message.includes("not supported");
+    const message = err instanceof Error ? err.message : "Failed to list folders";
+    const clientError = message.includes("is connected") || message.includes("not supported");
     return NextResponse.json({ error: message }, { status: clientError ? 400 : 502 });
   }
 }

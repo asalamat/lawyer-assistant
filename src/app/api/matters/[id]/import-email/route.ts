@@ -23,6 +23,7 @@ export async function POST(
   const body = await request.json().catch(() => null);
   const provider = body?.provider;
   const messageId = body?.messageId;
+  const folderId = typeof body?.folderId === "string" ? body.folderId : undefined;
 
   if (!EMAIL_PROVIDERS.includes(provider as EmailProvider)) {
     return NextResponse.json({ error: "Unknown or missing provider" }, { status: 400 });
@@ -33,7 +34,7 @@ export async function POST(
 
   let email;
   try {
-    email = await getMessageBody(provider as EmailProvider, messageId);
+    email = await getMessageBody(provider as EmailProvider, messageId, folderId);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to fetch the email";
     const clientError =

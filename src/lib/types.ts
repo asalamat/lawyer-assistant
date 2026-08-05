@@ -207,3 +207,8 @@ export interface EmailAccount {
   emailAddress: string;
   connectedAt: string;
 }
+
+export interface EmailFolder {
+  id: string;
+  name: string;
+}

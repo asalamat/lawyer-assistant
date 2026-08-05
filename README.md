@@ -122,6 +122,9 @@ independent review. Runs identically on macOS, Windows, and Linux.
 
 ## Recent changes
 
+- Browse and import from any folder in a connected mailbox (Gmail label,
+  Outlook mail folder, or Yahoo IMAP folder), not just the default inbox
+  view
 - Self-checking drafting agent — this app's first agentic (tool-calling)
   feature, alongside boolean/document-content search, saved searches,
   similar-document search, a reference-library approval workflow, and
@@ -204,6 +207,16 @@ reasoning behind each decision, is in
   alongside the audit log's deletion (which stays by design) since a
   trace log has no audit-trail persistence requirement once the draft it
   explains is also gone.
+- **Importing an email from a non-inbox Yahoo folder would have fetched
+  the wrong message, or none at all.** Caught while adding folder
+  browsing, before it shipped: Yahoo IMAP message UIDs are only unique
+  within their own mailbox, but the import code hardcoded INBOX when
+  fetching a message body — a message found in, say, Sent would be
+  fetched by that UID against INBOX instead, either grabbing an unrelated
+  message that happened to share the UID or failing outright. Fixed by
+  threading the source folder through from the message list all the way
+  to the import call. Gmail and Microsoft were never affected — their
+  message IDs are unique across the whole mailbox.
 
 ## Known limitations (by design, not oversight)
 

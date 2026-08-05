@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { EmailAccount, EmailProvider } from "@/lib/types";
+import type { EmailAccount, EmailFolder, EmailProvider } from "@/lib/types";
 
 interface MessageSummary {
   id: string;
@@ -15,6 +15,9 @@ interface MessageSummary {
 export default function ImportEmailPanel({ matterId }: { matterId: string }) {
   const [accounts, setAccounts] = useState<EmailAccount[] | null>(null);
   const [provider, setProvider] = useState<EmailProvider | "">("");
+  const [folders, setFolders] = useState<EmailFolder[]>([]);
+  const [folderId, setFolderId] = useState("");
+  const [loadingFolders, setLoadingFolders] = useState(false);
   const [messages, setMessages] = useState<MessageSummary[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
@@ -32,17 +35,47 @@ export default function ImportEmailPanel({ matterId }: { matterId: string }) {
       .catch(() => setAccounts([]));
   }, []);
 
+  // Folder list reloads whenever the account changes — folderId itself is
+  // reset in the account <select>'s onChange (not here), so the
+  // messages-loading effect below never briefly fires with a folder id
+  // that belonged to the previous account.
   useEffect(() => {
     if (!provider) return;
     let cancelled = false;
 
-    async function loadMessages(selected: EmailProvider) {
+    async function loadFolders(selected: EmailProvider) {
+      setLoadingFolders(true);
+      setFolders([]);
+      try {
+        const res = await fetch(`/api/email-accounts/${selected}/folders`);
+        const data = await res.json();
+        if (!cancelled && res.ok) setFolders(data);
+      } catch {
+        // Folder listing failing isn't fatal — the default (unfiltered)
+        // view below still works, so just leave the dropdown empty.
+      } finally {
+        if (!cancelled) setLoadingFolders(false);
+      }
+    }
+
+    void loadFolders(provider);
+    return () => {
+      cancelled = true;
+    };
+  }, [provider]);
+
+  useEffect(() => {
+    if (!provider) return;
+    let cancelled = false;
+
+    async function loadMessages(selected: EmailProvider, selectedFolderId: string) {
       setLoadingMessages(true);
       setListError(null);
       setMessages([]);
       setResult(null);
       try {
-        const res = await fetch(`/api/email-accounts/${selected}/messages`);
+        const query = selectedFolderId ? `?folderId=${encodeURIComponent(selectedFolderId)}` : "";
+        const res = await fetch(`/api/email-accounts/${selected}/messages${query}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Failed to load messages");
         if (!cancelled) setMessages(data);
@@ -55,11 +88,11 @@ export default function ImportEmailPanel({ matterId }: { matterId: string }) {
       }
     }
 
-    void loadMessages(provider);
+    void loadMessages(provider, folderId);
     return () => {
       cancelled = true;
     };
-  }, [provider]);
+  }, [provider, folderId]);
 
   async function handleImport(messageId: string) {
     setImportingId(messageId);
@@ -68,7 +101,7 @@ export default function ImportEmailPanel({ matterId }: { matterId: string }) {
       const res = await fetch(`/api/matters/${matterId}/import-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider, messageId }),
+        body: JSON.stringify({ provider, messageId, folderId: folderId || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to import email");
@@ -111,12 +144,34 @@ export default function ImportEmailPanel({ matterId }: { matterId: string }) {
         Account
         <select
           value={provider}
-          onChange={(e) => setProvider(e.target.value as EmailProvider)}
+          onChange={(e) => {
+            setProvider(e.target.value as EmailProvider);
+            setFolderId("");
+          }}
           className="surface-input mt-1"
         >
           {accounts.map((account) => (
             <option key={account.id} value={account.provider}>
               {account.emailAddress} ({account.provider})
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="text-sm text-muted">
+        Folder
+        <select
+          value={folderId}
+          onChange={(e) => setFolderId(e.target.value)}
+          disabled={loadingFolders}
+          className="surface-input mt-1"
+        >
+          <option value="">
+            {provider === "yahoo" ? "Inbox (default)" : "All folders (default)"}
+          </option>
+          {folders.map((folder) => (
+            <option key={folder.id} value={folder.id}>
+              {folder.name}
             </option>
           ))}
         </select>
