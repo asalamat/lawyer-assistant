@@ -190,6 +190,29 @@ see git log for exact history.
       after cleanup; saved-search create/delete deliberately isn't
       audit-logged, same as other personal-preference settings
       (translation language, appearance).
+- [x] Similar-document search (`getSimilarDocuments()` in `src/lib/matters.ts`,
+      `/api/matters/[id]/documents/[docId]/similar`,
+      `SimilarDocumentsButton.tsx` on a matter's Overview tab) — given one
+      document, ranks the matter's other documents (plus attached
+      reference-library material) by semantic similarity, reusing the
+      same chunk embeddings chat retrieval already computes rather than a
+      separate model call. Each document's embedding is the centroid
+      (average) of its own chunks' embeddings. **Deliberately scoped to
+      one matter only** — comparing across matters would mean one
+      client's confidential content influencing what's shown for another
+      client's matter, which is exactly the cross-matter leakage this
+      app's design otherwise avoids.
+      Verified live with three real throwaway documents (two about
+      unrelated car accidents, one about an unrelated lease dispute): the
+      two car-accident documents ranked as by far the most similar pair to
+      each other (0.669) versus either one to the lease dispute (~0.2–0.27)
+      — genuine semantic similarity despite sharing no exact wording
+      (different streets/vehicles/witnesses), not just keyword overlap.
+      Scores were symmetric from every document's own perspective,
+      confirming the ranking isn't identity-biased or reversed. Confirmed
+      a document never appears in its own results, matter deletion
+      cascades documents/chunks correctly, and the audit hash chain stayed
+      valid (157 entries) after cleanup.
 - [ ] **Email integration — Gmail / Microsoft (Outlook.com, Hotmail, Office
       365)** — OAuth 2.0 flow fully built (`src/lib/emailIntegration.ts`,
       Settings > Integrations) but **not functional yet for these two**:

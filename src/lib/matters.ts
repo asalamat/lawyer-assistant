@@ -7,6 +7,7 @@ import { findOrCreateClient } from "./clients";
 import { encryptFile } from "./crypto";
 import db, { toPlain } from "./db";
 import { nameSimilarity } from "./fuzzyMatch";
+import { cosineSimilarity } from "./embeddings";
 import { listAttachedReferenceDocuments } from "./referenceLibrary";
 import {
   buildContextFromChunks,
@@ -891,4 +892,92 @@ export async function getMatterChatContext(matterId: string, question: string): 
       : null;
 
   return [chunkContext, unreadableSection, notesSection].filter(Boolean).join("\n\n");
+}
+
+export interface SimilarDocument {
+  id: string;
+  kind: "document" | "reference";
+  fileName: string;
+  score: number;
+}
+
+function centroidEmbedding(vectors: number[][]): number[] {
+  const dim = vectors[0].length;
+  const sum = new Array(dim).fill(0);
+  for (const vector of vectors) {
+    for (let i = 0; i < dim; i++) sum[i] += vector[i];
+  }
+  return sum.map((total) => total / vectors.length);
+}
+
+// Similarity is scoped to one matter, deliberately — comparing across
+// matters would mean an embedding derived from one client's confidential
+// document influencing what's shown for another, which is exactly the
+// cross-matter leakage this app's design otherwise avoids. Includes
+// reference-library documents attached to the matter, since those are
+// already part of what this matter can see. Each document's embedding is
+// the centroid (average) of its own chunk embeddings, since a document can
+// have many chunks but similarity is naturally a per-document notion here.
+export async function getSimilarDocuments(
+  matterId: string,
+  documentId: string,
+  topK = 5,
+): Promise<SimilarDocument[]> {
+  const documents = await listDocuments(matterId);
+  const extractable = documents.filter((doc) => isExtractableDocument(doc.fileName));
+  await Promise.all(extractable.map((doc) => ensureDocumentChunks(doc)));
+
+  const referenceDocs = await listAttachedReferenceDocuments(matterId);
+  await Promise.all(
+    referenceDocs
+      .filter((doc) => isExtractableDocument(doc.fileName))
+      .map((doc) => ensureReferenceDocumentChunks(doc)),
+  );
+
+  const rows = db
+    .prepare(
+      `SELECT documentId, referenceDocumentId, fileName, embedding FROM document_chunks
+       WHERE matterId = ?
+          OR referenceDocumentId IN (
+            SELECT referenceDocumentId FROM matter_reference_documents WHERE matterId = ?
+          )`,
+    )
+    .all(matterId, matterId)
+    .map((row) =>
+      toPlain<{
+        documentId: string | null;
+        referenceDocumentId: string | null;
+        fileName: string;
+        embedding: string;
+      }>(row),
+    );
+
+  const groups = new Map<string, { kind: "document" | "reference"; fileName: string; vectors: number[][] }>();
+  for (const row of rows) {
+    const key = row.documentId ? `document:${row.documentId}` : `reference:${row.referenceDocumentId}`;
+    const group = groups.get(key) ?? {
+      kind: row.documentId ? ("document" as const) : ("reference" as const),
+      fileName: row.fileName,
+      vectors: [],
+    };
+    group.vectors.push(JSON.parse(row.embedding) as number[]);
+    groups.set(key, group);
+  }
+
+  const sourceGroup = groups.get(`document:${documentId}`);
+  if (!sourceGroup || sourceGroup.vectors.length === 0) return [];
+  const sourceCentroid = centroidEmbedding(sourceGroup.vectors);
+
+  const scored: SimilarDocument[] = [];
+  for (const [key, group] of groups) {
+    if (key === `document:${documentId}`) continue;
+    scored.push({
+      id: key.slice(key.indexOf(":") + 1),
+      kind: group.kind,
+      fileName: group.fileName,
+      score: cosineSimilarity(sourceCentroid, centroidEmbedding(group.vectors)),
+    });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, topK);
 }

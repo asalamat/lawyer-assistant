@@ -4,6 +4,7 @@ import { isExtractableDocument } from "@/lib/textExtraction";
 import DeleteMatterButton from "@/components/DeleteMatterButton";
 import MatterComplianceControls from "@/components/MatterComplianceControls";
 import ReferenceDocumentsAttachPanel from "@/components/ReferenceDocumentsAttachPanel";
+import SimilarDocumentsButton from "@/components/SimilarDocumentsButton";
 import UploadDropzone from "@/components/UploadDropzone";
 
 export default async function MatterOverviewPage({
@@ -39,7 +40,10 @@ export default async function MatterOverviewPage({
                 </span>
                 <span className="flex items-center gap-3 text-muted">
                   {isExtractableDocument(doc.fileName) ? (
-                    <span className="badge">chat-readable</span>
+                    <>
+                      <span className="badge">chat-readable</span>
+                      <SimilarDocumentsButton matterId={id} documentId={doc.id} />
+                    </>
                   ) : (
                     <span className="badge">not used in chat</span>
                   )}
