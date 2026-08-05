@@ -9,11 +9,33 @@ const LANGUAGES = ["French", "Spanish", "Mandarin Chinese", "Punjabi", "Arabic",
 
 export default function TranslateButton({ content }: { content: string }) {
   const [open, setOpen] = useState(false);
+  const [defaultLoaded, setDefaultLoaded] = useState(false);
   const [language, setLanguage] = useState(LANGUAGES[0]);
   const [customLanguage, setCustomLanguage] = useState("");
   const [translating, setTranslating] = useState(false);
   const [translated, setTranslated] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  async function handleOpen() {
+    setOpen(true);
+    if (defaultLoaded) return;
+    setDefaultLoaded(true);
+    try {
+      const res = await fetch("/api/settings/translation");
+      if (!res.ok) return;
+      const body = await res.json();
+      const configured = (body.language as string | undefined)?.trim();
+      if (!configured) return;
+      if (LANGUAGES.includes(configured)) {
+        setLanguage(configured);
+      } else {
+        setLanguage("Other");
+        setCustomLanguage(configured);
+      }
+    } catch {
+      // Keep the built-in default if the setting can't be fetched.
+    }
+  }
 
   const targetLanguage = language === "Other" ? customLanguage.trim() : language;
 
@@ -41,7 +63,7 @@ export default function TranslateButton({ content }: { content: string }) {
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={handleOpen}
         className="text-xs text-accent underline decoration-accent/40"
       >
         Translate

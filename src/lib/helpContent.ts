@@ -59,7 +59,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "email",
         name: "Email",
         detail:
-          "Compose and send an email directly from a matter once SMTP is configured in Settings. Use Smart draft to describe what the email should say and get a grounded subject+body draft citing the matter documents it's based on — always review before sending. Translate the message into French or another language right in the compose box (replaces the draft in place so you can review and send the translated version). Attach any of the matter's own uploaded documents when sending. Connected inboxes (Gmail/Microsoft via OAuth, or Yahoo via an app password) can also be browsed and a message imported into the matter as a document.",
+          "Compose and send an email directly from a matter once SMTP is configured in Settings. Use Smart draft to describe what the email should say and get a grounded subject+body draft citing the matter documents it's based on — always review before sending. Translate the message into another language right in the compose box (defaults to whatever's set in Settings > Translation) (replaces the draft in place so you can review and send the translated version). Attach any of the matter's own uploaded documents when sending. Connected inboxes (Gmail/Microsoft via OAuth, or Yahoo via an app password) can also be browsed and a message imported into the matter as a document.",
       },
     ],
   },
@@ -70,13 +70,13 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "chat",
         name: "Chat",
         detail:
-          "Ask questions grounded in that matter's uploaded documents and notes — dictate the question instead of typing if you prefer. Under the hood, chat retrieves the most relevant passages from your documents (rather than dumping every document into every question), so it stays accurate and fast even on matters with a large volume of material. Citations include a page number when the source is a PDF, e.g. \"(file.pdf, p. 4)\". Any filename cited is checked against the matter's real documents — an unverified citation is flagged in the answer. Rate answers with a thumbs up/down, translate an answer (or its independent review) into French or another language, export it as PDF, or request an independent second-opinion review from Google Gemini (requires a Gemini key in Settings).",
+          "Ask questions grounded in that matter's uploaded documents and notes — dictate the question instead of typing if you prefer. Under the hood, chat retrieves the most relevant passages from your documents (rather than dumping every document into every question), so it stays accurate and fast even on matters with a large volume of material. Citations include a page number when the source is a PDF, e.g. \"(file.pdf, p. 4)\". Any filename cited is checked against the matter's real documents — an unverified citation is flagged in the answer. Rate answers with a thumbs up/down, translate an answer (or its independent review) into another language, export it as PDF, or request an independent second-opinion review from Google Gemini (requires a Gemini key in Settings).",
       },
       {
         slug: "matter-digest",
         name: "Matter digest",
         detail:
-          "Generates an executive summary: parties, key dates, facts, evidence inventory, and open questions — all cited to source documents and notes. Renders as proper formatted text (real headings and lists, not literal \"##\"/\"-\" characters); use Translate for a copy in French or another language, or Export PDF to open a clean, printable copy in a new tab and save it via your browser's print dialog.",
+          "Generates an executive summary: parties, key dates, facts, evidence inventory, and open questions — all cited to source documents and notes. Renders as proper formatted text (real headings and lists, not literal \"##\"/\"-\" characters); use Translate for a copy in another language, or Export PDF to open a clean, printable copy in a new tab and save it via your browser's print dialog.",
       },
       {
         slug: "independent-review",
@@ -161,6 +161,12 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "appearance",
         name: "Appearance",
         detail: "Light/Dark/System theme, temperature unit, and current-weather location.",
+      },
+      {
+        slug: "translation",
+        name: "Translation",
+        detail:
+          "Available to every user, not just admins. Sets the language pre-selected on every Translate button throughout the app — digests, evidence/defence matrices, drafts, chat answers, independent reviews, and the smart email draft. Pick from the built-in list or enter any other language. You can still choose a different language at any time in a specific Translate button's own dropdown; this only sets what's already selected there.",
       },
       {
         slug: "integrations",

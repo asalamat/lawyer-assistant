@@ -33,7 +33,10 @@ interface Settings {
   location?: WeatherLocation;
   aiProviderOrder?: AiProvider[];
   cronSecret?: string;
+  defaultTranslationLanguage?: string;
 }
+
+export const DEFAULT_TRANSLATION_LANGUAGE = "French";
 
 const SECRET_FIELDS = ["anthropicApiKey", "openaiApiKey", "geminiApiKey", "canliiApiKey", "cronSecret"] as const;
 
@@ -198,6 +201,17 @@ export async function getWeatherLocation(): Promise<WeatherLocation | undefined>
 export async function setWeatherLocation(location: WeatherLocation): Promise<void> {
   const settings = await readSettings();
   settings.location = location;
+  await writeSettings(settings);
+}
+
+export async function getDefaultTranslationLanguage(): Promise<string> {
+  const settings = await readSettings();
+  return settings.defaultTranslationLanguage || DEFAULT_TRANSLATION_LANGUAGE;
+}
+
+export async function setDefaultTranslationLanguage(language: string): Promise<void> {
+  const settings = await readSettings();
+  settings.defaultTranslationLanguage = language.trim() || DEFAULT_TRANSLATION_LANGUAGE;
   await writeSettings(settings);
 }
 

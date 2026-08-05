@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import DictateButton from "./DictateButton";
 
 const TRANSLATE_LANGUAGES = ["French", "Spanish", "Mandarin Chinese", "Punjabi", "Arabic"];
@@ -28,9 +28,29 @@ export default function ComposeEmailPanel({
   const [drafting, setDrafting] = useState(false);
   const [draftError, setDraftError] = useState<string | null>(null);
 
+  const [translateLanguages, setTranslateLanguages] = useState(TRANSLATE_LANGUAGES);
   const [translateLanguage, setTranslateLanguage] = useState(TRANSLATE_LANGUAGES[0]);
   const [translating, setTranslating] = useState(false);
   const [translateError, setTranslateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/settings/translation")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => {
+        if (cancelled || !body) return;
+        const configured = (body.language as string | undefined)?.trim();
+        if (!configured) return;
+        setTranslateLanguages((prev) => (prev.includes(configured) ? prev : [configured, ...prev]));
+        setTranslateLanguage(configured);
+      })
+      .catch(() => {
+        // Keep the built-in default if the setting can't be fetched.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (!emailConfigured) {
     return (
@@ -177,7 +197,7 @@ export default function ComposeEmailPanel({
               onChange={(e) => setTranslateLanguage(e.target.value)}
               className="surface-input py-1 text-xs"
             >
-              {TRANSLATE_LANGUAGES.map((lang) => (
+              {translateLanguages.map((lang) => (
                 <option key={lang} value={lang}>
                   {lang}
                 </option>

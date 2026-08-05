@@ -783,6 +783,36 @@ see git log for exact history.
       byte-for-byte and markdown headings intact. Confirmed the audit
       hash chain stayed valid (147 entries, real ongoing activity) after
       cleanup.
+- [x] Settings > Translation page (`/settings/translation`,
+      `src/components/TranslationLanguageForm.tsx`,
+      `getDefaultTranslationLanguage()`/`setDefaultTranslationLanguage()` in
+      `src/lib/settings.ts`, `/api/settings/translation`) — the initial
+      shipped translation feature had a hardcoded "French" default with no
+      way to change it and no visible settings entry, which the user
+      correctly flagged as missing. Treated as a personal-preference
+      setting (like Appearance), not a firm-wide resource, so it's open to
+      every user, not admin-gated — `src/proxy.ts`'s
+      `NON_ADMIN_SETTINGS_PAGES`/`isAdminOnlyApi` exceptions cover both the
+      page and the API route.
+      Every `TranslateButton` (used across digest/matrix/drafts/chat/
+      reviews) and the smart-email-draft's translate control now fetch
+      this configured default and pre-select it, instead of always
+      defaulting to French: `TranslateButton.tsx` fetches lazily on first
+      "Translate" click (guarded so it only fetches once per mount);
+      `ComposeEmailPanel.tsx` fetches once on mount via `useEffect`. Both
+      fall back silently to the built-in French default if the fetch
+      fails, and both fold a configured language that isn't in their
+      hardcoded preset list into the dropdown (as "Other" + custom text
+      for `TranslateButton`, prepended to the list for
+      `ComposeEmailPanel`) rather than silently ignoring it.
+      Verified live via a throwaway admin user: default reads back as
+      "French", changing it to "Punjabi" round-trips correctly through
+      GET/POST, restored to "French" afterward since this is shared
+      app-wide config, not per-user. Confirmed `/api/settings/translation`
+      is unreachable without a valid session (401), same as every other
+      settings route — gated by `src/proxy.ts`, not the route handler
+      itself. Audit hash chain re-verified valid (147 entries) after
+      cleanup.
 
 ## Dependency notes
 

@@ -12,6 +12,7 @@ import {
   MonitorIcon,
   ReviewIcon,
   SecurityIcon,
+  TranslateIcon,
   UpdateIcon,
   UsersIcon,
 } from "./icons";
@@ -22,6 +23,7 @@ const LINKS = [
   { href: "/settings/transcription", label: "Transcription", Icon: MicIcon, adminOnly: true },
   { href: "/settings/review", label: "Independent review", Icon: ReviewIcon, adminOnly: true },
   { href: "/settings/legal-research", label: "Legal research", Icon: EvidenceIcon, adminOnly: true },
+  { href: "/settings/translation", label: "Translation", Icon: TranslateIcon, adminOnly: false },
   { href: "/settings/email", label: "Email", Icon: MailIcon, adminOnly: true },
   { href: "/settings/integrations", label: "Integrations", Icon: IntegrationIcon, adminOnly: true },
   { href: "/settings/users", label: "Users", Icon: UsersIcon, adminOnly: true },

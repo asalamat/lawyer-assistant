@@ -24,15 +24,23 @@ const ADMIN_ONLY_API_PREFIXES = [
   "/api/backup",
 ];
 
+// Pages under /settings that are personal preferences, not firm-wide
+// resources — open to every user, not just admins.
+const NON_ADMIN_SETTINGS_PAGES = ["/settings", "/settings/security", "/settings/translation"];
+
 function isAdminOnlyPage(pathname: string): boolean {
   if (!pathname.startsWith("/settings")) return false;
-  if (pathname === "/settings") return false;
-  if (pathname === "/settings/security" || pathname.startsWith("/settings/security/")) return false;
-  return true;
+  return !NON_ADMIN_SETTINGS_PAGES.some(
+    (page) => pathname === page || pathname.startsWith(`${page}/`),
+  );
 }
 
 function isAdminOnlyApi(pathname: string): boolean {
-  if (pathname === "/api/settings/location") return false; // Appearance page, open to all users
+  // Appearance and Translation settings are personal preferences, not
+  // firm-wide resources like API keys — open to all users.
+  if (pathname === "/api/settings/location" || pathname === "/api/settings/translation") {
+    return false;
+  }
   return ADMIN_ONLY_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
