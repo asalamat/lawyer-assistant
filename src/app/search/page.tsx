@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { searchAll } from "@/lib/search";
+import SearchHighlight from "@/components/SearchHighlight";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,7 @@ export default async function SearchPage({
   const { q } = await searchParams;
   const query = (q ?? "").trim();
   const results = query.length > 0 ? await searchAll(query) : null;
+  const terms = results?.terms ?? [];
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-10">
@@ -49,11 +51,16 @@ export default async function SearchPage({
             Search
           </button>
         </form>
+        <p className="mt-2 text-xs text-muted">
+          All terms must match by default. Use quotes for an exact phrase (
+          <code>&quot;show cause hearing&quot;</code>) and a leading minus to exclude a term (
+          <code>-adjourned</code>).
+        </p>
       </div>
 
       {!results ? (
         <p className="text-sm text-muted">Enter a search term above.</p>
-      ) : Object.values(results).every((group) => group.length === 0) ? (
+      ) : Object.entries(results).every(([key, group]) => key === "terms" || group.length === 0) ? (
         <p className="text-sm text-muted">No results for &quot;{query}&quot;.</p>
       ) : (
         <div className="flex flex-col gap-6">
@@ -61,7 +68,7 @@ export default async function SearchPage({
             {results.matters.map((matter) => (
               <li key={matter.id} className="surface-row text-sm">
                 <Link href={`/matters/${matter.id}`} className="hover:text-accent">
-                  {matter.title}
+                  <SearchHighlight text={matter.title} terms={terms} />
                 </Link>
                 <p className="text-xs text-muted">
                   {matter.clientName} &middot; {matter.matterType} &middot; {matter.status}
@@ -74,9 +81,24 @@ export default async function SearchPage({
             {results.documents.map((doc) => (
               <li key={doc.id} className="surface-row text-sm">
                 <Link href={`/matters/${doc.matterId}`} className="hover:text-accent">
-                  {doc.fileName}
+                  <SearchHighlight text={doc.fileName} terms={terms} />
                 </Link>
                 <p className="text-xs text-muted">in {doc.matterTitle}</p>
+              </li>
+            ))}
+          </ResultGroup>
+
+          <ResultGroup title="Document content" count={results.documentContent.length}>
+            {results.documentContent.map((match) => (
+              <li key={match.id} className="surface-row text-sm">
+                <Link href={`/matters/${match.matterId}`} className="hover:text-accent">
+                  {match.fileName}
+                  {match.pageNumber ? `, p. ${match.pageNumber}` : ""}
+                </Link>
+                <p className="text-xs text-muted">in {match.matterTitle}</p>
+                <p className="mt-1 text-xs text-muted">
+                  <SearchHighlight text={match.snippet} terms={terms} />
+                </p>
               </li>
             ))}
           </ResultGroup>
@@ -87,7 +109,9 @@ export default async function SearchPage({
                 <Link href={`/matters/${message.matterId}/chat`} className="hover:text-accent">
                   {message.matterTitle}
                 </Link>
-                <p className="text-xs text-muted">{message.snippet}</p>
+                <p className="text-xs text-muted">
+                  <SearchHighlight text={message.snippet} terms={terms} />
+                </p>
               </li>
             ))}
           </ResultGroup>
@@ -98,7 +122,9 @@ export default async function SearchPage({
                 <Link href={`/matters/${digest.matterId}`} className="hover:text-accent">
                   {digest.matterTitle}
                 </Link>
-                <p className="text-xs text-muted">{digest.snippet}</p>
+                <p className="text-xs text-muted">
+                  <SearchHighlight text={digest.snippet} terms={terms} />
+                </p>
               </li>
             ))}
           </ResultGroup>
@@ -109,7 +135,9 @@ export default async function SearchPage({
                 <Link href={`/matters/${draft.matterId}`} className="hover:text-accent">
                   {draft.matterTitle} — {draft.draftType}
                 </Link>
-                <p className="text-xs text-muted">{draft.snippet}</p>
+                <p className="text-xs text-muted">
+                  <SearchHighlight text={draft.snippet} terms={terms} />
+                </p>
               </li>
             ))}
           </ResultGroup>
@@ -120,7 +148,9 @@ export default async function SearchPage({
                 <Link href={`/matters/${matrix.matterId}`} className="hover:text-accent">
                   {matrix.matterTitle}
                 </Link>
-                <p className="text-xs text-muted">{matrix.snippet}</p>
+                <p className="text-xs text-muted">
+                  <SearchHighlight text={matrix.snippet} terms={terms} />
+                </p>
               </li>
             ))}
           </ResultGroup>

@@ -155,6 +155,26 @@ see git log for exact history.
       fonts, shared surface-card/btn-primary/badge classes) and advanced
       cross-entity search (`/search` — matters, document filenames, chat
       content, digests, drafts, evidence matrices, one query)
+- [x] Boolean search syntax + document-content search + highlighting
+      (`src/lib/search.ts`, `SearchHighlight.tsx`) — space-separated terms
+      are required (AND), a leading `-` excludes a term, quotes match an
+      exact phrase. No explicit `OR`: a LIKE-based search over a handful
+      of tables doesn't justify the complexity real OR support would need
+      (SQLite FTS5) — deliberately scoped out, not an oversight. Added a
+      new "Document content" result category that searches
+      `document_chunks.text` — the same chunk store chat retrieval already
+      uses — so a term buried inside a large PDF is found even when it's
+      nowhere in the filename, deduped to one result per document. LIKE
+      wildcard characters (`%`, `_`) in a search term are escaped so a
+      literal percent sign in a query can't be misread as a wildcard.
+      Verified live via a throwaway matter/document: required-AND,
+      exclusion, and exact-phrase matching all behaved correctly; found
+      and fixed two real bugs before shipping — the "no results" message
+      never rendered once `results.terms` (used for highlighting) made
+      every results-group check spuriously non-empty, and unescaped `%`/`_`
+      in a query term acted as a SQL wildcard instead of a literal
+      character. Confirmed the audit hash chain stayed valid (152 entries)
+      after cleanup.
 - [ ] **Email integration — Gmail / Microsoft (Outlook.com, Hotmail, Office
       365)** — OAuth 2.0 flow fully built (`src/lib/emailIntegration.ts`,
       Settings > Integrations) but **not functional yet for these two**:

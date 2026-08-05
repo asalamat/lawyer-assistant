@@ -117,7 +117,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "search",
         name: "Search",
         detail:
-          "The search icon in the nav searches across everything at once — matter titles/clients/types, document filenames, chat message content, digests, drafts, and evidence matrices — with a snippet showing where the match was found.",
+          "The search icon in the nav searches across everything at once — matter titles/clients/types, document filenames, document content (the same text used for chat, so a term buried inside a large PDF is found even if it's nowhere in the filename), chat message content, digests, drafts, and evidence matrices — with a snippet showing where the match was found and matched terms highlighted. All terms must match by default; use quotes for an exact phrase (\"show cause hearing\") or a leading minus to exclude a term (-adjourned).",
       },
       {
         slug: "audit-log",
