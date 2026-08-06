@@ -218,6 +218,21 @@ see git log for exact history.
       wording amendments to an existing section. **Not fully activated**: needs
       the same pending CanLII key as above; scaffold is generic (not tied to
       any practice area) per the account owner's choice rather than guessed.
+      **Revisited 2026-08-05, deliberately left as-is**: considered turning
+      this into a truly self-running agent (an in-process scheduler
+      instead of the manual "Check now" button), the way the drafting/
+      deadline/intake agents above run themselves without a click. Decided
+      against adding one: this app already has a documented, consistent
+      answer for "something needs to run on a schedule without a person
+      clicking a button" — an OS-level cron job hitting the existing
+      cron-secret-protected `check-all` endpoint (the exact same pattern
+      backup scheduling uses, for the exact same reason: no persistent
+      service/ops infrastructure to host an in-app scheduler reliably).
+      Adding a second, different scheduling mechanism just for this one
+      feature would be an inconsistency, not an improvement — anyone who
+      wants this fully self-running today already can, by wiring the
+      documented cron command. The real remaining gap for this feature is
+      the pending CanLII key, not missing agent architecture.
 
 ## Phase 5 — Institutional learning
 
