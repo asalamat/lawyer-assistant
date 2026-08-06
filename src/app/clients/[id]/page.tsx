@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getClient, listMattersForClient } from "@/lib/clients";
+import ClientDetailActions from "@/components/ClientDetailActions";
 import MatterCard from "@/components/MatterCard";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +20,11 @@ export default async function ClientDetailPage({
       <div>
         <h1 className="font-display text-3xl italic">{client.name}</h1>
         {client.email && <p className="text-sm text-muted">{client.email}</p>}
+        {client.phone && <p className="text-sm text-muted">{client.phone}</p>}
+        {client.notes && <p className="mt-1 text-sm text-muted">{client.notes}</p>}
       </div>
+
+      <ClientDetailActions client={client} matterCount={matters.length} />
 
       <div>
         <h2 className="mb-2 font-display text-lg">

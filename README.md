@@ -122,6 +122,8 @@ independent review. Runs identically on macOS, Windows, and Linux.
 
 ## Recent changes
 
+- Client add/edit/delete, and the new-matter form now autocompletes
+  client names against existing clients (auto-filling email on a match)
 - Intake agent — suggests tightening a matter's classification
   (privileged/highly-sensitive) based on uploaded content, while it's
   still at the default; never auto-applied, and stops once classified

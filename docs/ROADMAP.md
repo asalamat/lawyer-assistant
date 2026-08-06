@@ -723,6 +723,39 @@ see git log for exact history.
       match, and creating two matters with an identical client
       name+email correctly reused the same client entity rather than
       creating a duplicate.
+- [x] Client CRUD + matter-creation autocomplete (`createClient()`/
+      `updateClient()`/`deleteClient()` in `src/lib/clients.ts`,
+      `NewClientForm.tsx`, `ClientDetailActions.tsx`) — clients could
+      previously only be created implicitly via matter creation, never
+      edited, never deleted. Add/edit now exist directly on the Clients
+      pages; delete is blocked with a clear count if any matter still has
+      `clientId` pointing to that client — `matters.clientId` has no
+      database-level foreign key (see `ensureColumn` in `src/lib/db.ts`),
+      so this application-level check is the only thing standing between
+      a delete and a silently orphaned reference. The new-matter form's
+      "Client name" field now autocompletes against existing clients (a
+      plain HTML `<datalist>`, no new dependency) and auto-fills the
+      email field on an exact name match — but only when the email field
+      is still empty, never overwriting something already typed.
+      This autofill is load-bearing, not cosmetic: `findOrCreateClient()`
+      only reuses an existing client on an exact name+email match, so
+      picking a name from the datalist without the matching email
+      getting filled in would silently create a duplicate client with
+      the same name — confirmed live by deliberately bypassing the
+      browser autofill and calling the API directly with a matching name
+      but no email, which did create a second, distinct client record.
+      In the real UI this doesn't happen, since selecting or typing a
+      full matching name fires the autofill before submission is
+      possible — but it's worth knowing the datalist and the autofill
+      are a pair, not two independent conveniences.
+      Verified live: create/duplicate-rejection (exact name+email
+      collision correctly rejected)/update all worked via the real API;
+      delete was correctly blocked while a matter referenced the client
+      and succeeded immediately after that matter was removed; the
+      datalist renders in the real page HTML with real client names.
+      Also found and cleaned up unrelated orphaned throwaway client rows
+      left over from an earlier test session. Audit hash chain
+      re-verified valid (397 entries) after cleanup.
 - [ ] **Malware scanning on upload — deliberately skipped, not just
       deferred.** No pure-code option exists: ClamAV would mean installing
       system-level antivirus software on the host outside this project;

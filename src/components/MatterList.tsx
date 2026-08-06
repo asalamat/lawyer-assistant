@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { Matter } from "@/lib/types";
+import type { Client, Matter } from "@/lib/types";
 import type { ConflictMatch } from "@/lib/matters";
 import MatterCard from "./MatterCard";
 
 type StatusFilter = "all" | "open" | "closed" | "archived";
 type SortOrder = "newest" | "oldest" | "title";
 
-export default function MatterList({ matters }: { matters: Matter[] }) {
+export default function MatterList({ matters, clients }: { matters: Matter[]; clients: Client[] }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [clientName, setClientName] = useState("");
@@ -38,6 +38,18 @@ export default function MatterList({ matters }: { matters: Matter[] }) {
       if (sortOrder === "oldest") return a.createdAt.localeCompare(b.createdAt);
       return b.createdAt.localeCompare(a.createdAt);
     });
+
+  // Autocompletes against existing clients (via the datalist below) and,
+  // when the typed name matches one exactly, fills in that client's email
+  // too — but only if the email field is still empty, so it never
+  // overwrites something the user already typed themselves.
+  function handleClientNameChange(value: string) {
+    setClientName(value);
+    const match = clients.find((c) => c.name.toLowerCase() === value.trim().toLowerCase());
+    if (match?.email && !clientEmail) {
+      setClientEmail(match.email);
+    }
+  }
 
   async function handleClientNameBlur() {
     setConflictsChecked(false);
@@ -96,12 +108,18 @@ export default function MatterList({ matters }: { matters: Matter[] }) {
           />
           <input
             required
+            list="existing-clients"
             placeholder="Client name"
             value={clientName}
-            onChange={(e) => setClientName(e.target.value)}
+            onChange={(e) => handleClientNameChange(e.target.value)}
             onBlur={handleClientNameBlur}
             className="surface-input"
           />
+          <datalist id="existing-clients">
+            {[...new Set(clients.map((c) => c.name))].map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
           <input
             type="email"
             placeholder="Client email (for invoices)"

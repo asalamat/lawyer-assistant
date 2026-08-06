@@ -47,7 +47,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "clients",
         name: "Clients",
         detail:
-          "Every matter is automatically linked to a client record (nav > Clients) — creating a second matter for the same client (same name and email) links it to the same client instead of creating a duplicate, so a client's detail page shows their full matter history in one place.",
+          "Every matter is automatically linked to a client record (nav > Clients) — creating a second matter for the same client (same name and email) links it to the same client instead of creating a duplicate, so a client's detail page shows their full matter history in one place. Typing a client name on the new-matter form autocompletes against existing clients and fills in their email automatically once matched. Clients can also be added, edited, or deleted directly from the Clients page — deleting is blocked while any matter still references that client, to avoid orphaning it.",
       },
       {
         slug: "timesheet-invoicing",
