@@ -93,7 +93,7 @@ export default function AppSidebar({
         <div
           className={`flex items-center gap-3 ${collapsed ? "flex-col" : "px-1"}`}
         >
-          <HealthIndicator />
+          <HealthIndicator isAdmin={user?.role === "admin"} />
           <Link
             href="/search"
             aria-label="Search"

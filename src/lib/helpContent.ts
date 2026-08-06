@@ -158,6 +158,11 @@ export const HELP_SECTIONS: HelpSection[] = [
         detail: "Checks this installation's git commit against the latest on GitHub and can pull updates in place.",
       },
       {
+        slug: "monitoring",
+        name: "System status",
+        detail: "Admin-only, reached by clicking the status dot in the sidebar (also visible to every user as a plain colour signal — green if an AI provider is configured, red if not). A live, uncached snapshot of the whole installation: app version and uptime, the audit log's hash-chain integrity, database row counts (matters, documents, users, active sessions, and more), storage sizes (database file, uploaded documents, backups) and where the encryption key lives (macOS Keychain vs. a local key file), backup history, and every integration's configured/not-configured status in one place.",
+      },
+      {
         slug: "appearance",
         name: "Appearance",
         detail: "Light/Dark/System theme, temperature unit, and current-weather location.",

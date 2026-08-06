@@ -269,10 +269,40 @@ see git log for exact history.
 - [x] App version shown in Help, Settings > Software updates, and a new
       site-wide footer — replaces the old Dashboard "System info" card
       (dropped in favour of these, plus the new health indicator below)
-- [x] System health indicator (nav bar) — a status dot + popover showing
-      which subsystems are configured (primary/backup AI, independent review,
-      transcription, legal research, email, weather location), each linking
-      straight to its Settings page
+- [x] System health indicator (nav bar) — a status dot showing which
+      subsystems are configured (primary/backup AI, independent review,
+      transcription, legal research, email, weather location).
+      **Upgraded into a full admin-only system-status dashboard**
+      (`/monitoring`, `src/lib/monitoring.ts`,
+      `GaugeCard`/`StackedBar`/`GaugeRing` in `src/components/Gauge.tsx`)
+      — clicking the dot now opens a live, uncached snapshot of the whole
+      installation instead of just a small popover: circular gauge cards
+      for data integrity (the existing audit hash-chain check), setup
+      completeness (how many integrations are configured), where the
+      encryption key lives (macOS Keychain vs. a local file), and backup
+      freshness (age of the most recent backup); plus application info
+      (version, git commit, uptime, Node/platform), full database row
+      counts, a stacked bar showing storage composition on disk
+      (database file / uploaded documents / backups), backup history, and
+      the full integrations list. Gated admin-only (`src/proxy.ts`'s
+      `ADMIN_ONLY_TOP_LEVEL_PAGES`/`ADMIN_ONLY_API_PREFIXES`) since it
+      surfaces infrastructure detail (storage paths, row counts) at the
+      same sensitivity tier as Settings, even though the URL lives
+      outside `/settings`. For a non-admin, the status dot still shows
+      the same color signal but renders as a plain non-clickable span
+      rather than a link, so they're never redirected away from wherever
+      they were.
+      Verified live end-to-end as both an admin (200 on the page and the
+      API, real numbers matching independently-run row-count and
+      audit-hash-chain spot-checks) and a non-admin (403 on the API, a
+      redirect to Settings > Security on the page — the same pattern
+      every other admin-only page/API already uses). Also verified the
+      gauge math directly in the rendered HTML: valid finite
+      `stroke-dasharray`/`stroke-dashoffset` values, a zero-backups case
+      rendering a graceful "None"/0%/red gauge rather than a `NaN`, and
+      the storage stacked-bar's three segment widths summing to ~100%.
+      Zero `NaN` anywhere in the page across both the populated and
+      empty-backups cases.
 - [x] Live current-temperature display in the nav, via Open-Meteo (free, no
       API key) — set a location in Settings > Appearance, shown in the
       user's preferred F/C unit

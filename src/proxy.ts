@@ -22,13 +22,22 @@ const ADMIN_ONLY_API_PREFIXES = [
   "/api/integrations",
   "/api/system/update",
   "/api/backup",
+  "/api/monitoring",
 ];
 
 // Pages under /settings that are personal preferences, not firm-wide
 // resources — open to every user, not just admins.
 const NON_ADMIN_SETTINGS_PAGES = ["/settings", "/settings/security", "/settings/translation"];
 
+// Top-level (non-/settings) pages that are still admin-only — operational/
+// infrastructure detail (storage paths, row counts, backup state), same
+// sensitivity tier as Settings even though the URL lives outside it.
+const ADMIN_ONLY_TOP_LEVEL_PAGES = ["/monitoring"];
+
 function isAdminOnlyPage(pathname: string): boolean {
+  if (ADMIN_ONLY_TOP_LEVEL_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`))) {
+    return true;
+  }
   if (!pathname.startsWith("/settings")) return false;
   return !NON_ADMIN_SETTINGS_PAGES.some(
     (page) => pathname === page || pathname.startsWith(`${page}/`),

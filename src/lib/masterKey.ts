@@ -75,6 +75,14 @@ async function readExistingKey(): Promise<Buffer | null> {
   return readFallbackFile();
 }
 
+// Diagnostic only — reports where the key currently lives without
+// generating one if it doesn't exist yet (unlike getMasterKey()).
+export async function getMasterKeyStorageBackend(): Promise<"keychain" | "file" | "none"> {
+  if (process.platform === "darwin" && (await readFromKeychain())) return "keychain";
+  if (await readFallbackFile()) return "file";
+  return "none";
+}
+
 // Returns the app-wide 32-byte AES-256 key used to encrypt secrets and
 // documents at rest, generating and persisting one on first use. Prefers the
 // macOS Keychain (a store separate from the disk holding the encrypted data)

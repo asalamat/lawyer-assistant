@@ -122,6 +122,9 @@ independent review. Runs identically on macOS, Windows, and Linux.
 
 ## Recent changes
 
+- Full system-status dashboard (`/monitoring`) — click the nav status dot
+  for a live, gauge-based view of data integrity, setup completeness,
+  encryption, backup freshness, storage, and database stats; admin-only
 - Client add/edit/delete, and the new-matter form now autocompletes
   client names against existing clients (auto-filling email on a match)
 - Intake agent — suggests tightening a matter's classification
