@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { addDocument, checkForNewDeadlines, getMatter, listDocuments } from "@/lib/matters";
+import {
+  addDocument,
+  checkForNewDeadlines,
+  checkMatterClassification,
+  getMatter,
+  listDocuments,
+} from "@/lib/matters";
 import { isExtractableDocument } from "@/lib/textExtraction";
 
 export async function GET(
@@ -34,13 +40,20 @@ export async function POST(
   // click. Best-effort — a failure here (e.g. no AI key configured yet)
   // shouldn't fail the upload itself, which already succeeded.
   let newDeadlines = 0;
+  let classificationSuggestion = null;
   if (isExtractableDocument(document.fileName)) {
     try {
       newDeadlines = (await checkForNewDeadlines(id)).newCount;
     } catch {
       newDeadlines = 0;
     }
+    // Intake agent — same best-effort treatment as the deadline check.
+    try {
+      classificationSuggestion = await checkMatterClassification(id);
+    } catch {
+      classificationSuggestion = null;
+    }
   }
 
-  return NextResponse.json({ ...document, newDeadlines }, { status: 201 });
+  return NextResponse.json({ ...document, newDeadlines, classificationSuggestion }, { status: 201 });
 }

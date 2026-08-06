@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import ClassificationSuggestionBanner from "./ClassificationSuggestionBanner";
+import type { MatterClassification } from "@/lib/types";
 
 interface ZipImportResult {
   fileName: string;
@@ -11,9 +13,15 @@ interface ZipImportResult {
   error?: string;
 }
 
+interface ClassificationSuggestion {
+  classification: MatterClassification;
+  reason: string;
+}
+
 interface ZipImportResponse {
   results: ZipImportResult[];
   newDeadlines: number;
+  classificationSuggestion: ClassificationSuggestion | null;
 }
 
 export default function UploadDropzone({
@@ -31,6 +39,8 @@ export default function UploadDropzone({
   const [error, setError] = useState<string | null>(null);
   const [zipResults, setZipResults] = useState<ZipImportResult[] | null>(null);
   const [newDeadlines, setNewDeadlines] = useState(0);
+  const [classificationSuggestion, setClassificationSuggestion] =
+    useState<ClassificationSuggestion | null>(null);
   const [dragActive, setDragActive] = useState(false);
 
   const url = uploadUrl ?? `/api/matters/${matterId}/documents`;
@@ -39,15 +49,15 @@ export default function UploadDropzone({
   // uploadUrl and don't get this behaviour.
   const zipImportUrl = matterId ? `/api/matters/${matterId}/documents/import-zip` : null;
 
-  async function uploadZip(file: globalThis.File): Promise<number> {
+  async function uploadZip(file: globalThis.File): Promise<{ newDeadlines: number; classificationSuggestion: ClassificationSuggestion | null }> {
     const formData = new FormData();
     formData.append("file", file);
     const res = await fetch(zipImportUrl!, { method: "POST", body: formData });
     const body = await res.json();
     if (!res.ok) throw new Error(body.error ?? `Failed to import ${file.name}`);
-    const { results, newDeadlines: found } = body as ZipImportResponse;
+    const { results, newDeadlines, classificationSuggestion } = body as ZipImportResponse;
     setZipResults(results);
-    return found;
+    return { newDeadlines, classificationSuggestion };
   }
 
   async function upload(files: FileList | null) {
@@ -56,11 +66,15 @@ export default function UploadDropzone({
     setError(null);
     setZipResults(null);
     setNewDeadlines(0);
+    setClassificationSuggestion(null);
     let foundDeadlines = 0;
+    let foundSuggestion: ClassificationSuggestion | null = null;
     try {
       for (const file of Array.from(files)) {
         if (zipImportUrl && file.name.toLowerCase().endsWith(".zip")) {
-          foundDeadlines += await uploadZip(file);
+          const result = await uploadZip(file);
+          foundDeadlines += result.newDeadlines;
+          if (result.classificationSuggestion) foundSuggestion = result.classificationSuggestion;
           continue;
         }
         const formData = new FormData();
@@ -72,8 +86,10 @@ export default function UploadDropzone({
         if (!res.ok) throw new Error(`Failed to upload ${file.name}`);
         const body = await res.json().catch(() => null);
         if (typeof body?.newDeadlines === "number") foundDeadlines += body.newDeadlines;
+        if (body?.classificationSuggestion) foundSuggestion = body.classificationSuggestion;
       }
       setNewDeadlines(foundDeadlines);
+      setClassificationSuggestion(foundSuggestion);
       if (onUploaded) onUploaded();
       else router.refresh();
     } catch (err) {
@@ -117,6 +133,10 @@ export default function UploadDropzone({
         </p>
         {error && <p className="text-red-600">{error}</p>}
       </div>
+
+      {matterId && classificationSuggestion && (
+        <ClassificationSuggestionBanner matterId={matterId} suggestion={classificationSuggestion} />
+      )}
 
       {newDeadlines > 0 && (
         <p className="mt-2 text-xs text-muted">

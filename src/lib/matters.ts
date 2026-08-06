@@ -16,7 +16,7 @@ import {
   getRelevantChunks,
 } from "./rag";
 import { extractDocumentText, isExtractableDocument } from "./textExtraction";
-import { extractDeadlines, type ExtractedDeadline } from "./claude";
+import { extractDeadlines, suggestMatterClassification, type ExtractedDeadline } from "./claude";
 import type {
   ChatMessage,
   Document,
@@ -26,6 +26,7 @@ import type {
   IndependentReview,
   Invoice,
   Matter,
+  MatterClassification,
   MatterDeadline,
   MatterDigest,
   MatterNote,
@@ -589,6 +590,31 @@ export async function checkForNewDeadlines(
 
   const newCount = deadlines.filter((d) => !isKnownDeadline(d, before)).length;
   return { deadlines, newCount };
+}
+
+export interface ClassificationSuggestion {
+  classification: MatterClassification;
+  reason: string;
+}
+
+// Intake agent: suggests tightening a matter's classification based on its
+// documents' content, right after new documents arrive — never applied
+// automatically, just surfaced for the lawyer to accept or dismiss (see
+// suggestMatterClassification() in claude.ts). Only runs while a matter
+// is still at the "standard" default; once a lawyer has classified it
+// (accepting a suggestion or setting it manually), this stops
+// second-guessing that decision on every subsequent upload.
+export async function checkMatterClassification(
+  matterId: string,
+): Promise<ClassificationSuggestion | null> {
+  const matter = await getMatter(matterId);
+  if (!matter || matter.classification !== "standard") return null;
+
+  const context = await getMatterTextContext(matterId);
+  if (!context) return null;
+
+  const { classification, reason } = await suggestMatterClassification(context);
+  return classification === "standard" ? null : { classification, reason };
 }
 
 export async function listUpcomingDeadlines(limit = 10): Promise<(MatterDeadline & { matterTitle: string })[]> {

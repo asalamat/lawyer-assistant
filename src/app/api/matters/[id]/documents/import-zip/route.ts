@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { bulkImportZip } from "@/lib/bulkImport";
-import { checkForNewDeadlines, getMatter } from "@/lib/matters";
+import { checkForNewDeadlines, checkMatterClassification, getMatter } from "@/lib/matters";
 
 export async function POST(
   request: Request,
@@ -28,15 +28,21 @@ export async function POST(
     // for what's really one intake event. Best-effort, same as the
     // single-upload route.
     let newDeadlines = 0;
+    let classificationSuggestion = null;
     if (results.some((r) => r.status === "uploaded")) {
       try {
         newDeadlines = (await checkForNewDeadlines(id)).newCount;
       } catch {
         newDeadlines = 0;
       }
+      try {
+        classificationSuggestion = await checkMatterClassification(id);
+      } catch {
+        classificationSuggestion = null;
+      }
     }
 
-    return NextResponse.json({ results, newDeadlines }, { status: 201 });
+    return NextResponse.json({ results, newDeadlines, classificationSuggestion }, { status: 201 });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed to import zip" },

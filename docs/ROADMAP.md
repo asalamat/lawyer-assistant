@@ -173,6 +173,34 @@ see git log for exact history.
       check that repeated re-extraction citing the same source no longer
       grows the list unboundedly. Audit hash chain re-verified valid
       (314 entries) after cleanup.
+- [x] **Intake agent** (`suggestMatterClassification()` in
+      `src/lib/claude.ts`, `checkMatterClassification()` in
+      `src/lib/matters.ts`, `ClassificationSuggestionBanner.tsx`) — the
+      practical version of the vision doc's "intake agent" this app's
+      architecture actually supports: a matter must exist (with a title
+      and client name) before any document can be attached to it, so
+      there's no way to "read documents to fill out the creation form"
+      the way the vision doc originally frames it. Instead, once a matter
+      exists and is still at its default "standard" classification,
+      every document-intake path (single upload, bulk ZIP, email import)
+      has this read the new content and suggest tightening the
+      classification (privileged / highly-sensitive) when it's clearly
+      warranted — never applied automatically, always an Apply/Dismiss
+      banner. Stops suggesting entirely, with zero further AI calls,
+      once the matter is no longer at "standard" — whether that's from
+      applying a suggestion or from a lawyer classifying it manually —
+      so it never second-guesses a decision that's already been made.
+      Verified live with real AI calls: generic content correctly
+      produced no suggestion; genuinely privileged-sounding content
+      produced a real suggestion with a sensible reason; applying it
+      actually changed the matter's stored classification; a further
+      upload with equally sensitive content correctly produced *no*
+      suggestion once the matter had moved off "standard" (the core
+      guard); and a matter classified manually *before* its first
+      upload never triggered the AI call at all on that very first
+      upload, confirming the guard short-circuits before any AI call,
+      not just after a suggestion has been applied once. Audit hash
+      chain re-verified valid (328 entries) after cleanup.
 - [x] Drafting templates (`generateDraft()` — research memo / demand letter /
       client correspondence, `drafts` table, append-only history)
 - [x] Audio/video transcription (OpenAI Whisper API) — `src/lib/transcription.ts`,

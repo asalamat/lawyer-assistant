@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { recordAuditEvent } from "@/lib/auditLog";
 import { getMessageBody } from "@/lib/emailRead";
-import { addDocument, checkForNewDeadlines, getMatter } from "@/lib/matters";
+import { addDocument, checkForNewDeadlines, checkMatterClassification, getMatter } from "@/lib/matters";
 import { EMAIL_PROVIDERS, type EmailProvider } from "@/lib/types";
 
 function safeFileNamePart(subject: string): string {
@@ -59,6 +59,12 @@ export async function POST(
   } catch {
     newDeadlines = 0;
   }
+  let classificationSuggestion = null;
+  try {
+    classificationSuggestion = await checkMatterClassification(id);
+  } catch {
+    classificationSuggestion = null;
+  }
 
-  return NextResponse.json({ ...document, newDeadlines }, { status: 201 });
+  return NextResponse.json({ ...document, newDeadlines, classificationSuggestion }, { status: 201 });
 }

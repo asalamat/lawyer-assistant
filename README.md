@@ -122,6 +122,9 @@ independent review. Runs identically on macOS, Windows, and Linux.
 
 ## Recent changes
 
+- Intake agent — suggests tightening a matter's classification
+  (privileged/highly-sensitive) based on uploaded content, while it's
+  still at the default; never auto-applied, and stops once classified
 - Deadline-monitoring agent — deadlines now re-check automatically right
   after a new document lands (upload, bulk ZIP, or email import), instead
   of only on a manual re-extract click

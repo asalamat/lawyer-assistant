@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { EmailAccount, EmailFolder, EmailProvider } from "@/lib/types";
+import ClassificationSuggestionBanner from "./ClassificationSuggestionBanner";
+import type { EmailAccount, EmailFolder, EmailProvider, MatterClassification } from "@/lib/types";
 
 interface MessageSummary {
   id: string;
@@ -23,6 +24,10 @@ export default function ImportEmailPanel({ matterId }: { matterId: string }) {
   const [listError, setListError] = useState<string | null>(null);
   const [importingId, setImportingId] = useState<string | null>(null);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [classificationSuggestion, setClassificationSuggestion] = useState<{
+    classification: MatterClassification;
+    reason: string;
+  } | null>(null);
 
   useEffect(() => {
     fetch("/api/integrations")
@@ -97,6 +102,7 @@ export default function ImportEmailPanel({ matterId }: { matterId: string }) {
   async function handleImport(messageId: string) {
     setImportingId(messageId);
     setResult(null);
+    setClassificationSuggestion(null);
     try {
       const res = await fetch(`/api/matters/${matterId}/import-email`, {
         method: "POST",
@@ -110,6 +116,7 @@ export default function ImportEmailPanel({ matterId }: { matterId: string }) {
           ? ` Found ${data.newDeadlines} new deadline${data.newDeadlines === 1 ? "" : "s"}.`
           : "";
       setResult({ ok: true, message: `Imported "${data.fileName}" as a document.${deadlineNote}` });
+      if (data.classificationSuggestion) setClassificationSuggestion(data.classificationSuggestion);
     } catch (err) {
       setResult({ ok: false, message: err instanceof Error ? err.message : "Failed to import email" });
     } finally {
@@ -194,6 +201,10 @@ export default function ImportEmailPanel({ matterId }: { matterId: string }) {
             </p>
           )}
         </div>
+      )}
+
+      {classificationSuggestion && (
+        <ClassificationSuggestionBanner matterId={matterId} suggestion={classificationSuggestion} />
       )}
 
       {loadingMessages && <p className="text-sm text-muted">Loading recent messages…</p>}

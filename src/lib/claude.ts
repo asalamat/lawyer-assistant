@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { completeJSONWithOpenAI, completeWithOpenAI } from "./openaiText";
 import { getAiProviderOrder, getAnthropicApiKey, getOpenaiApiKey } from "./settings";
 import type { AiProvider } from "./settings";
-import type { DraftType } from "./types";
+import type { DraftType, MatterClassification } from "./types";
 
 let cachedKey: string | null = null;
 let cachedClient: Anthropic | null = null;
@@ -546,4 +546,50 @@ export async function scanReferenceDocumentForSensitiveContent(text: string): Pr
   });
 
   return result.containsSensitiveContent ? result.reason : null;
+}
+
+const CLASSIFICATION_SCHEMA = {
+  type: "object",
+  properties: {
+    classification: {
+      type: "string",
+      enum: ["standard", "privileged", "highly-sensitive"],
+      description:
+        "\"privileged\" if the documents contain solicitor-client privileged communications or clear litigation work product; \"highly-sensitive\" if they contain content needing extra care beyond ordinary privilege — medical/psychiatric records, financial account details, information about a minor, or similar; \"standard\" if neither applies.",
+    },
+    reason: {
+      type: "string",
+      description: "One sentence explaining the suggestion, or why standard applies.",
+    },
+  },
+  required: ["classification", "reason"],
+  additionalProperties: false,
+};
+
+// Intake agent: reads a matter's own documents and suggests whether its
+// classification should be tightened beyond the "standard" default a
+// matter starts with — never auto-applied, just a suggestion for the
+// lawyer to accept or dismiss (same pattern as the reference-library
+// sensitivity scanner: flag, don't decide). Only ever suggests
+// *tightening* — the caller only invokes this while a matter is still at
+// the "standard" default, so there's no risk of this trying to loosen an
+// existing privileged/highly-sensitive classification a lawyer already
+// set deliberately.
+export async function suggestMatterClassification(
+  context: string,
+): Promise<{ classification: MatterClassification; reason: string }> {
+  const system = `You review a legal matter's documents to suggest whether its confidentiality classification should be tightened beyond the default. Be conservative — only suggest "privileged" or "highly-sensitive" when the documents clearly warrant it, not on a borderline guess.`;
+
+  return completeJSON<{ classification: MatterClassification; reason: string }>({
+    system,
+    messages: [
+      {
+        role: "user",
+        content: `Here are the matter's documents:\n\n${context}\n\nSuggest a classification.`,
+      },
+    ],
+    schema: CLASSIFICATION_SCHEMA,
+    schemaName: "classification_suggestion",
+    maxTokens: 512,
+  });
 }

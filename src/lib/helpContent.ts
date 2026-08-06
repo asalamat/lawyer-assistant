@@ -23,7 +23,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "compliance",
         name: "Compliance",
         detail:
-          "Each matter has a classification (standard/privileged/highly-sensitive), an optional retention date (informational — nothing auto-deletes on it), and a legal hold toggle. A matter on legal hold shows a badge in its header and can't be deleted, even from the danger zone, until the hold is released. All changes here are recorded in the audit log.",
+          "Each matter has a classification (standard/privileged/highly-sensitive), an optional retention date (informational — nothing auto-deletes on it), and a legal hold toggle. A matter on legal hold shows a badge in its header and can't be deleted, even from the danger zone, until the hold is released. All changes here are recorded in the audit log. While a matter is still at the default \"standard\" classification, uploading documents runs an intake agent that reads them and suggests tightening the classification if the content warrants it (privileged communications, medical/financial/highly personal details) — shown as a banner with Apply/Dismiss right where you uploaded; nothing changes automatically, and once you've classified a matter (by accepting a suggestion or setting it manually) it stops suggesting.",
       },
       {
         slug: "document-upload",
