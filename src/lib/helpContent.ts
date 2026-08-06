@@ -88,7 +88,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "deadlines",
         name: "Deadlines",
         detail:
-          "Extracts genuine deadlines, court dates, and limitation periods from uploaded documents. Re-extracting replaces the list with a fresh read of current documents. Upcoming deadlines across all matters also show on the Dashboard.",
+          "Extracts genuine deadlines, court dates, and limitation periods from uploaded documents. This now runs automatically right after a new document is uploaded (single file, bulk ZIP, or email import) — not just when you click re-extract — and a \"Found N new deadline(s)\" note appears where you uploaded. Re-extracting (manual or automatic) replaces the list with a fresh read of current documents; the same real-world deadline mentioned across multiple documents is kept as one entry, with every document that mentions it listed as its source. Upcoming deadlines across all matters also show on the Dashboard.",
       },
       {
         slug: "evidence-matrix",

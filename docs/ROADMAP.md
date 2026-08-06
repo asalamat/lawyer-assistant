@@ -132,6 +132,47 @@ see git log for exact history.
 - [x] Deadline extraction (`extractDeadlines()`, `matter_deadlines` table,
       replaced-on-regenerate so it reflects current documents; surfaced on both
       the matter page and a dashboard-wide upcoming-deadlines list)
+- [x] **Deadline-monitoring agent** (`checkForNewDeadlines()` in
+      `src/lib/matters.ts`, wired into all three document-intake paths —
+      single upload, bulk ZIP import, email import) — deadlines now
+      re-check automatically the moment a new document lands, instead of
+      only when a lawyer remembers to click re-extract. Not a
+      tool-calling loop like the drafting agent; the "agentic" property
+      here is autonomous *triggering* (a new document is the trigger, no
+      human click needed), which is a different but equally valid reading
+      of what the vision doc's "deadline-monitoring agent" means.
+      Best-effort by design — a failure here never fails the upload/import
+      itself, which already succeeded independently.
+      Two real bugs found and fixed during testing, both in how a single
+      real-world deadline mentioned across multiple documents gets
+      deduplicated and attributed:
+      (1) `extractDeadlines()` re-derives the full deadline list from the
+      full document corpus every time, and would list the *same*
+      deadline once per source document that mentioned it, so a matter's
+      deadline list quietly accumulated near-duplicates as more documents
+      arrived — much more visible now that extraction runs on every
+      upload instead of an occasional manual click. Fixed with a
+      `dedupeExtractedDeadlines()` pass (exact due-date match, or fuzzy
+      description match when neither has a date) plus a prompt nudge
+      asking the model not to repeat a deadline per source.
+      (2) Source attribution: the AI extraction only ever cites *one*
+      document per deadline per pass (not every document that actually
+      mentions it), so `replaceDeadlines()` now also merges in whichever
+      `sourceDocument` was already stored for a matching deadline from
+      the *previous* extraction, accumulating attribution across a
+      matter's lifetime — and a follow-up bug in that merge itself
+      (treating an already comma-joined `sourceDocument` string as one
+      opaque token instead of splitting it first, causing the same
+      filename to be re-appended and grow unboundedly on repeated
+      re-extraction) was caught and fixed before shipping.
+      Verified live end-to-end with real AI calls across sequential
+      uploads: new-deadline counts were accurate (no false positives from
+      wording drift, no false negatives), a deadline mentioned across
+      three separate documents stayed as one row with all three
+      filenames merged in, and confirmed via a standalone deterministic
+      check that repeated re-extraction citing the same source no longer
+      grows the list unboundedly. Audit hash chain re-verified valid
+      (314 entries) after cleanup.
 - [x] Drafting templates (`generateDraft()` — research memo / demand letter /
       client correspondence, `drafts` table, append-only history)
 - [x] Audio/video transcription (OpenAI Whisper API) — `src/lib/transcription.ts`,

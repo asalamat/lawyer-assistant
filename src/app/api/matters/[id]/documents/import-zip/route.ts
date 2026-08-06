@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { bulkImportZip } from "@/lib/bulkImport";
-import { getMatter } from "@/lib/matters";
+import { checkForNewDeadlines, getMatter } from "@/lib/matters";
 
 export async function POST(
   request: Request,
@@ -21,7 +21,22 @@ export async function POST(
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
     const results = await bulkImportZip(id, buffer);
-    return NextResponse.json(results, { status: 201 });
+
+    // Deadline-monitoring agent: one check for the whole batch, not one
+    // per file — a zip can contain dozens of files, and re-running full
+    // deadline extraction after each would be needless repeated AI calls
+    // for what's really one intake event. Best-effort, same as the
+    // single-upload route.
+    let newDeadlines = 0;
+    if (results.some((r) => r.status === "uploaded")) {
+      try {
+        newDeadlines = (await checkForNewDeadlines(id)).newCount;
+      } catch {
+        newDeadlines = 0;
+      }
+    }
+
+    return NextResponse.json({ results, newDeadlines }, { status: 201 });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed to import zip" },

@@ -122,6 +122,9 @@ independent review. Runs identically on macOS, Windows, and Linux.
 
 ## Recent changes
 
+- Deadline-monitoring agent — deadlines now re-check automatically right
+  after a new document lands (upload, bulk ZIP, or email import), instead
+  of only on a manual re-extract click
 - Browse and import from any folder in a connected mailbox (Gmail label,
   Outlook mail folder, or Yahoo IMAP folder), not just the default inbox
   view

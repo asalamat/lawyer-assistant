@@ -105,7 +105,11 @@ export default function ImportEmailPanel({ matterId }: { matterId: string }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to import email");
-      setResult({ ok: true, message: `Imported "${data.fileName}" as a document.` });
+      const deadlineNote =
+        data.newDeadlines > 0
+          ? ` Found ${data.newDeadlines} new deadline${data.newDeadlines === 1 ? "" : "s"}.`
+          : "";
+      setResult({ ok: true, message: `Imported "${data.fileName}" as a document.${deadlineNote}` });
     } catch (err) {
       setResult({ ok: false, message: err instanceof Error ? err.message : "Failed to import email" });
     } finally {

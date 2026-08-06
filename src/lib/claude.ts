@@ -223,7 +223,7 @@ const DEADLINES_SCHEMA = {
 export async function extractDeadlines(context: string): Promise<ExtractedDeadline[]> {
   if (!context) return [];
 
-  const system = `You extract deadlines and important dates from legal matter documents. Only include dates that represent a genuine deadline, court date, limitation period, or similarly actionable date — not every date mentioned. If a date is mentioned but not clearly formatted, set dueDate to null and describe it in the description. If there are no such dates, return an empty list.`;
+  const system = `You extract deadlines and important dates from legal matter documents. Only include dates that represent a genuine deadline, court date, limitation period, or similarly actionable date — not every date mentioned. If a date is mentioned but not clearly formatted, set dueDate to null and describe it in the description. If the same real-world deadline is mentioned in more than one document (e.g. the same court date cited in two different letters), list it only once — don't repeat it per source document. If there are no such dates, return an empty list.`;
 
   const result = await completeJSON<{ deadlines: ExtractedDeadline[] }>({
     system,

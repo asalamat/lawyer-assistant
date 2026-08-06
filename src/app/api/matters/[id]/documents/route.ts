@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { addDocument, getMatter, listDocuments } from "@/lib/matters";
+import { addDocument, checkForNewDeadlines, getMatter, listDocuments } from "@/lib/matters";
+import { isExtractableDocument } from "@/lib/textExtraction";
 
 export async function GET(
   _request: Request,
@@ -27,5 +28,19 @@ export async function POST(
   }
 
   const document = await addDocument(id, file);
-  return NextResponse.json(document, { status: 201 });
+
+  // Deadline-monitoring agent: re-checks automatically right after a new
+  // readable document lands, instead of waiting for a manual re-extract
+  // click. Best-effort — a failure here (e.g. no AI key configured yet)
+  // shouldn't fail the upload itself, which already succeeded.
+  let newDeadlines = 0;
+  if (isExtractableDocument(document.fileName)) {
+    try {
+      newDeadlines = (await checkForNewDeadlines(id)).newCount;
+    } catch {
+      newDeadlines = 0;
+    }
+  }
+
+  return NextResponse.json({ ...document, newDeadlines }, { status: 201 });
 }

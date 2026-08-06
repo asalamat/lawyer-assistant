@@ -16,7 +16,7 @@ import {
   getRelevantChunks,
 } from "./rag";
 import { extractDocumentText, isExtractableDocument } from "./textExtraction";
-import type { ExtractedDeadline } from "./claude";
+import { extractDeadlines, type ExtractedDeadline } from "./claude";
 import type {
   ChatMessage,
   Document,
@@ -467,10 +467,79 @@ export async function listDeadlines(matterId: string): Promise<MatterDeadline[]>
     .map((row) => toPlain<MatterDeadline>(row));
 }
 
+const DEADLINE_DESCRIPTION_MATCH_THRESHOLD = 0.7;
+
+// Two deadlines count as the same real-world deadline if they share an
+// exact due date (description wording is ignored entirely once dates
+// agree — the AI can reword between extractions, e.g. "conference
+// scheduled" vs. "scheduled at 10am", without it being a different
+// deadline) or, when neither has a due date, if their descriptions are a
+// close fuzzy match. Shared by dedupeExtractedDeadlines() (collapsing the
+// same deadline mentioned in multiple source documents within one
+// extraction) and checkForNewDeadlines()'s "already known" check
+// (comparing a fresh extraction against what was already stored).
+function isSameDeadline(
+  a: { description: string; dueDate: string | null },
+  b: { description: string; dueDate: string | null },
+): boolean {
+  if (a.dueDate && b.dueDate) return a.dueDate === b.dueDate;
+  if (!a.dueDate && !b.dueDate) {
+    return nameSimilarity(a.description, b.description) >= DEADLINE_DESCRIPTION_MATCH_THRESHOLD;
+  }
+  return false;
+}
+
+// The same real-world deadline is often mentioned in more than one source
+// document with slightly different wording (a police report and a later
+// memo both citing the same court date, say) — extractDeadlines() extracts
+// per its full-context read and has no guarantee of merging those, so this
+// collapses matches using isSameDeadline() above. Merges sourceDocument
+// mentions from every duplicate into the kept row rather than discarding
+// them.
+function dedupeExtractedDeadlines(deadlines: ExtractedDeadline[]): ExtractedDeadline[] {
+  const kept: ExtractedDeadline[] = [];
+  for (const deadline of deadlines) {
+    const match = kept.find((existing) => isSameDeadline(deadline, existing));
+    if (match) {
+      match.sourceDocument = mergeSourceDocument(match.sourceDocument, deadline.sourceDocument);
+    } else {
+      kept.push({ ...deadline });
+    }
+  }
+  return kept;
+}
+
+// sourceDocument accumulates as a comma-joined list across repeated
+// extractions (see replaceDeadlines) — must split each existing value back
+// into its individual filenames before deduping, or a filename already
+// present in the joined string gets re-appended as a "new" entry every
+// time the AI cites it again, growing unboundedly instead of staying
+// deduped.
+function mergeSourceDocument(a: string | null, b: string | null): string | null {
+  const split = (value: string | null) => (value ? value.split(", ") : []);
+  const sources = new Set([...split(a), ...split(b)].filter(Boolean));
+  return sources.size > 0 ? [...sources].join(", ") : null;
+}
+
 export async function replaceDeadlines(
   matterId: string,
-  deadlines: ExtractedDeadline[],
+  extracted: ExtractedDeadline[],
 ): Promise<MatterDeadline[]> {
+  // extractDeadlines() re-derives the full list from the full document
+  // corpus in one pass, so when it re-confirms a deadline it already
+  // reported before, it typically only cites whichever single document
+  // reads most naturally as "the source" to it in that pass — not every
+  // document that actually mentions it. Carrying forward the
+  // previously-stored sourceDocument and merging it in means attribution
+  // accumulates across a matter's lifetime instead of narrowing to just
+  // the latest extraction's pick.
+  const existing = await listDeadlines(matterId);
+  const deadlines = dedupeExtractedDeadlines(extracted).map((deadline) => {
+    const match = existing.find((e) => isSameDeadline(deadline, e));
+    return match
+      ? { ...deadline, sourceDocument: mergeSourceDocument(match.sourceDocument, deadline.sourceDocument) }
+      : deadline;
+  });
   db.prepare("DELETE FROM matter_deadlines WHERE matterId = ?").run(matterId);
   const createdAt = new Date().toISOString();
   const insert = db.prepare(
@@ -492,6 +561,34 @@ export async function replaceDeadlines(
     `Extracted ${deadlines.length} deadline(s)`,
   );
   return listDeadlines(matterId);
+}
+
+// Deadline-monitoring agent: instead of only re-checking when a lawyer
+// remembers to click "re-extract", this runs automatically right after new
+// documents land in a matter (single upload, bulk zip import, email
+// import — see the callers). Not a tool-calling loop like the drafting
+// agent; the "agentic" property here is autonomous triggering, not tool
+// use — a new document appearing is the trigger, no human click needed.
+// extractDeadlines() re-derives the full current list from all of a
+// matter's documents every time (same as the manual button always did,
+// not an incremental append) — this wrapper's only addition is diffing
+// against what was already stored, so a caller can say "N new deadline(s)
+// found" rather than just "deadlines refreshed."
+function isKnownDeadline(candidate: MatterDeadline, before: MatterDeadline[]): boolean {
+  return before.some((b) => isSameDeadline(candidate, b));
+}
+
+export async function checkForNewDeadlines(
+  matterId: string,
+): Promise<{ deadlines: MatterDeadline[]; newCount: number }> {
+  const before = await listDeadlines(matterId);
+
+  const context = await getMatterTextContext(matterId);
+  const extracted = await extractDeadlines(context);
+  const deadlines = await replaceDeadlines(matterId, extracted);
+
+  const newCount = deadlines.filter((d) => !isKnownDeadline(d, before)).length;
+  return { deadlines, newCount };
 }
 
 export async function listUpcomingDeadlines(limit = 10): Promise<(MatterDeadline & { matterTitle: string })[]> {

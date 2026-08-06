@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
@@ -8,6 +9,11 @@ interface ZipImportResult {
   status: "uploaded" | "failed";
   documentId?: string;
   error?: string;
+}
+
+interface ZipImportResponse {
+  results: ZipImportResult[];
+  newDeadlines: number;
 }
 
 export default function UploadDropzone({
@@ -24,6 +30,7 @@ export default function UploadDropzone({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [zipResults, setZipResults] = useState<ZipImportResult[] | null>(null);
+  const [newDeadlines, setNewDeadlines] = useState(0);
   const [dragActive, setDragActive] = useState(false);
 
   const url = uploadUrl ?? `/api/matters/${matterId}/documents`;
@@ -32,13 +39,15 @@ export default function UploadDropzone({
   // uploadUrl and don't get this behaviour.
   const zipImportUrl = matterId ? `/api/matters/${matterId}/documents/import-zip` : null;
 
-  async function uploadZip(file: globalThis.File) {
+  async function uploadZip(file: globalThis.File): Promise<number> {
     const formData = new FormData();
     formData.append("file", file);
     const res = await fetch(zipImportUrl!, { method: "POST", body: formData });
     const body = await res.json();
     if (!res.ok) throw new Error(body.error ?? `Failed to import ${file.name}`);
-    setZipResults(body as ZipImportResult[]);
+    const { results, newDeadlines: found } = body as ZipImportResponse;
+    setZipResults(results);
+    return found;
   }
 
   async function upload(files: FileList | null) {
@@ -46,10 +55,12 @@ export default function UploadDropzone({
     setUploading(true);
     setError(null);
     setZipResults(null);
+    setNewDeadlines(0);
+    let foundDeadlines = 0;
     try {
       for (const file of Array.from(files)) {
         if (zipImportUrl && file.name.toLowerCase().endsWith(".zip")) {
-          await uploadZip(file);
+          foundDeadlines += await uploadZip(file);
           continue;
         }
         const formData = new FormData();
@@ -59,7 +70,10 @@ export default function UploadDropzone({
           body: formData,
         });
         if (!res.ok) throw new Error(`Failed to upload ${file.name}`);
+        const body = await res.json().catch(() => null);
+        if (typeof body?.newDeadlines === "number") foundDeadlines += body.newDeadlines;
       }
+      setNewDeadlines(foundDeadlines);
       if (onUploaded) onUploaded();
       else router.refresh();
     } catch (err) {
@@ -103,6 +117,22 @@ export default function UploadDropzone({
         </p>
         {error && <p className="text-red-600">{error}</p>}
       </div>
+
+      {newDeadlines > 0 && (
+        <p className="mt-2 text-xs text-muted">
+          Found {newDeadlines} new deadline{newDeadlines === 1 ? "" : "s"} in the uploaded
+          document{newDeadlines === 1 ? "" : "s"}.
+          {matterId && (
+            <>
+              {" "}
+              <Link href={`/matters/${matterId}/deadlines`} className="text-accent hover:underline">
+                View
+              </Link>
+              .
+            </>
+          )}
+        </p>
+      )}
 
       {zipResults && (
         <ul className="mt-2 flex flex-col gap-1 text-xs">
