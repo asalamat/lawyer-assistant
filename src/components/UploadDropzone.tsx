@@ -20,8 +20,6 @@ interface ClassificationSuggestion {
 
 interface ZipImportResponse {
   results: ZipImportResult[];
-  newDeadlines: number;
-  classificationSuggestion: ClassificationSuggestion | null;
 }
 
 export default function UploadDropzone({
@@ -41,6 +39,7 @@ export default function UploadDropzone({
   const [newDeadlines, setNewDeadlines] = useState(0);
   const [classificationSuggestion, setClassificationSuggestion] =
     useState<ClassificationSuggestion | null>(null);
+  const [backgroundCheckPending, setBackgroundCheckPending] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
   const url = uploadUrl ?? `/api/matters/${matterId}/documents`;
@@ -49,15 +48,19 @@ export default function UploadDropzone({
   // uploadUrl and don't get this behaviour.
   const zipImportUrl = matterId ? `/api/matters/${matterId}/documents/import-zip` : null;
 
-  async function uploadZip(file: globalThis.File): Promise<{ newDeadlines: number; classificationSuggestion: ClassificationSuggestion | null }> {
+  async function uploadZip(file: globalThis.File): Promise<void> {
     const formData = new FormData();
     formData.append("file", file);
     const res = await fetch(zipImportUrl!, { method: "POST", body: formData });
     const body = await res.json();
     if (!res.ok) throw new Error(body.error ?? `Failed to import ${file.name}`);
-    const { results, newDeadlines, classificationSuggestion } = body as ZipImportResponse;
+    const { results } = body as ZipImportResponse;
     setZipResults(results);
-    return { newDeadlines, classificationSuggestion };
+    // The zip route runs the deadline/classification check in the
+    // background rather than blocking this response (it reads the
+    // matter's full document corpus, which was taking well over a
+    // minute for a large batch) — there's nothing to show immediately.
+    if (results.some((r) => r.status === "uploaded")) setBackgroundCheckPending(true);
   }
 
   async function upload(files: FileList | null) {
@@ -67,14 +70,13 @@ export default function UploadDropzone({
     setZipResults(null);
     setNewDeadlines(0);
     setClassificationSuggestion(null);
+    setBackgroundCheckPending(false);
     let foundDeadlines = 0;
     let foundSuggestion: ClassificationSuggestion | null = null;
     try {
       for (const file of Array.from(files)) {
         if (zipImportUrl && file.name.toLowerCase().endsWith(".zip")) {
-          const result = await uploadZip(file);
-          foundDeadlines += result.newDeadlines;
-          if (result.classificationSuggestion) foundSuggestion = result.classificationSuggestion;
+          await uploadZip(file);
           continue;
         }
         const formData = new FormData();
@@ -163,6 +165,22 @@ export default function UploadDropzone({
             </li>
           ))}
         </ul>
+      )}
+
+      {backgroundCheckPending && (
+        <p className="mt-2 text-xs text-muted">
+          Checking for new deadlines and reviewing classification in the background — this can
+          take a little while for a large batch.
+          {matterId && (
+            <>
+              {" "}
+              <Link href={`/matters/${matterId}/deadlines`} className="text-accent hover:underline">
+                Check the Deadlines tab
+              </Link>{" "}
+              shortly.
+            </>
+          )}
+        </p>
       )}
     </div>
   );

@@ -59,7 +59,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "email",
         name: "Email",
         detail:
-          "Compose and send an email directly from a matter once SMTP is configured in Settings. Use Smart draft to describe what the email should say and get a grounded subject+body draft citing the matter documents it's based on — always review before sending. Translate the message into another language right in the compose box (defaults to whatever's set in Settings > Translation) (replaces the draft in place so you can review and send the translated version). Attach any of the matter's own uploaded documents when sending. Connected inboxes (Gmail/Microsoft via OAuth, or Yahoo via an app password) can also be browsed and a message imported into the matter as a document — pick a specific folder (Gmail label, Outlook mail folder, or Yahoo IMAP folder) from the Folder dropdown to browse anywhere in that mailbox, not just the inbox.",
+          "Compose and send an email directly from a matter once SMTP is configured in Settings. Use Smart draft to describe what the email should say and get a grounded subject+body draft citing the matter documents it's based on — always review before sending. Translate the message into another language right in the compose box (defaults to whatever's set in Settings > Translation) (replaces the draft in place so you can review and send the translated version). Attach any of the matter's own uploaded documents when sending. Connected inboxes (Gmail/Microsoft via OAuth, or Yahoo via an app password) can also be browsed and imported into the matter as documents — pick a specific folder (Gmail label, Outlook mail folder, or Yahoo IMAP folder) from the Folder dropdown to browse anywhere in that mailbox, not just the inbox. Check the box next to any message (or \"Select all\") and click \"Import selected\" to bring in several — or even every listed message — in one action instead of one at a time; each becomes its own document, and the deadline/classification checks run once for the whole batch rather than once per email.",
       },
     ],
   },
@@ -172,6 +172,12 @@ export const HELP_SECTIONS: HelpSection[] = [
         name: "Translation",
         detail:
           "Available to every user, not just admins. Sets the language pre-selected on every Translate button throughout the app — digests, evidence/defence matrices, drafts, chat answers, independent reviews, and the smart email draft. Pick from the built-in list or enter any other language. You can still choose a different language at any time in a specific Translate button's own dropdown; this only sets what's already selected there.",
+      },
+      {
+        slug: "privacy",
+        name: "Privacy",
+        detail:
+          "Admin-only, firm-wide. Controls whether SIN/SSN/credit card numbers (and optionally phone numbers/email addresses) are automatically masked out of a matter's content before it's sent to any AI provider — Anthropic, OpenAI, or Google Gemini. On by default. A masked identifier is replaced with a placeholder like \"[REDACTED:SIN]\" before the request leaves this app, across chat, digests, evidence matrices, deadline extraction, drafts, the self-checking drafting agent, and independent review. Turning off an identifier (or masking entirely) trades that safety for accuracy — a draft that legitimately needs to state a real number will only do so with masking off.",
       },
       {
         slug: "integrations",

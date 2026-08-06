@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { buildDraftSystemPrompt, buildDraftUserPrompt } from "./claude";
 import { verifyCitations } from "./citationCheck";
 import { listDocuments } from "./matters";
+import { maskForAI } from "./piiMask";
 import { buildContextFromChunks, ensureDocumentChunks, ensureReferenceDocumentChunks, getRelevantChunks } from "./rag";
 import { listAttachedReferenceDocuments } from "./referenceLibrary";
 import { getAnthropicApiKey } from "./settings";
@@ -91,10 +92,12 @@ async function runToolLoop(
             : "No relevant passages found",
         createdAt: new Date().toISOString(),
       });
+      const resultContent =
+        chunks.length > 0 ? await maskForAI(buildContextFromChunks(chunks)) : "No relevant passages found.";
       toolResults.push({
         type: "tool_result",
         tool_use_id: toolUse.id,
-        content: chunks.length > 0 ? buildContextFromChunks(chunks) : "No relevant passages found.",
+        content: resultContent,
       });
     }
     messages.push({ role: "user", content: toolResults });

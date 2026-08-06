@@ -8,6 +8,7 @@ import { encryptFile } from "./crypto";
 import db, { toPlain } from "./db";
 import { nameSimilarity } from "./fuzzyMatch";
 import { cosineSimilarity } from "./embeddings";
+import { maskForAI } from "./piiMask";
 import { listAttachedReferenceDocuments } from "./referenceLibrary";
 import {
   buildContextFromChunks,
@@ -965,11 +966,12 @@ export async function getMatterTextContext(matterId: string): Promise<string> {
         ]
       : [];
 
-  return [
+  const context = [
     ...sections.filter((section) => section !== null),
     ...referenceSections.filter((section) => section !== null),
     ...notesSection,
   ].join("\n\n");
+  return maskForAI(context);
 }
 
 // Chat context, built via retrieval instead of concatenating every document
@@ -1015,7 +1017,8 @@ export async function getMatterChatContext(matterId: string, question: string): 
           .join("\n\n")}`
       : null;
 
-  return [chunkContext, unreadableSection, notesSection].filter(Boolean).join("\n\n");
+  const context = [chunkContext, unreadableSection, notesSection].filter(Boolean).join("\n\n");
+  return maskForAI(context);
 }
 
 export interface SimilarDocument {

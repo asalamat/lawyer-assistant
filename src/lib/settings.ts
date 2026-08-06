@@ -24,6 +24,24 @@ export interface WeatherLocation {
 export type AiProvider = "anthropic" | "openai";
 const DEFAULT_AI_PROVIDER_ORDER: AiProvider[] = ["anthropic", "openai"];
 
+export interface PiiMaskingSettings {
+  enabled: boolean;
+  sin: boolean;
+  ssn: boolean;
+  creditCard: boolean;
+  phone: boolean;
+  email: boolean;
+}
+
+const DEFAULT_PII_MASKING: PiiMaskingSettings = {
+  enabled: true,
+  sin: true,
+  ssn: true,
+  creditCard: true,
+  phone: true,
+  email: true,
+};
+
 interface Settings {
   anthropicApiKey?: string;
   openaiApiKey?: string;
@@ -34,6 +52,7 @@ interface Settings {
   aiProviderOrder?: AiProvider[];
   cronSecret?: string;
   defaultTranslationLanguage?: string;
+  piiMasking?: Partial<PiiMaskingSettings>;
 }
 
 export const DEFAULT_TRANSLATION_LANGUAGE = "French";
@@ -213,6 +232,27 @@ export async function setDefaultTranslationLanguage(language: string): Promise<v
   const settings = await readSettings();
   settings.defaultTranslationLanguage = language.trim() || DEFAULT_TRANSLATION_LANGUAGE;
   await writeSettings(settings);
+}
+
+// Controls whether SIN/SSN/credit card numbers (and optionally phone/email)
+// get masked out of matter content before it's sent to any AI provider —
+// see src/lib/piiMask.ts for the actual detection/masking logic. Default
+// on: the account owner's explicit choice, favouring safety over the risk
+// that a draft needing to state a real number shows a placeholder instead
+// until masking is turned off for that case.
+export async function getPiiMaskingSettings(): Promise<PiiMaskingSettings> {
+  const settings = await readSettings();
+  return { ...DEFAULT_PII_MASKING, ...settings.piiMasking };
+}
+
+export async function setPiiMaskingSettings(
+  partial: Partial<PiiMaskingSettings>,
+): Promise<PiiMaskingSettings> {
+  const settings = await readSettings();
+  const merged = { ...DEFAULT_PII_MASKING, ...settings.piiMasking, ...partial };
+  settings.piiMasking = merged;
+  await writeSettings(settings);
+  return merged;
 }
 
 export async function getAiProviderOrder(): Promise<AiProvider[]> {

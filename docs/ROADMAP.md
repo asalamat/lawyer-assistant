@@ -1175,6 +1175,53 @@ see git log for exact history.
       settings route — gated by `src/proxy.ts`, not the route handler
       itself. Audit hash chain re-verified valid (147 entries) after
       cleanup.
+- [x] **PII masking before any AI provider call** (`src/lib/piiMask.ts`,
+      `getPiiMaskingSettings()`/`setPiiMaskingSettings()` in
+      `src/lib/settings.ts`, `/settings/privacy`) — detects and masks
+      SIN/SSN/credit card numbers (and, per the account owner's explicit
+      choice, phone numbers and email addresses too) out of a matter's
+      documents/notes before that text is sent to Anthropic, OpenAI, or
+      Google Gemini for *any* feature. On by default — the account
+      owner's deliberate choice, favouring safety over the real cost that
+      a draft needing to state an actual number will only show a
+      placeholder (`[REDACTED:SIN]` etc.) unless masking is turned off
+      first; each identifier type can be toggled independently in
+      Settings > Privacy (admin-only, firm-wide — not a personal
+      preference like Appearance/Translation).
+      Detection is regex + checksum based, not an AI call itself (masking
+      can't depend on the thing it's protecting against): credit card
+      numbers and Canadian SINs are validated via the Luhn algorithm
+      (SIN's real check-digit algorithm, not a made-up heuristic) before
+      being masked, which is what keeps false positives on ordinary
+      file/docket numbers and dollar amounts low — an unseparated 9-digit
+      run is deliberately left alone even if Luhn-valid, since that
+      format is too common in reference numbers to safely treat as a SIN
+      without the 3-3-3 grouping SINs are actually written with.
+      Wired into exactly three choke points so every AI feature is
+      covered without touching each one individually: `getMatterTextContext()`
+      and `getMatterChatContext()` in `src/lib/matters.ts` (covers
+      digest, evidence matrix, deadlines, one-shot drafts, smart email
+      draft, independent review, and chat) and the drafting agent's
+      search-tool results in `src/lib/draftingAgent.ts` (the one AI-bound
+      text path that doesn't go through those two functions).
+      Verified with 13 deterministic unit cases (a real Luhn-valid SIN
+      correctly masked; a same-format but checksum-invalid number and a
+      bare unseparated 9-digit run correctly left alone; a real test
+      credit card number masked in both spaced and unspaced form; a
+      non-Luhn 16-digit number left alone; SSN/phone/email all masked;
+      ordinary legal text — file numbers, paragraph references, dates,
+      dollar amounts — produced zero false positives; multiple identifier
+      types in one string all masked independently without interfering
+      with each other) — then, more importantly, verified live end-to-end
+      against a real Anthropic call: uploaded a document containing a
+      real Luhn-valid SIN and a real test credit card number, generated a
+      real digest, and confirmed neither the real SIN nor the real card
+      number appeared anywhere in the AI's output (it only ever saw the
+      `[REDACTED:...]` placeholders). Confirmed `/settings/privacy` and
+      `/api/settings/privacy` are unreachable by a non-admin (403) and
+      require a session at all (401), same as every other settings
+      route. Audit hash chain re-verified valid (759 entries) after
+      cleanup.
 
 ## Dependency notes
 

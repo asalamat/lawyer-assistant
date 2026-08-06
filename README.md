@@ -84,7 +84,9 @@ SMTP credentials, and uploaded documents encrypted at rest; a
 cryptographically tamper-evident audit log with a one-click integrity
 check (and an admin-gated, written-reason-required re-anchor path for the
 rare case the chain needs deliberate repair); per-matter legal holds and
-classification.
+classification; SIN/SSN/credit card numbers (and, optionally, phone
+numbers and email addresses) automatically masked out of matter content
+before it's sent to any AI provider, on by default (Settings > Privacy).
 
 **Backup & restore** — one-click backup of the entire app (matters,
 documents, clients, users, settings) to a downloadable archive, with
@@ -122,6 +124,10 @@ independent review. Runs identically on macOS, Windows, and Linux.
 
 ## Recent changes
 
+- PII masking (Settings > Privacy) — SIN/SSN/credit card numbers, and
+  optionally phone/email, automatically masked out of matter content
+  before it reaches any AI provider; on by default, verified live that a
+  real SIN and credit card never reached Anthropic in a real digest call
 - Full system-status dashboard (`/monitoring`) — click the nav status dot
   for a live, gauge-based view of data integrity, setup completeness,
   encryption, backup freshness, storage, and database stats; admin-only

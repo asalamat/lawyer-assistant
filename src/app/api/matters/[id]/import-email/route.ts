@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server";
-import { recordAuditEvent } from "@/lib/auditLog";
-import { getMessageBody } from "@/lib/emailRead";
-import { addDocument, checkForNewDeadlines, checkMatterClassification, getMatter } from "@/lib/matters";
+import { importEmailAsDocument } from "@/lib/emailImport";
+import { checkForNewDeadlines, checkMatterClassification, getMatter } from "@/lib/matters";
 import { EMAIL_PROVIDERS, type EmailProvider } from "@/lib/types";
-
-function safeFileNamePart(subject: string): string {
-  const cleaned = subject.replace(/[/\\?%*:|"<>]/g, "-").trim();
-  return cleaned.length > 0 ? cleaned.slice(0, 120) : "No subject";
-}
 
 export async function POST(
   request: Request,
@@ -32,26 +26,15 @@ export async function POST(
     return NextResponse.json({ error: "messageId is required" }, { status: 400 });
   }
 
-  let email;
+  let document;
   try {
-    email = await getMessageBody(provider as EmailProvider, messageId, folderId);
+    document = await importEmailAsDocument(id, provider as EmailProvider, messageId, folderId);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to fetch the email";
     const clientError =
       message.includes("is connected") || message.includes("not supported");
     return NextResponse.json({ error: message }, { status: clientError ? 400 : 502 });
   }
-
-  const content = `From: ${email.from}\nSubject: ${email.subject}\n\n${email.body}`;
-  const fileName = `Email - ${safeFileNamePart(email.subject)}.txt`;
-  const file = new File([new Blob([content])], fileName, { type: "text/plain" });
-
-  const document = await addDocument(id, file);
-  await recordAuditEvent(
-    "email_imported_to_matter",
-    id,
-    `Imported email "${email.subject}" from ${provider} as "${document.fileName}"`,
-  );
 
   let newDeadlines = 0;
   try {

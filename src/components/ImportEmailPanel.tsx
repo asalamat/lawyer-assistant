@@ -13,6 +13,13 @@ interface MessageSummary {
   receivedAt: string;
 }
 
+interface BulkImportResult {
+  messageId: string;
+  status: "imported" | "failed";
+  fileName?: string;
+  error?: string;
+}
+
 export default function ImportEmailPanel({ matterId }: { matterId: string }) {
   const [accounts, setAccounts] = useState<EmailAccount[] | null>(null);
   const [provider, setProvider] = useState<EmailProvider | "">("");
@@ -28,6 +35,9 @@ export default function ImportEmailPanel({ matterId }: { matterId: string }) {
     classification: MatterClassification;
     reason: string;
   } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkImporting, setBulkImporting] = useState(false);
+  const [bulkResults, setBulkResults] = useState<BulkImportResult[] | null>(null);
 
   useEffect(() => {
     fetch("/api/integrations")
@@ -78,6 +88,8 @@ export default function ImportEmailPanel({ matterId }: { matterId: string }) {
       setListError(null);
       setMessages([]);
       setResult(null);
+      setSelectedIds(new Set());
+      setBulkResults(null);
       try {
         const query = selectedFolderId ? `?folderId=${encodeURIComponent(selectedFolderId)}` : "";
         const res = await fetch(`/api/email-accounts/${selected}/messages${query}`);
@@ -117,10 +129,69 @@ export default function ImportEmailPanel({ matterId }: { matterId: string }) {
           : "";
       setResult({ ok: true, message: `Imported "${data.fileName}" as a document.${deadlineNote}` });
       if (data.classificationSuggestion) setClassificationSuggestion(data.classificationSuggestion);
+      setSelectedIds((prev) => {
+        if (!prev.has(messageId)) return prev;
+        const next = new Set(prev);
+        next.delete(messageId);
+        return next;
+      });
     } catch (err) {
       setResult({ ok: false, message: err instanceof Error ? err.message : "Failed to import email" });
     } finally {
       setImportingId(null);
+    }
+  }
+
+  function toggleSelected(messageId: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(messageId)) next.delete(messageId);
+      else next.add(messageId);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds((prev) => (prev.size === messages.length ? new Set() : new Set(messages.map((m) => m.id))));
+  }
+
+  async function handleBulkImport() {
+    if (selectedIds.size === 0) return;
+    setBulkImporting(true);
+    setResult(null);
+    setBulkResults(null);
+    setClassificationSuggestion(null);
+    try {
+      const res = await fetch(`/api/matters/${matterId}/import-email/bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider,
+          folderId: folderId || undefined,
+          messageIds: [...selectedIds],
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to import selected emails");
+      setBulkResults(data.results);
+      const importedCount = data.results.filter((r: BulkImportResult) => r.status === "imported").length;
+      // The bulk route runs the deadline/classification check in the
+      // background rather than blocking this response (it reads the
+      // matter's full document corpus, which was taking well over a
+      // minute for a large selection) — nothing to show immediately.
+      const backgroundNote =
+        importedCount > 0
+          ? " Checking for new deadlines and reviewing classification in the background."
+          : "";
+      setResult({
+        ok: importedCount > 0,
+        message: `Imported ${importedCount} of ${selectedIds.size} selected email${selectedIds.size === 1 ? "" : "s"} as documents.${backgroundNote}`,
+      });
+      setSelectedIds(new Set());
+    } catch (err) {
+      setResult({ ok: false, message: err instanceof Error ? err.message : "Failed to import selected emails" });
+    } finally {
+      setBulkImporting(false);
     }
   }
 
@@ -214,10 +285,48 @@ export default function ImportEmailPanel({ matterId }: { matterId: string }) {
         <p className="text-sm text-muted">No recent messages found.</p>
       )}
 
+      {messages.length > 0 && (
+        <div className="flex items-center justify-between gap-3">
+          <label className="flex items-center gap-2 text-sm text-muted">
+            <input
+              type="checkbox"
+              checked={selectedIds.size === messages.length}
+              onChange={toggleSelectAll}
+            />
+            {selectedIds.size > 0 ? `${selectedIds.size} selected` : "Select all"}
+          </label>
+          <button
+            type="button"
+            onClick={handleBulkImport}
+            disabled={selectedIds.size === 0 || bulkImporting || importingId !== null}
+            className="btn-secondary shrink-0 text-xs disabled:opacity-50"
+          >
+            {bulkImporting ? "Importing…" : `Import selected (${selectedIds.size})`}
+          </button>
+        </div>
+      )}
+
+      {bulkResults && (
+        <ul className="flex flex-col gap-1 text-xs">
+          {bulkResults.map((r, i) => (
+            <li key={`${r.messageId}-${i}`} className={r.status === "failed" ? "text-red-600" : "text-muted"}>
+              {r.status === "imported" ? "✓" : "✗"} {r.fileName ?? r.messageId}
+              {r.error ? ` — ${r.error}` : ""}
+            </li>
+          ))}
+        </ul>
+      )}
+
       <ul className="flex flex-col gap-2">
         {messages.map((message) => (
           <li key={message.id} className="surface-row flex items-start justify-between gap-3">
-            <div className="min-w-0">
+            <input
+              type="checkbox"
+              className="mt-1 shrink-0"
+              checked={selectedIds.has(message.id)}
+              onChange={() => toggleSelected(message.id)}
+            />
+            <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{message.subject || "(no subject)"}</p>
               <p className="truncate text-xs text-muted">{message.from}</p>
               {message.snippet && (
@@ -227,7 +336,7 @@ export default function ImportEmailPanel({ matterId }: { matterId: string }) {
             <button
               type="button"
               onClick={() => handleImport(message.id)}
-              disabled={importingId !== null}
+              disabled={importingId !== null || bulkImporting}
               className="btn-secondary shrink-0 text-xs"
             >
               {importingId === message.id ? "Importing…" : "Import to this matter"}
