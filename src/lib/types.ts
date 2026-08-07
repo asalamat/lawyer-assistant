@@ -98,6 +98,9 @@ export interface Document {
   extractionStatus: ExtractionStatus | null;
   extractionError: string | null;
   extractionCheckedAt: string | null;
+  detectedLanguage: string | null;
+  ocrConfidence: number | null;
+  qualityScore: number | null;
 }
 
 // A shared, firm-wide document library (e.g. statutes, the Criminal Code,
@@ -119,6 +122,9 @@ export interface ReferenceDocument {
   extractionStatus: ExtractionStatus | null;
   extractionError: string | null;
   extractionCheckedAt: string | null;
+  detectedLanguage: string | null;
+  ocrConfidence: number | null;
+  qualityScore: number | null;
 }
 
 // A CanLII legislation record being watched for changes. CanLII's API only

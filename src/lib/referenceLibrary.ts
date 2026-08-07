@@ -35,8 +35,8 @@ export async function addReferenceDocument(file: File): Promise<ReferenceDocumen
   let sensitivityFlag: string | null = null;
   if (isExtractableDocument(file.name)) {
     try {
-      const text = await extractDocumentText(file.name, storagePath);
-      if (text) sensitivityFlag = await scanReferenceDocumentForSensitiveContent(text);
+      const result = await extractDocumentText(file.name, storagePath);
+      if (result?.text) sensitivityFlag = await scanReferenceDocumentForSensitiveContent(result.text);
     } catch {
       sensitivityFlag = null;
     }
@@ -56,6 +56,9 @@ export async function addReferenceDocument(file: File): Promise<ReferenceDocumen
     extractionStatus: null,
     extractionError: null,
     extractionCheckedAt: null,
+    detectedLanguage: null,
+    ocrConfidence: null,
+    qualityScore: null,
   };
   db.prepare(
     `INSERT INTO reference_documents

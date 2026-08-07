@@ -53,14 +53,25 @@ export async function readPlaintextFile(storagePath: string): Promise<Buffer> {
   return raw;
 }
 
+export interface ExtractionResult {
+  text: string;
+  // 0-100, only meaningful for OCR'd images — tesseract reports its own
+  // confidence in recognizing the text, which is real signal for the
+  // processing-quality score (a low-confidence OCR result is exactly the
+  // kind of thing worth flagging for a second look, not just "extraction
+  // succeeded"). Undefined for every other extraction path, which has no
+  // equivalent confidence signal to report.
+  ocrConfidence?: number;
+}
+
 export async function extractDocumentText(
   fileName: string,
   storagePath: string,
-): Promise<string | null> {
+): Promise<ExtractionResult | null> {
   const buffer = await readPlaintextFile(storagePath);
 
   if (hasExtension(fileName, PLAIN_TEXT_EXTENSIONS)) {
-    return buffer.toString("utf-8");
+    return { text: buffer.toString("utf-8") };
   }
 
   if (hasExtension(fileName, PDF_EXTENSIONS)) {
@@ -70,7 +81,7 @@ export async function extractDocumentText(
       // Page markers let the model cite a specific page (e.g. "(file.pdf, p. 4)")
       // instead of just the filename — see citationCheck.ts, which parses this
       // format back out to verify the citation.
-      return result.pages.map((page) => `[Page ${page.num}]\n${page.text}`).join("\n\n");
+      return { text: result.pages.map((page) => `[Page ${page.num}]\n${page.text}`).join("\n\n") };
     } finally {
       await parser.destroy();
     }
@@ -78,25 +89,27 @@ export async function extractDocumentText(
 
   if (hasExtension(fileName, DOCX_EXTENSIONS)) {
     const result = await mammoth.extractRawText({ buffer });
-    return result.value;
+    return { text: result.value };
   }
 
   if (hasExtension(fileName, IMAGE_EXTENSIONS)) {
     const { data } = await recognize(buffer, "eng");
-    return data.text;
+    return { text: data.text, ocrConfidence: data.confidence };
   }
 
   if (hasExtension(fileName, SPREADSHEET_EXTENSIONS)) {
     const workbook = read(buffer, { type: "buffer" });
-    return workbook.SheetNames.map((sheetName) => {
+    const text = workbook.SheetNames.map((sheetName) => {
       const sheet = workbook.Sheets[sheetName];
       const csv = utils.sheet_to_csv(sheet);
       return `Sheet: ${sheetName}\n${csv}`;
     }).join("\n\n");
+    return { text };
   }
 
   if (hasExtension(fileName, AUDIO_VIDEO_EXTENSIONS)) {
-    return transcribeAudio(buffer, fileName);
+    const text = await transcribeAudio(buffer, fileName);
+    return { text };
   }
 
   return null;

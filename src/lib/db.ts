@@ -506,6 +506,17 @@ ensureColumn("users", "totpBackupCodesJson", "TEXT");
 ensureColumn("clients", "type", "TEXT NOT NULL DEFAULT 'individual'");
 ensureColumn("clients", "contactPerson", "TEXT");
 ensureColumn("clients", "registrationNumber", "TEXT");
+// detectedLanguage: ISO 639-3 code (e.g. "eng", "fra") or "und" if the text
+// was too short to tell. ocrConfidence only set for OCR'd images (null for
+// every other extraction path — there's no equivalent signal). qualityScore
+// is a simple 0-100 composite (see extractionStatus.ts) — null until the
+// first extraction attempt, same as extractionStatus itself.
+ensureColumn("documents", "detectedLanguage", "TEXT");
+ensureColumn("documents", "ocrConfidence", "REAL");
+ensureColumn("documents", "qualityScore", "INTEGER");
+ensureColumn("reference_documents", "detectedLanguage", "TEXT");
+ensureColumn("reference_documents", "ocrConfidence", "REAL");
+ensureColumn("reference_documents", "qualityScore", "INTEGER");
 
 // One-time migration: matters used to store client identity only as free
 // text (clientName/clientEmail), with no real entity linking one client's

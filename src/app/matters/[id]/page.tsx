@@ -1,3 +1,4 @@
+import { getLanguageName } from "@/lib/languageDetection";
 import { annotateDuplicates, annotateNearDuplicates, getMatter, listDocuments } from "@/lib/matters";
 import { listTeam } from "@/lib/matterTeam";
 import { listAttachedReferenceDocuments, listReferenceDocuments } from "@/lib/referenceLibrary";
@@ -68,6 +69,23 @@ export default async function MatterOverviewPage({
                     ) : (
                       <>
                         <span className="badge">chat-readable</span>
+                        {doc.detectedLanguage && doc.detectedLanguage !== "eng" && doc.detectedLanguage !== "und" && (
+                          <span className="badge" title="Detected language">
+                            {getLanguageName(doc.detectedLanguage)}
+                          </span>
+                        )}
+                        {doc.qualityScore !== null && doc.qualityScore < 70 && (
+                          <span
+                            className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-400"
+                            title={
+                              doc.ocrConfidence !== null
+                                ? `OCR confidence ${Math.round(doc.ocrConfidence)}% — worth a manual check`
+                                : "Short extracted text — worth a manual check"
+                            }
+                          >
+                            quality {doc.qualityScore}%
+                          </span>
+                        )}
                         <SimilarDocumentsButton matterId={id} documentId={doc.id} />
                       </>
                     )

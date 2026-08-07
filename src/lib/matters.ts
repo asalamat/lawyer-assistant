@@ -388,6 +388,9 @@ export async function addDocument(
     extractionStatus: null,
     extractionError: null,
     extractionCheckedAt: null,
+    detectedLanguage: null,
+    ocrConfidence: null,
+    qualityScore: null,
   };
   db.prepare(
     "INSERT INTO documents (id, matterId, fileName, sizeBytes, uploadedAt, storagePath, contentHash) VALUES (?, ?, ?, ?, ?, ?, ?)",
