@@ -1,4 +1,4 @@
-import { listContradictionAnalyses, listIndependentReviews } from "@/lib/matters";
+import { findUnverifiedCitations, listContradictionAnalyses, listIndependentReviews } from "@/lib/matters";
 import GeneratedDocPanel from "@/components/GeneratedDocPanel";
 
 export default async function MatterContradictionsPage({
@@ -9,6 +9,9 @@ export default async function MatterContradictionsPage({
   const { id } = await params;
   const analyses = await listContradictionAnalyses(id);
   const independentReviews = await listIndependentReviews(id);
+  const initialUnverifiedCitations = analyses[0]
+    ? await findUnverifiedCitations(id, analyses[0].content)
+    : [];
 
   return (
     <GeneratedDocPanel
@@ -19,6 +22,7 @@ export default async function MatterContradictionsPage({
       matterId={id}
       sourceType="contradiction_analysis"
       initialReviews={independentReviews.filter((r) => r.sourceType === "contradiction_analysis")}
+      initialUnverifiedCitations={initialUnverifiedCitations}
     />
   );
 }

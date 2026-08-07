@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { aiErrorResponse } from "@/lib/aiErrorResponse";
 import { generateExhibitList } from "@/lib/claude";
-import { addExhibitList, getMatter, getMatterDocumentSections, listExhibitLists } from "@/lib/matters";
+import { addExhibitList, findUnverifiedCitations, getMatter, getMatterDocumentSections, listExhibitLists } from "@/lib/matters";
 
 export async function GET(
   _request: Request,
@@ -25,7 +25,8 @@ export async function POST(
   try {
     const content = await generateExhibitList(sections);
     const doc = await addExhibitList(id, content);
-    return NextResponse.json(doc, { status: 201 });
+    const unverifiedCitations = await findUnverifiedCitations(id, content);
+    return NextResponse.json({ ...doc, unverifiedCitations }, { status: 201 });
   } catch (err) {
     return aiErrorResponse(err);
   }

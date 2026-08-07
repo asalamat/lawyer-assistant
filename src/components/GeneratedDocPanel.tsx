@@ -19,6 +19,7 @@ export default function GeneratedDocPanel({
   matterId,
   sourceType,
   initialReviews = [],
+  initialUnverifiedCitations = [],
 }: {
   title: string;
   apiPath: string;
@@ -27,6 +28,10 @@ export default function GeneratedDocPanel({
   matterId: string;
   sourceType: IndependentReview["sourceType"];
   initialReviews?: IndependentReview[];
+  // Deterministic quality-control check (see citationCheck.ts /
+  // getKnownFilenames) — filenames this document cites that don't match
+  // any real document/attached reference material for this matter.
+  initialUnverifiedCitations?: string[];
 }) {
   const [doc, setDoc] = useState(initialDoc);
   const [generating, setGenerating] = useState(false);
@@ -34,6 +39,7 @@ export default function GeneratedDocPanel({
   const [reviews, setReviews] = useState(initialReviews);
   const [reviewing, setReviewing] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [unverifiedCitations, setUnverifiedCitations] = useState(initialUnverifiedCitations);
 
   const currentReview = doc ? reviews.find((r) => r.sourceId === doc.id) : undefined;
 
@@ -45,6 +51,7 @@ export default function GeneratedDocPanel({
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Failed to generate");
       setDoc(body);
+      setUnverifiedCitations(body.unverifiedCitations ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -84,6 +91,13 @@ export default function GeneratedDocPanel({
         </div>
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
+      {unverifiedCitations.length > 0 && (
+        <p className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-400">
+          Quality check: this cites {unverifiedCitations.length === 1 ? "a file" : "files"} that{" "}
+          {unverifiedCitations.length === 1 ? "doesn't" : "don't"} match any real document in this
+          matter — {unverifiedCitations.join(", ")}. Review before relying on that part.
+        </p>
+      )}
       {doc ? (
         <>
           <MarkdownContent content={doc.content} />

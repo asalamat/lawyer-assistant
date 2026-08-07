@@ -1,4 +1,4 @@
-import { listDisclosureChecklists, listIndependentReviews } from "@/lib/matters";
+import { findUnverifiedCitations, listDisclosureChecklists, listIndependentReviews } from "@/lib/matters";
 import GeneratedDocPanel from "@/components/GeneratedDocPanel";
 
 export default async function MatterDisclosureChecklistPage({
@@ -9,6 +9,9 @@ export default async function MatterDisclosureChecklistPage({
   const { id } = await params;
   const checklists = await listDisclosureChecklists(id);
   const independentReviews = await listIndependentReviews(id);
+  const initialUnverifiedCitations = checklists[0]
+    ? await findUnverifiedCitations(id, checklists[0].content)
+    : [];
 
   return (
     <GeneratedDocPanel
@@ -19,6 +22,7 @@ export default async function MatterDisclosureChecklistPage({
       matterId={id}
       sourceType="disclosure_checklist"
       initialReviews={independentReviews.filter((r) => r.sourceType === "disclosure_checklist")}
+      initialUnverifiedCitations={initialUnverifiedCitations}
     />
   );
 }

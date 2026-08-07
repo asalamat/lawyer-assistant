@@ -1,4 +1,4 @@
-import { listPrivilegeReviews, listIndependentReviews } from "@/lib/matters";
+import { findUnverifiedCitations, listPrivilegeReviews, listIndependentReviews } from "@/lib/matters";
 import GeneratedDocPanel from "@/components/GeneratedDocPanel";
 
 export default async function MatterPrivilegeReviewPage({
@@ -9,6 +9,9 @@ export default async function MatterPrivilegeReviewPage({
   const { id } = await params;
   const reviews = await listPrivilegeReviews(id);
   const independentReviews = await listIndependentReviews(id);
+  const initialUnverifiedCitations = reviews[0]
+    ? await findUnverifiedCitations(id, reviews[0].content)
+    : [];
 
   return (
     <GeneratedDocPanel
@@ -19,6 +22,7 @@ export default async function MatterPrivilegeReviewPage({
       matterId={id}
       sourceType="privilege_review"
       initialReviews={independentReviews.filter((r) => r.sourceType === "privilege_review")}
+      initialUnverifiedCitations={initialUnverifiedCitations}
     />
   );
 }

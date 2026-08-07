@@ -1,4 +1,4 @@
-import { listCrownPositionAnalyses, listIndependentReviews } from "@/lib/matters";
+import { findUnverifiedCitations, listCrownPositionAnalyses, listIndependentReviews } from "@/lib/matters";
 import GeneratedDocPanel from "@/components/GeneratedDocPanel";
 
 export default async function MatterCrownPositionPage({
@@ -9,6 +9,9 @@ export default async function MatterCrownPositionPage({
   const { id } = await params;
   const analyses = await listCrownPositionAnalyses(id);
   const independentReviews = await listIndependentReviews(id);
+  const initialUnverifiedCitations = analyses[0]
+    ? await findUnverifiedCitations(id, analyses[0].content)
+    : [];
 
   return (
     <GeneratedDocPanel
@@ -19,6 +22,7 @@ export default async function MatterCrownPositionPage({
       matterId={id}
       sourceType="crown_position_analysis"
       initialReviews={independentReviews.filter((r) => r.sourceType === "crown_position_analysis")}
+      initialUnverifiedCitations={initialUnverifiedCitations}
     />
   );
 }

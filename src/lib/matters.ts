@@ -8,6 +8,7 @@ import { encryptFile } from "./crypto";
 import db, { toPlain } from "./db";
 import { nameSimilarity } from "./fuzzyMatch";
 import { cosineSimilarity } from "./embeddings";
+import { verifyCitations } from "./citationCheck";
 import { extractTextTracked } from "./extractionStatus";
 import { scanBuffer } from "./malwareScan";
 import { maskForAI } from "./piiMask";
@@ -356,6 +357,27 @@ export async function listDocuments(matterId: string): Promise<Document[]> {
     .prepare("SELECT * FROM documents WHERE matterId = ? ORDER BY uploadedAt DESC")
     .all(matterId)
     .map((row) => toPlain<Document>(row));
+}
+
+// Every real filename an AI-generated answer/document could legitimately
+// cite for this matter — its own documents plus whichever reference-library
+// material is attached to it. Used to deterministically flag a citation
+// that doesn't match anything real (see citationCheck.ts) — the
+// "quality-control" pass every generated document gets, not just chat.
+export async function getKnownFilenames(matterId: string): Promise<string[]> {
+  const documents = await listDocuments(matterId);
+  const referenceDocs = await listAttachedReferenceDocuments(matterId);
+  return [...documents.map((d) => d.fileName), ...referenceDocs.map((d) => d.fileName)];
+}
+
+// The quality-control pass every generated document goes through: which
+// cited filenames don't match anything real for this matter. Deterministic
+// (no AI call) — see citationCheck.ts.
+export async function findUnverifiedCitations(matterId: string, content: string): Promise<string[]> {
+  const knownFilenames = await getKnownFilenames(matterId);
+  return verifyCitations(content, knownFilenames)
+    .filter((c) => !c.verified)
+    .map((c) => c.filename);
 }
 
 export async function getDocument(matterId: string, documentId: string): Promise<Document | null> {

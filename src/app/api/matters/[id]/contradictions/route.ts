@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { aiErrorResponse } from "@/lib/aiErrorResponse";
 import { generateContradictionAnalysis } from "@/lib/claude";
-import { addContradictionAnalysis, getMatter, getMatterDocumentSections, listContradictionAnalyses } from "@/lib/matters";
+import { addContradictionAnalysis, findUnverifiedCitations, getMatter, getMatterDocumentSections, listContradictionAnalyses } from "@/lib/matters";
 
 export async function GET(
   _request: Request,
@@ -25,7 +25,8 @@ export async function POST(
   try {
     const content = await generateContradictionAnalysis(sections);
     const doc = await addContradictionAnalysis(id, content);
-    return NextResponse.json(doc, { status: 201 });
+    const unverifiedCitations = await findUnverifiedCitations(id, content);
+    return NextResponse.json({ ...doc, unverifiedCitations }, { status: 201 });
   } catch (err) {
     return aiErrorResponse(err);
   }
