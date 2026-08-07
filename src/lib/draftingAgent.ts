@@ -12,7 +12,7 @@ import {
 } from "./rag";
 import { listAttachedReferenceDocuments } from "./referenceLibrary";
 import { getAnthropicApiKey } from "./settings";
-import { isExtractableDocument } from "./textExtraction";
+import { isSafeToExtract } from "./textExtraction";
 import type { AgentTraceStep, DraftType } from "./types";
 
 // Anthropic tool use only — deliberately not routed through the
@@ -150,9 +150,9 @@ export async function runDraftingAgent(
   const documents = await listDocuments(matterId);
   const referenceDocs = await listAttachedReferenceDocuments(matterId);
   await Promise.all([
-    ...documents.filter((doc) => isExtractableDocument(doc.fileName)).map((doc) => ensureDocumentChunks(doc)),
+    ...documents.filter((doc) => isSafeToExtract(doc)).map((doc) => ensureDocumentChunks(doc)),
     ...referenceDocs
-      .filter((doc) => isExtractableDocument(doc.fileName))
+      .filter((doc) => isSafeToExtract(doc))
       .map((doc) => ensureReferenceDocumentChunks(doc)),
   ]);
 

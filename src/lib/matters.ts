@@ -9,6 +9,7 @@ import db, { toPlain } from "./db";
 import { nameSimilarity } from "./fuzzyMatch";
 import { cosineSimilarity } from "./embeddings";
 import { extractTextTracked } from "./extractionStatus";
+import { scanBuffer } from "./malwareScan";
 import { maskForAI } from "./piiMask";
 import { listAttachedReferenceDocuments } from "./referenceLibrary";
 import {
@@ -18,7 +19,7 @@ import {
   ensureReferenceDocumentChunks,
   getRelevantChunks,
 } from "./rag";
-import { isExtractableDocument } from "./textExtraction";
+import { isSafeToExtract } from "./textExtraction";
 import { extractDeadlines, suggestMatterClassification, type ExtractedDeadline } from "./claude";
 import type {
   ChatMessage,
@@ -39,6 +40,11 @@ import type {
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
+// Separate from UPLOADS_DIR on purpose — an infected file's bytes never
+// land in the normal uploads tree at all (see addDocument), so nothing
+// that walks that directory expecting readable matter documents can ever
+// stumble onto one.
+const QUARANTINE_DIR = path.join(DATA_DIR, "quarantine");
 
 export async function listMatters(): Promise<Matter[]> {
   return db
@@ -327,6 +333,10 @@ export async function deleteMatter(matterId: string): Promise<boolean> {
   if (existsSync(matterDir)) {
     await rm(matterDir, { recursive: true, force: true });
   }
+  const matterQuarantineDir = path.join(QUARANTINE_DIR, matterId);
+  if (existsSync(matterQuarantineDir)) {
+    await rm(matterQuarantineDir, { recursive: true, force: true });
+  }
 
   await recordAuditEvent(
     "matter_deleted",
@@ -360,6 +370,9 @@ export async function retryDocumentExtraction(
 ): Promise<Document | null> {
   const document = await getDocument(matterId, documentId);
   if (!document) return null;
+  if (document.malwareScanStatus === "infected") {
+    throw new Error("This document was quarantined as malware and can't be extracted or retried.");
+  }
   await ensureDocumentChunks(document);
   return getDocument(matterId, documentId);
 }
@@ -368,13 +381,21 @@ export async function addDocument(
   matterId: string,
   file: File,
 ): Promise<Document> {
-  const matterDir = path.join(UPLOADS_DIR, matterId);
-  if (!existsSync(matterDir)) await mkdir(matterDir, { recursive: true });
-
   const id = crypto.randomUUID();
-  const storagePath = path.join(matterDir, `${id}-${file.name}`);
   const bytes = Buffer.from(await file.arrayBuffer());
   const contentHash = createHash("sha256").update(bytes).digest("hex");
+
+  // Scanned before it's written anywhere real — an infected file's bytes
+  // never touch the normal uploads directory at all, only the quarantine
+  // one, so a bug elsewhere that iterates the uploads folder directly
+  // can't accidentally pick it up.
+  const scanResult = await scanBuffer(bytes, file.name);
+  const targetDir =
+    scanResult.status === "infected"
+      ? path.join(QUARANTINE_DIR, matterId)
+      : path.join(UPLOADS_DIR, matterId);
+  if (!existsSync(targetDir)) await mkdir(targetDir, { recursive: true });
+  const storagePath = path.join(targetDir, `${id}-${file.name}`);
   await writeFile(storagePath, await encryptFile(bytes));
 
   const document: Document = {
@@ -391,9 +412,13 @@ export async function addDocument(
     detectedLanguage: null,
     ocrConfidence: null,
     qualityScore: null,
+    malwareScanStatus: scanResult.status,
+    malwareScanDetail: scanResult.signature,
   };
   db.prepare(
-    "INSERT INTO documents (id, matterId, fileName, sizeBytes, uploadedAt, storagePath, contentHash) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    `INSERT INTO documents
+       (id, matterId, fileName, sizeBytes, uploadedAt, storagePath, contentHash, malwareScanStatus, malwareScanDetail)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     document.id,
     document.matterId,
@@ -402,7 +427,18 @@ export async function addDocument(
     document.uploadedAt,
     document.storagePath,
     document.contentHash,
+    document.malwareScanStatus,
+    document.malwareScanDetail,
   );
+
+  if (scanResult.status === "infected") {
+    await recordAuditEvent(
+      "malware_detected",
+      matterId,
+      `Quarantined "${document.fileName}" — ClamAV flagged it as ${scanResult.signature}`,
+    );
+    return document;
+  }
 
   const existingMatch = db
     .prepare(
@@ -1009,7 +1045,7 @@ export interface MatterDocumentSection {
 // already PII-masked, so every caller gets that for free.
 export async function getMatterDocumentSections(matterId: string): Promise<MatterDocumentSection[]> {
   const documents = await listDocuments(matterId);
-  const extractable = documents.filter((doc) => isExtractableDocument(doc.fileName));
+  const extractable = documents.filter((doc) => isSafeToExtract(doc));
 
   const docSections = await Promise.all(
     extractable.map(async (doc) => {
@@ -1024,7 +1060,7 @@ export async function getMatterDocumentSections(matterId: string): Promise<Matte
   const referenceDocs = await listAttachedReferenceDocuments(matterId);
   const referenceSections = await Promise.all(
     referenceDocs
-      .filter((doc) => isExtractableDocument(doc.fileName))
+      .filter((doc) => isSafeToExtract(doc))
       .map(async (doc) => {
         const text = await extractTextTracked(
           "reference_documents",
@@ -1069,7 +1105,7 @@ export async function getMatterTextContext(matterId: string): Promise<string> {
 // there and not elsewhere.
 export async function getMatterChatContext(matterId: string, question: string): Promise<string> {
   const documents = await listDocuments(matterId);
-  const extractable = documents.filter((doc) => isExtractableDocument(doc.fileName));
+  const extractable = documents.filter((doc) => isSafeToExtract(doc));
   const docResults = await Promise.all(
     extractable.map(async (doc) => ({ fileName: doc.fileName, result: await ensureDocumentChunks(doc) })),
   );
@@ -1077,7 +1113,7 @@ export async function getMatterChatContext(matterId: string, question: string): 
   const referenceDocs = await listAttachedReferenceDocuments(matterId);
   const refResults = await Promise.all(
     referenceDocs
-      .filter((doc) => isExtractableDocument(doc.fileName))
+      .filter((doc) => isSafeToExtract(doc))
       .map(async (doc) => ({
         fileName: doc.fileName,
         result: await ensureReferenceDocumentChunks(doc),
@@ -1140,13 +1176,13 @@ export async function getSimilarDocuments(
   topK = 5,
 ): Promise<SimilarDocument[]> {
   const documents = await listDocuments(matterId);
-  const extractable = documents.filter((doc) => isExtractableDocument(doc.fileName));
+  const extractable = documents.filter((doc) => isSafeToExtract(doc));
   await Promise.all(extractable.map((doc) => ensureDocumentChunks(doc)));
 
   const referenceDocs = await listAttachedReferenceDocuments(matterId);
   await Promise.all(
     referenceDocs
-      .filter((doc) => isExtractableDocument(doc.fileName))
+      .filter((doc) => isSafeToExtract(doc))
       .map((doc) => ensureReferenceDocumentChunks(doc)),
   );
 
@@ -1259,7 +1295,7 @@ export async function checkNearDuplicateOnUpload(
   documentId: string,
 ): Promise<{ fileName: string; score: number } | null> {
   const documents = await listDocuments(matterId);
-  const extractable = documents.filter((doc) => isExtractableDocument(doc.fileName));
+  const extractable = documents.filter((doc) => isSafeToExtract(doc));
   await Promise.all(extractable.map((doc) => ensureDocumentChunks(doc)));
 
   const centroids = await getDocumentCentroids(matterId);

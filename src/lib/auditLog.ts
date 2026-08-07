@@ -9,6 +9,7 @@ export const ACTION_LABELS: Record<string, string> = {
   near_duplicate_document_detected: "Near-duplicate document detected",
   mfa_enabled: "Two-factor authentication enabled",
   mfa_disabled: "Two-factor authentication disabled",
+  malware_detected: "Malware detected and quarantined",
   matter_ethical_wall_applied: "Ethical wall applied",
   matter_ethical_wall_released: "Ethical wall released",
   chat_question_asked: "Chat question asked",

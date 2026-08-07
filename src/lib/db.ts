@@ -517,6 +517,14 @@ ensureColumn("documents", "qualityScore", "INTEGER");
 ensureColumn("reference_documents", "detectedLanguage", "TEXT");
 ensureColumn("reference_documents", "ocrConfidence", "REAL");
 ensureColumn("reference_documents", "qualityScore", "INTEGER");
+// malwareScanStatus: "clean" | "infected" | "error" | "not_scanned" (null
+// until the first scan attempt at upload time). An infected file's bytes
+// are stored in data/quarantine/ instead of the normal uploads directory —
+// storagePath still points at wherever it actually landed either way.
+ensureColumn("documents", "malwareScanStatus", "TEXT");
+ensureColumn("documents", "malwareScanDetail", "TEXT");
+ensureColumn("reference_documents", "malwareScanStatus", "TEXT");
+ensureColumn("reference_documents", "malwareScanDetail", "TEXT");
 
 // One-time migration: matters used to store client identity only as free
 // text (clientName/clientEmail), with no real entity linking one client's

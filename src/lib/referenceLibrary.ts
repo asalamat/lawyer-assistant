@@ -6,10 +6,12 @@ import { recordAuditEvent } from "./auditLog";
 import { scanReferenceDocumentForSensitiveContent } from "./claude";
 import { encryptFile } from "./crypto";
 import db, { toPlain } from "./db";
+import { scanBuffer } from "./malwareScan";
 import { extractDocumentText, isExtractableDocument } from "./textExtraction";
 import type { ReferenceDocument } from "./types";
 
 const REFERENCE_DIR = path.join(process.cwd(), "data", "reference-uploads");
+const REFERENCE_QUARANTINE_DIR = path.join(process.cwd(), "data", "quarantine", "reference-library");
 
 export async function listReferenceDocuments(): Promise<ReferenceDocument[]> {
   return db
@@ -19,21 +21,24 @@ export async function listReferenceDocuments(): Promise<ReferenceDocument[]> {
 }
 
 export async function addReferenceDocument(file: File): Promise<ReferenceDocument> {
-  if (!existsSync(REFERENCE_DIR)) await mkdir(REFERENCE_DIR, { recursive: true });
-
   const id = crypto.randomUUID();
-  const storagePath = path.join(REFERENCE_DIR, `${id}-${file.name}`);
   const bytes = Buffer.from(await file.arrayBuffer());
   const contentHash = createHash("sha256").update(bytes).digest("hex");
+
+  const scanResult = await scanBuffer(bytes, file.name);
+  const targetDir = scanResult.status === "infected" ? REFERENCE_QUARANTINE_DIR : REFERENCE_DIR;
+  if (!existsSync(targetDir)) await mkdir(targetDir, { recursive: true });
+  const storagePath = path.join(targetDir, `${id}-${file.name}`);
   await writeFile(storagePath, await encryptFile(bytes));
 
   // Flag likely one-client personal/privileged content before it enters a
   // shelf meant for cross-matter reuse — a lawyer still has to approve
   // either way, this just surfaces a reason to look closer. Best-effort:
   // if extraction or the AI call fails, upload still succeeds unflagged
-  // rather than blocking on it.
+  // rather than blocking on it. Skipped entirely for a quarantined file —
+  // it's never getting approved for reuse regardless of content.
   let sensitivityFlag: string | null = null;
-  if (isExtractableDocument(file.name)) {
+  if (scanResult.status !== "infected" && isExtractableDocument(file.name)) {
     try {
       const result = await extractDocumentText(file.name, storagePath);
       if (result?.text) sensitivityFlag = await scanReferenceDocumentForSensitiveContent(result.text);
@@ -59,11 +64,13 @@ export async function addReferenceDocument(file: File): Promise<ReferenceDocumen
     detectedLanguage: null,
     ocrConfidence: null,
     qualityScore: null,
+    malwareScanStatus: scanResult.status,
+    malwareScanDetail: scanResult.signature,
   };
   db.prepare(
     `INSERT INTO reference_documents
-       (id, fileName, sizeBytes, uploadedAt, storagePath, contentHash, approved, approvedBy, approvedAt, sensitivityFlag)
-     VALUES (?, ?, ?, ?, ?, ?, 0, NULL, NULL, ?)`,
+       (id, fileName, sizeBytes, uploadedAt, storagePath, contentHash, approved, approvedBy, approvedAt, sensitivityFlag, malwareScanStatus, malwareScanDetail)
+     VALUES (?, ?, ?, ?, ?, ?, 0, NULL, NULL, ?, ?, ?)`,
   ).run(
     document.id,
     document.fileName,
@@ -72,7 +79,19 @@ export async function addReferenceDocument(file: File): Promise<ReferenceDocumen
     document.storagePath,
     document.contentHash,
     document.sensitivityFlag,
+    document.malwareScanStatus,
+    document.malwareScanDetail,
   );
+
+  if (scanResult.status === "infected") {
+    await recordAuditEvent(
+      "malware_detected",
+      null,
+      `Quarantined "${document.fileName}" from the reference library — ClamAV flagged it as ${scanResult.signature}`,
+    );
+    return document;
+  }
+
   await recordAuditEvent(
     "reference_document_uploaded",
     null,
@@ -92,9 +111,12 @@ export async function approveReferenceDocument(
   approvedByUserId: string,
 ): Promise<void> {
   const row = db
-    .prepare("SELECT fileName FROM reference_documents WHERE id = ?")
-    .get(id) as unknown as { fileName: string } | undefined;
+    .prepare("SELECT fileName, malwareScanStatus FROM reference_documents WHERE id = ?")
+    .get(id) as unknown as { fileName: string; malwareScanStatus: string | null } | undefined;
   if (!row) throw new Error("Reference document not found");
+  if (row.malwareScanStatus === "infected") {
+    throw new Error("This document was quarantined as malware and can't be approved.");
+  }
 
   db.prepare(
     "UPDATE reference_documents SET approved = 1, approvedBy = ?, approvedAt = ? WHERE id = ?",

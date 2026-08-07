@@ -101,7 +101,11 @@ export interface Document {
   detectedLanguage: string | null;
   ocrConfidence: number | null;
   qualityScore: number | null;
+  malwareScanStatus: MalwareScanStatus | null;
+  malwareScanDetail: string | null;
 }
+
+export type MalwareScanStatus = "clean" | "infected" | "error" | "not_scanned";
 
 // A shared, firm-wide document library (e.g. statutes, the Criminal Code,
 // key case law PDFs) — not tied to one matter. Attached to individual
@@ -125,6 +129,8 @@ export interface ReferenceDocument {
   detectedLanguage: string | null;
   ocrConfidence: number | null;
   qualityScore: number | null;
+  malwareScanStatus: MalwareScanStatus | null;
+  malwareScanDetail: string | null;
 }
 
 // A CanLII legislation record being watched for changes. CanLII's API only

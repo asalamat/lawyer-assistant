@@ -67,6 +67,7 @@ interface Settings {
   defaultTranslationLanguage?: string;
   piiMasking?: Partial<PiiMaskingSettings>;
   ollama?: Partial<OllamaConfig>;
+  malwareScanningEnabled?: boolean;
 }
 
 export const DEFAULT_TRANSLATION_LANGUAGE = "French";
@@ -331,6 +332,21 @@ export async function getOllamaConfig(): Promise<OllamaConfig | undefined> {
 export async function setOllamaConfig(config: OllamaConfig): Promise<void> {
   const settings = await readSettings();
   settings.ollama = { baseUrl: config.baseUrl.trim() || DEFAULT_OLLAMA_BASE_URL, model: config.model.trim() };
+  await writeSettings(settings);
+}
+
+// Default on — if ClamAV isn't actually installed, scanning is a silent
+// no-op anyway (see malwareScan.ts), so defaulting to enabled costs nothing
+// on a machine without it and needs no setup on one that has it. An admin
+// can still turn it off (e.g. if scan latency becomes a problem).
+export async function getMalwareScanningEnabled(): Promise<boolean> {
+  const settings = await readSettings();
+  return settings.malwareScanningEnabled ?? true;
+}
+
+export async function setMalwareScanningEnabled(enabled: boolean): Promise<void> {
+  const settings = await readSettings();
+  settings.malwareScanningEnabled = enabled;
   await writeSettings(settings);
 }
 

@@ -55,7 +55,14 @@ export default async function MatterOverviewPage({
                   )}
                 </span>
                 <span className="flex items-center gap-3 text-muted">
-                  {isExtractableDocument(doc.fileName) ? (
+                  {doc.malwareScanStatus === "infected" ? (
+                    <span
+                      className="rounded-full bg-red-600/10 px-2 py-0.5 text-xs text-red-700 dark:text-red-400"
+                      title={doc.malwareScanDetail ?? undefined}
+                    >
+                      quarantined — malware detected
+                    </span>
+                  ) : isExtractableDocument(doc.fileName) ? (
                     doc.extractionStatus === "failed" ? (
                       <>
                         <span

@@ -38,6 +38,14 @@ export function isExtractableDocument(fileName: string): boolean {
   ].some((ext) => fileName.toLowerCase().endsWith(ext));
 }
 
+// A file ClamAV flagged as infected is never read as AI context, chunked,
+// or shown as "chat-readable" — quarantine means isolated, not just
+// labeled. Every extractable-document filter in this app should use this
+// instead of isExtractableDocument alone once malware scanning is in play.
+export function isSafeToExtract(doc: { fileName: string; malwareScanStatus?: string | null }): boolean {
+  return isExtractableDocument(doc.fileName) && doc.malwareScanStatus !== "infected";
+}
+
 // Documents on disk are encrypted at rest. Files uploaded before that
 // shipped are still plaintext there — detect and migrate those in place the
 // first time they're read, rather than requiring a separate migration step.

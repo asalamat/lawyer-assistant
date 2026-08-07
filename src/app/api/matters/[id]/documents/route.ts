@@ -7,7 +7,7 @@ import {
   getMatter,
   listDocuments,
 } from "@/lib/matters";
-import { isExtractableDocument } from "@/lib/textExtraction";
+import { isSafeToExtract } from "@/lib/textExtraction";
 
 export async function GET(
   _request: Request,
@@ -52,7 +52,7 @@ export async function POST(
   let newDeadlines = 0;
   let classificationSuggestion = null;
   let nearDuplicate = null;
-  if (isExtractableDocument(document.fileName)) {
+  if (isSafeToExtract(document)) {
     try {
       newDeadlines = (await checkForNewDeadlines(id)).newCount;
     } catch {

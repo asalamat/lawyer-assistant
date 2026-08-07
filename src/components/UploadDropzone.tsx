@@ -27,6 +27,11 @@ interface NearDuplicateMatch {
   score: number;
 }
 
+interface QuarantinedFile {
+  fileName: string;
+  signature: string | null;
+}
+
 export default function UploadDropzone({
   matterId,
   uploadUrl,
@@ -45,6 +50,7 @@ export default function UploadDropzone({
   const [classificationSuggestion, setClassificationSuggestion] =
     useState<ClassificationSuggestion | null>(null);
   const [nearDuplicates, setNearDuplicates] = useState<NearDuplicateMatch[]>([]);
+  const [quarantined, setQuarantined] = useState<QuarantinedFile[]>([]);
   const [backgroundCheckPending, setBackgroundCheckPending] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
@@ -77,10 +83,12 @@ export default function UploadDropzone({
     setNewDeadlines(0);
     setClassificationSuggestion(null);
     setNearDuplicates([]);
+    setQuarantined([]);
     setBackgroundCheckPending(false);
     let foundDeadlines = 0;
     let foundSuggestion: ClassificationSuggestion | null = null;
     const foundNearDuplicates: NearDuplicateMatch[] = [];
+    const foundQuarantined: QuarantinedFile[] = [];
     try {
       for (const file of Array.from(files)) {
         if (zipImportUrl && file.name.toLowerCase().endsWith(".zip")) {
@@ -98,10 +106,14 @@ export default function UploadDropzone({
         if (typeof body?.newDeadlines === "number") foundDeadlines += body.newDeadlines;
         if (body?.classificationSuggestion) foundSuggestion = body.classificationSuggestion;
         if (body?.nearDuplicate) foundNearDuplicates.push(body.nearDuplicate);
+        if (body?.malwareScanStatus === "infected") {
+          foundQuarantined.push({ fileName: body.fileName, signature: body.malwareScanDetail ?? null });
+        }
       }
       setNewDeadlines(foundDeadlines);
       setClassificationSuggestion(foundSuggestion);
       setNearDuplicates(foundNearDuplicates);
+      setQuarantined(foundQuarantined);
       if (onUploaded) onUploaded();
       else router.refresh();
     } catch (err) {
@@ -164,6 +176,17 @@ export default function UploadDropzone({
             </>
           )}
         </p>
+      )}
+
+      {quarantined.length > 0 && (
+        <ul className="mt-2 flex flex-col gap-1 text-xs text-red-600">
+          {quarantined.map((q, i) => (
+            <li key={`${q.fileName}-${i}`}>
+              &quot;{q.fileName}&quot; was flagged as malware ({q.signature ?? "unknown signature"}) and
+              quarantined — it will not be readable by chat or any AI feature.
+            </li>
+          ))}
+        </ul>
       )}
 
       {nearDuplicates.length > 0 && (
