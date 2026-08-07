@@ -6,6 +6,20 @@ import { read, utils } from "xlsx";
 import { decryptFile, encryptFile, isEncryptedFile } from "./crypto";
 import { transcribeAudio } from "./transcription";
 
+// Renders a detected table (PDF vector-grid detection or a DOCX table
+// element — both reduce to a plain string grid) as a markdown table, the
+// format an LLM is best trained on for tabular reasoning. Appended
+// alongside the page/paragraph's own flattened text rather than replacing
+// it — table detection is heuristic, so the model keeps the raw fallback
+// too instead of trusting a possibly-misdetected structure blindly.
+function renderMarkdownTable(rows: string[][]): string {
+  if (rows.length === 0) return "";
+  const escapeCell = (cell: string) => (cell ?? "").replace(/\|/g, "\\|").replace(/\s+/g, " ").trim();
+  const [header, ...body] = rows.map((row) => row.map(escapeCell));
+  const lines = [header, header.map(() => "---"), ...body].map((row) => `| ${row.join(" | ")} |`);
+  return lines.join("\n");
+}
+
 const PLAIN_TEXT_EXTENSIONS = [".txt", ".md"];
 const PDF_EXTENSIONS = [".pdf"];
 const DOCX_EXTENSIONS = [".docx"];
@@ -21,6 +35,59 @@ const AUDIO_VIDEO_EXTENSIONS = [
   ".wav",
   ".webm",
 ];
+
+interface MammothElement {
+  type: string;
+  value?: string;
+  children?: MammothElement[];
+}
+
+function elementToText(element: MammothElement): string {
+  if (element.type === "text") return element.value ?? "";
+  if (element.type === "tab") return "\t";
+  return (element.children ?? []).map(elementToText).join("");
+}
+
+function getDescendantsOfType(element: MammothElement, type: string): MammothElement[] {
+  const found: MammothElement[] = [];
+  for (const child of element.children ?? []) {
+    if (child.type === type) found.push(child);
+    found.push(...getDescendantsOfType(child, type));
+  }
+  return found;
+}
+
+// mammoth's public API has no "give me the tables" call — extractRawText
+// flattens every cell into the surrounding text with no row/column
+// markers at all, and convertToMarkdown doesn't handle <table> either (it
+// has no markdown-writer entry for table/tr/td, so cells run together with
+// no separators). The transformDocument hook is the only supported way to
+// reach the parsed document tree, so this walks it to pull out each
+// table's cells as a plain string grid — merged cells (colspan/rowspan)
+// aren't unmerged, just read as-is.
+async function extractDocxTables(buffer: Buffer): Promise<string[][][]> {
+  const tables: string[][][] = [];
+  await mammoth.convertToHtml(
+    { buffer },
+    {
+      transformDocument: (document: MammothElement) => {
+        for (const table of getDescendantsOfType(document, "table")) {
+          const rows = (table.children ?? [])
+            .filter((child) => child.type === "tableRow")
+            .map((row) =>
+              (row.children ?? [])
+                .filter((cell) => cell.type === "tableCell")
+                .map((cell) => elementToText(cell).replace(/\s+/g, " ").trim()),
+            )
+            .filter((row) => row.length > 0);
+          if (rows.length > 0) tables.push(rows);
+        }
+        return document;
+      },
+    },
+  );
+  return tables;
+}
 
 function hasExtension(fileName: string, extensions: string[]): boolean {
   const lower = fileName.toLowerCase();
@@ -86,10 +153,21 @@ export async function extractDocumentText(
     const parser = new PDFParse({ data: buffer });
     try {
       const result = await parser.getText();
+      // getTable() detects tables from vector grid lines drawn on the page
+      // — heuristic, so failures here are swallowed rather than breaking
+      // extraction of the (already-successful) plain text.
+      const tablesByPage = await parser.getTable().catch(() => null);
       // Page markers let the model cite a specific page (e.g. "(file.pdf, p. 4)")
       // instead of just the filename — see citationCheck.ts, which parses this
       // format back out to verify the citation.
-      return { text: result.pages.map((page) => `[Page ${page.num}]\n${page.text}`).join("\n\n") };
+      const text = result.pages
+        .map((page) => {
+          const tables = tablesByPage?.pages.find((t) => t.num === page.num)?.tables ?? [];
+          const tablesText = tables.map((rows) => renderMarkdownTable(rows)).join("\n\n");
+          return `[Page ${page.num}]\n${page.text}${tablesText ? `\n\n${tablesText}` : ""}`;
+        })
+        .join("\n\n");
+      return { text };
     } finally {
       await parser.destroy();
     }
@@ -97,7 +175,9 @@ export async function extractDocumentText(
 
   if (hasExtension(fileName, DOCX_EXTENSIONS)) {
     const result = await mammoth.extractRawText({ buffer });
-    return { text: result.value };
+    const tables = await extractDocxTables(buffer).catch(() => []);
+    const tablesText = tables.map((rows) => renderMarkdownTable(rows)).join("\n\n");
+    return { text: tablesText ? `${result.value}\n\n${tablesText}` : result.value };
   }
 
   if (hasExtension(fileName, IMAGE_EXTENSIONS)) {
