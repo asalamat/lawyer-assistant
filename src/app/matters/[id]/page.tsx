@@ -8,6 +8,7 @@ import MatterComplianceControls from "@/components/MatterComplianceControls";
 import MatterTeamPanel from "@/components/MatterTeamPanel";
 import ReferenceDocumentsAttachPanel from "@/components/ReferenceDocumentsAttachPanel";
 import RetryExtractionButton from "@/components/RetryExtractionButton";
+import ShareWithClientToggle from "@/components/ShareWithClientToggle";
 import SimilarDocumentsButton from "@/components/SimilarDocumentsButton";
 import UploadDropzone from "@/components/UploadDropzone";
 
@@ -108,6 +109,13 @@ export default async function MatterOverviewPage({
                     <span className="badge">not used in chat</span>
                   )}
                   {(doc.sizeBytes / 1024).toFixed(1)} KB
+                  {matter?.clientId && (
+                    <ShareWithClientToggle
+                      matterId={id}
+                      documentId={doc.id}
+                      initialShared={Boolean(doc.sharedWithClient)}
+                    />
+                  )}
                 </span>
               </li>
             ))}

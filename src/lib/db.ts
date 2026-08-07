@@ -218,6 +218,32 @@ execWithRetry(`
     FOREIGN KEY (userId) REFERENCES users(id)
   );
 
+  -- A persistent client-portal account, distinct from the staff users
+  -- table — a different identity realm with its own login/session (see
+  -- clientAuth.ts), not another role on the staff side. One account per
+  -- client for now (the client entity itself logs in, not a named contact).
+  CREATE TABLE IF NOT EXISTS client_users (
+    id TEXT PRIMARY KEY,
+    clientId TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    passwordHash TEXT NOT NULL,
+    passwordSalt TEXT NOT NULL,
+    mustChangePassword INTEGER NOT NULL DEFAULT 1,
+    active INTEGER NOT NULL DEFAULT 1,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (clientId) REFERENCES clients(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_client_users_clientId ON client_users(clientId);
+
+  CREATE TABLE IF NOT EXISTS client_sessions (
+    tokenHash TEXT PRIMARY KEY,
+    clientUserId TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    expiresAt TEXT NOT NULL,
+    FOREIGN KEY (clientUserId) REFERENCES client_users(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_client_sessions_clientUserId ON client_sessions(clientUserId);
+
   -- Issued once a password has already been verified but MFA is still
   -- outstanding — a real session is only ever created after the TOTP/backup
   -- code check passes. Short-lived (see createPendingMfaToken), single-use.
@@ -581,6 +607,11 @@ ensureColumn("reference_documents", "malwareScanDetail", "TEXT");
 // same table (see emailImport.ts). Self-referencing, so no separate join
 // table is needed.
 ensureColumn("documents", "parentDocumentId", "TEXT");
+
+// A document is only visible in the client portal once a lawyer explicitly
+// flips this on (see clientPortal.ts) — nothing is exposed to a client by
+// default just because their portal account exists.
+ensureColumn("documents", "sharedWithClient", "INTEGER NOT NULL DEFAULT 0");
 
 // Splits the reference library's single shelf into the two shared tiers of
 // the vision doc's three-layer knowledge architecture (client-matter

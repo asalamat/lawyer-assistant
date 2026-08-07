@@ -11,6 +11,7 @@ export function isChromelessRoute(pathname: string): boolean {
     pathname.startsWith("/sign/") ||
     pathname.startsWith("/intake/") ||
     pathname.startsWith("/graph-view/") ||
-    pathname.startsWith("/export/pdf")
+    pathname.startsWith("/export/pdf") ||
+    pathname.startsWith("/portal")
   );
 }

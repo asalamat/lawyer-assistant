@@ -80,6 +80,11 @@ export const ACTION_LABELS: Record<string, string> = {
   related_matter_unlinked: "Related matter unlinked",
   intake_questionnaire_sent: "Intake questionnaire sent to client",
   intake_questionnaire_completed: "Intake questionnaire completed by client",
+  client_portal_access_granted: "Client portal access granted",
+  client_portal_password_reset: "Client portal password reset",
+  document_shared_with_client: "Document shared with client portal",
+  document_unshared_from_client: "Document unshared from client portal",
+  client_portal_document_downloaded: "Document downloaded from client portal",
 };
 
 export async function recordAuditEvent(

@@ -106,6 +106,20 @@ export interface Document {
   // Set when this document was an attachment on an imported email — points
   // at the email's own Document row (see emailImport.ts).
   parentDocumentId: string | null;
+  // Whether this document is visible in the client portal (see
+  // clientPortal.ts) — off by default, a lawyer has to opt each document in.
+  sharedWithClient: number;
+}
+
+// A persistent client-portal login, distinct from staff users (see
+// clientAuth.ts). Never carries password fields outside that module.
+export interface ClientUser {
+  id: string;
+  clientId: string;
+  email: string;
+  mustChangePassword: number;
+  active: number;
+  createdAt: string;
 }
 
 export type MalwareScanStatus = "clean" | "infected" | "error" | "not_scanned";

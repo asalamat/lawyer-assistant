@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { getClientUserForClient } from "@/lib/clientAuth";
 import { getClient, listMattersForClient } from "@/lib/clients";
 import { filterAccessibleMatterIds } from "@/lib/matterAccess";
 import ClientDetailActions from "@/components/ClientDetailActions";
+import ClientPortalAccessPanel from "@/components/ClientPortalAccessPanel";
 import MatterCard from "@/components/MatterCard";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +23,7 @@ export default async function ClientDetailPage({
     ? filterAccessibleMatterIds(user.id, user.role, allMatters.map((m) => m.id))
     : new Set(allMatters.map((m) => m.id));
   const matters = allMatters.filter((m) => accessibleIds.has(m.id));
+  const clientUser = await getClientUserForClient(id);
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-10">
@@ -43,6 +46,8 @@ export default async function ClientDetailPage({
       </div>
 
       <ClientDetailActions client={client} matterCount={matters.length} />
+
+      <ClientPortalAccessPanel client={client} initialClientUser={clientUser} />
 
       <div>
         <h2 className="mb-2 font-display text-lg">

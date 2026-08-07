@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
+import { getClientSessionUser } from "@/lib/clientAuth";
 import { canAccessMatter } from "@/lib/matterAccess";
 
 // Sub-routes of /api/matters/ (and only /api/matters/, not /matters/ pages)
@@ -33,6 +34,18 @@ const PUBLIC_PATHS = [
 // deliberately not a client portal. Auth for these lives in the route
 // handler itself (validating the token), not here.
 const PUBLIC_PATH_PREFIXES = ["/sign/", "/api/sign/", "/intake/", "/api/intake/"];
+
+// The persistent client portal (see clientAuth.ts) is a wholly separate
+// identity realm from staff — its own login, its own "client_session"
+// cookie, no role/mustChangePassword/ethical-wall concepts of its own. It
+// gets its own gate below rather than falling through the staff logic,
+// which would otherwise redirect an unauthenticated client to /login (the
+// staff login) instead of /portal/login.
+const PORTAL_PUBLIC_PATHS = ["/portal/login", "/api/portal/login"];
+
+function isPortalPath(pathname: string): boolean {
+  return pathname === "/portal" || pathname.startsWith("/portal/") || pathname.startsWith("/api/portal");
+}
 
 // Settings pages/API routes configure shared, firm-wide resources (API
 // keys, SMTP, integrations, system updates, backups) — restricted to
@@ -77,6 +90,21 @@ function isAdminOnlyApi(pathname: string): boolean {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (isPortalPath(pathname)) {
+    if (PORTAL_PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
+
+    const clientToken = request.cookies.get("client_session")?.value;
+    const clientUser = await getClientSessionUser(clientToken);
+    if (!clientUser) {
+      if (pathname.startsWith("/api")) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      return NextResponse.redirect(new URL("/portal/login", request.url));
+    }
+    return NextResponse.next();
+  }
+
   if (
     PUBLIC_PATHS.includes(pathname) ||
     PUBLIC_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix))

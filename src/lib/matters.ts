@@ -359,6 +359,27 @@ export async function listDocuments(matterId: string): Promise<Document[]> {
     .map((row) => toPlain<Document>(row));
 }
 
+// Nothing is visible in the client portal (see clientPortal.ts) just
+// because a client has an account — a lawyer has to opt each document in
+// explicitly, one at a time, via this toggle.
+export async function setDocumentSharedWithClient(
+  matterId: string,
+  documentId: string,
+  shared: boolean,
+): Promise<void> {
+  const doc = db
+    .prepare("SELECT fileName FROM documents WHERE id = ? AND matterId = ?")
+    .get(documentId, matterId) as unknown as { fileName: string } | undefined;
+  if (!doc) throw new Error("Document not found");
+
+  db.prepare("UPDATE documents SET sharedWithClient = ? WHERE id = ?").run(shared ? 1 : 0, documentId);
+  await recordAuditEvent(
+    shared ? "document_shared_with_client" : "document_unshared_from_client",
+    matterId,
+    `${shared ? "Shared" : "Unshared"} "${doc.fileName}" ${shared ? "with" : "from"} the client portal`,
+  );
+}
+
 // Every real filename an AI-generated answer/document could legitimately
 // cite for this matter — its own documents plus whichever reference-library
 // material is attached to it. Used to deterministically flag a citation
@@ -443,6 +464,7 @@ export async function addDocument(
     malwareScanStatus: scanResult.status,
     malwareScanDetail: scanResult.signature,
     parentDocumentId,
+    sharedWithClient: 0,
   };
   db.prepare(
     `INSERT INTO documents
