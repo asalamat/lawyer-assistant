@@ -29,5 +29,21 @@ export async function importEmailAsDocument(
     matterId,
     `Imported email "${email.subject}" from ${provider} as "${document.fileName}"`,
   );
+
+  // Import each attachment as its own document, linked back to the email
+  // (see Document.parentDocumentId) so the relationship survives even
+  // though both end up as ordinary documents in the same matter.
+  for (const attachment of email.attachments) {
+    const attachmentFile = new File([new Uint8Array(attachment.content)], attachment.filename, {
+      type: attachment.contentType ?? "application/octet-stream",
+    });
+    const attachmentDoc = await addDocument(matterId, attachmentFile, document.id);
+    await recordAuditEvent(
+      "email_imported_to_matter",
+      matterId,
+      `Imported attachment "${attachmentDoc.fileName}" from email "${email.subject}"`,
+    );
+  }
+
   return document;
 }

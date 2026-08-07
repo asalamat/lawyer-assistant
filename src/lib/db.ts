@@ -576,6 +576,12 @@ ensureColumn("documents", "malwareScanDetail", "TEXT");
 ensureColumn("reference_documents", "malwareScanStatus", "TEXT");
 ensureColumn("reference_documents", "malwareScanDetail", "TEXT");
 
+// Links an email attachment back to the email it was imported with, so the
+// relationship survives even though both end up as ordinary rows in the
+// same table (see emailImport.ts). Self-referencing, so no separate join
+// table is needed.
+ensureColumn("documents", "parentDocumentId", "TEXT");
+
 // One-time migration: matters used to store client identity only as free
 // text (clientName/clientEmail), with no real entity linking one client's
 // several matters together. Backfill a clients row per distinct

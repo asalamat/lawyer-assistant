@@ -103,6 +103,9 @@ export interface Document {
   qualityScore: number | null;
   malwareScanStatus: MalwareScanStatus | null;
   malwareScanDetail: string | null;
+  // Set when this document was an attachment on an imported email — points
+  // at the email's own Document row (see emailImport.ts).
+  parentDocumentId: string | null;
 }
 
 export type MalwareScanStatus = "clean" | "infected" | "error" | "not_scanned";

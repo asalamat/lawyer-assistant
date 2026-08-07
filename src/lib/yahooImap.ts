@@ -156,6 +156,16 @@ export async function getYahooMessageBody(
       subject: parsed.subject ?? "",
       from: parsed.from?.text ?? "",
       body: parsed.text ?? (typeof parsed.html === "string" ? parsed.html : ""),
+      // mailparser also reports inline images used in the HTML body as
+      // "attachments" with contentDisposition "inline" — those are
+      // formatting, not something a lawyer filed as an attachment.
+      attachments: parsed.attachments
+        .filter((a) => a.contentDisposition !== "inline")
+        .map((a) => ({
+          filename: a.filename ?? "attachment",
+          contentType: a.contentType ?? null,
+          content: a.content,
+        })),
     };
   } finally {
     await client.logout().catch(() => {});

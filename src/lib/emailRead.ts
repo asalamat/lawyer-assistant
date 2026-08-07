@@ -10,10 +10,17 @@ export interface EmailMessageSummary {
   receivedAt: string;
 }
 
+export interface EmailMessageAttachment {
+  filename: string;
+  contentType: string | null;
+  content: Buffer;
+}
+
 export interface EmailMessageBody {
   subject: string;
   from: string;
   body: string;
+  attachments: EmailMessageAttachment[];
 }
 
 // Unlike listEmailAccounts() in emailIntegration.ts, this deliberately selects
@@ -56,8 +63,9 @@ interface GmailHeader {
 }
 interface GmailPart {
   mimeType?: string;
+  filename?: string;
   headers?: GmailHeader[];
-  body?: { data?: string; size?: number };
+  body?: { data?: string; size?: number; attachmentId?: string };
   parts?: GmailPart[];
 }
 interface GmailMessage {
@@ -104,6 +112,39 @@ function decodeGmailBody(payload: GmailPart | undefined): string {
   return "";
 }
 
+// Attachment parts carry a filename and an attachmentId instead of inline
+// body.data — the actual bytes need a separate fetch per part (see
+// fetchGmailAttachments). Inline images referenced from the HTML body (no
+// filename) are skipped; they're formatting, not something a lawyer filed.
+function collectGmailAttachmentParts(part: GmailPart | undefined): GmailPart[] {
+  if (!part) return [];
+  const found: GmailPart[] = [];
+  if (part.filename && part.body?.attachmentId) found.push(part);
+  for (const child of part.parts ?? []) found.push(...collectGmailAttachmentParts(child));
+  return found;
+}
+
+async function fetchGmailAttachments(
+  accessToken: string,
+  messageId: string,
+  payload: GmailPart | undefined,
+): Promise<EmailMessageAttachment[]> {
+  const parts = collectGmailAttachmentParts(payload);
+  return Promise.all(
+    parts.map(async (part) => {
+      const attachment = (await gmailFetch(
+        accessToken,
+        `messages/${messageId}/attachments/${part.body!.attachmentId}`,
+      )) as { data?: string };
+      return {
+        filename: part.filename!,
+        contentType: part.mimeType ?? null,
+        content: Buffer.from(attachment.data ?? "", "base64url"),
+      };
+    }),
+  );
+}
+
 async function gmailFetch(accessToken: string, path: string): Promise<unknown> {
   const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/${path}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -131,6 +172,38 @@ interface GraphMessage {
   receivedDateTime?: string;
   from?: { emailAddress?: { name?: string; address?: string } };
   body?: { contentType?: string; content?: string };
+  hasAttachments?: boolean;
+}
+
+interface GraphAttachment {
+  "@odata.type"?: string;
+  name?: string;
+  contentType?: string;
+  contentBytes?: string;
+  isInline?: boolean;
+}
+
+// Only file attachments carry contentBytes — item/reference attachments
+// (a forwarded email, a shared OneDrive link) don't have real bytes to
+// import as a document, and isInline ones are formatting images embedded
+// in the HTML body, not something a lawyer filed as an attachment.
+async function fetchGraphAttachments(
+  accessToken: string,
+  messageId: string,
+): Promise<EmailMessageAttachment[]> {
+  const result = (await graphFetch(accessToken, `messages/${messageId}/attachments`)) as {
+    value?: GraphAttachment[];
+  };
+  return (result.value ?? [])
+    .filter(
+      (a) =>
+        a["@odata.type"] === "#microsoft.graph.fileAttachment" && !a.isInline && a.contentBytes,
+    )
+    .map((a) => ({
+      filename: a.name ?? "attachment",
+      contentType: a.contentType ?? null,
+      content: Buffer.from(a.contentBytes!, "base64"),
+    }));
 }
 
 function graphFrom(message: GraphMessage): string {
@@ -272,18 +345,22 @@ export async function getMessageBody(
       subject: gmailHeader(headers, "Subject"),
       from: gmailHeader(headers, "From"),
       body: decodeGmailBody(msg.payload) || (msg.snippet ?? ""),
+      attachments: await fetchGmailAttachments(account.accessToken, messageId, msg.payload),
     };
   }
 
   // provider === "microsoft"
   const msg = (await graphFetch(
     account.accessToken,
-    `messages/${messageId}?$select=subject,from,body`,
+    `messages/${messageId}?$select=subject,from,body,hasAttachments`,
   )) as GraphMessage;
   const content = msg.body?.content ?? "";
   return {
     subject: msg.subject ?? "",
     from: graphFrom(msg),
     body: msg.body?.contentType === "html" ? stripHtml(content) : content,
+    attachments: msg.hasAttachments
+      ? await fetchGraphAttachments(account.accessToken, messageId)
+      : [],
   };
 }

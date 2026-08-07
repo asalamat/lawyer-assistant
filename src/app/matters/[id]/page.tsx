@@ -1,5 +1,5 @@
 import { getLanguageName } from "@/lib/languageDetection";
-import { annotateDuplicates, annotateNearDuplicates, getMatter, listDocuments } from "@/lib/matters";
+import { annotateAttachments, annotateDuplicates, annotateNearDuplicates, getMatter, listDocuments } from "@/lib/matters";
 import { listTeam } from "@/lib/matterTeam";
 import { listAttachedReferenceDocuments, listReferenceDocuments } from "@/lib/referenceLibrary";
 import { isExtractableDocument } from "@/lib/textExtraction";
@@ -18,7 +18,10 @@ export default async function MatterOverviewPage({
 }) {
   const { id } = await params;
   const matter = await getMatter(id);
-  const documents = await annotateNearDuplicates(id, annotateDuplicates(await listDocuments(id)));
+  const documents = await annotateNearDuplicates(
+    id,
+    annotateAttachments(annotateDuplicates(await listDocuments(id))),
+  );
   const attachedReferenceDocs = await listAttachedReferenceDocuments(id);
   const team = await listTeam(id);
   // Only approved reference documents can be attached to a matter — a
@@ -51,6 +54,11 @@ export default async function MatterOverviewPage({
                       title={`${Math.round((doc.nearDuplicateScore ?? 0) * 100)}% similar`}
                     >
                       near-duplicate of {doc.nearDuplicateOfFileName}
+                    </span>
+                  )}
+                  {doc.parentFileName && (
+                    <span className="badge ml-2" title={`Attachment on ${doc.parentFileName}`}>
+                      attachment of {doc.parentFileName}
                     </span>
                   )}
                 </span>

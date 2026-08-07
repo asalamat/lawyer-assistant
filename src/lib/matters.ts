@@ -407,6 +407,7 @@ export async function retryDocumentExtraction(
 export async function addDocument(
   matterId: string,
   file: File,
+  parentDocumentId: string | null = null,
 ): Promise<Document> {
   const id = crypto.randomUUID();
   const bytes = Buffer.from(await file.arrayBuffer());
@@ -441,11 +442,12 @@ export async function addDocument(
     qualityScore: null,
     malwareScanStatus: scanResult.status,
     malwareScanDetail: scanResult.signature,
+    parentDocumentId,
   };
   db.prepare(
     `INSERT INTO documents
-       (id, matterId, fileName, sizeBytes, uploadedAt, storagePath, contentHash, malwareScanStatus, malwareScanDetail)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, matterId, fileName, sizeBytes, uploadedAt, storagePath, contentHash, malwareScanStatus, malwareScanDetail, parentDocumentId)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     document.id,
     document.matterId,
@@ -456,6 +458,7 @@ export async function addDocument(
     document.contentHash,
     document.malwareScanStatus,
     document.malwareScanDetail,
+    document.parentDocumentId,
   );
 
   if (scanResult.status === "infected") {
@@ -500,6 +503,20 @@ export function annotateDuplicates(
       duplicateOfFileName: original && original.id !== doc.id ? original.fileName : null,
     };
   });
+}
+
+// Surfaces the email-attachment relationship (see emailImport.ts /
+// parentDocumentId) the same way annotateDuplicates surfaces content
+// duplicates — a display-only field the UI can badge, computed from the
+// documents already in hand rather than a further query.
+export function annotateAttachments<T extends Document>(
+  documents: T[],
+): (T & { parentFileName: string | null })[] {
+  const byId = new Map(documents.map((doc) => [doc.id, doc]));
+  return documents.map((doc) => ({
+    ...doc,
+    parentFileName: doc.parentDocumentId ? byId.get(doc.parentDocumentId)?.fileName ?? null : null,
+  }));
 }
 
 export async function listChatMessages(matterId: string): Promise<ChatMessage[]> {
