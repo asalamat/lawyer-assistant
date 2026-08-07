@@ -300,6 +300,7 @@ export async function deleteMatter(matterId: string): Promise<boolean> {
     matterId,
   );
   db.prepare("DELETE FROM matter_team WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM case_noteups WHERE matterId = ?").run(matterId);
   db.prepare(
     "DELETE FROM signatures WHERE signableDocumentId IN (SELECT id FROM signable_documents WHERE matterId = ?)",
   ).run(matterId);
