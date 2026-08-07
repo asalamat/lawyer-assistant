@@ -90,7 +90,7 @@ export default function GeneratedDocPanel({
           <TranslateButton content={doc.content} />
           <div className="flex items-center justify-between border-t border-border pt-3">
             <span className="text-xs text-muted">
-              {currentReview ? "Reviewed by Gemini" : "No independent review yet"}
+              {currentReview ? "Reviewed by OpenAI" : "No independent review yet"}
             </span>
             <button
               onClick={handleReview}
@@ -103,7 +103,7 @@ export default function GeneratedDocPanel({
           {reviewError && <p className="text-sm text-red-600">{reviewError}</p>}
           {currentReview && (
             <div className="surface-row flex flex-col gap-2 text-sm">
-              <p className="mb-1 text-xs font-medium text-muted">Independent review (Gemini)</p>
+              <p className="mb-1 text-xs font-medium text-muted">Independent review (OpenAI)</p>
               <MarkdownContent content={currentReview.content} />
               <TranslateButton content={currentReview.content} />
             </div>

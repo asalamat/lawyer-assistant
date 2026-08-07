@@ -1,7 +1,6 @@
 import {
   getAnthropicApiKeyStatus,
   getCanliiApiKeyStatus,
-  getGeminiApiKeyStatus,
   getOpenaiApiKeyStatus,
   getSmtpStatus,
   getWeatherLocation,
@@ -20,10 +19,9 @@ export interface HealthStatus {
 }
 
 export async function getHealthStatus(): Promise<HealthStatus> {
-  const [anthropic, openai, gemini, canlii, smtp, location] = await Promise.all([
+  const [anthropic, openai, canlii, smtp, location] = await Promise.all([
     getAnthropicApiKeyStatus(),
     getOpenaiApiKeyStatus(),
-    getGeminiApiKeyStatus(),
     getCanliiApiKeyStatus(),
     getSmtpStatus(),
     getWeatherLocation(),
@@ -45,9 +43,9 @@ export async function getHealthStatus(): Promise<HealthStatus> {
       settingsHref: "/settings/ai",
     },
     {
-      name: "Independent review (Gemini)",
-      configured: gemini.configured,
-      detail: gemini.configured ? "Configured" : "Not configured — optional",
+      name: "Independent review (OpenAI)",
+      configured: openai.configured,
+      detail: openai.configured ? "Configured" : "Not configured — optional",
       settingsHref: "/settings/review",
     },
     {

@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID, scryptSync, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import db, { toPlain } from "./db";
+import { generateOtpAuthUri, generateTotpSecret, verifyTotp } from "./totp";
 
 export type UserRole = "admin" | "lawyer" | "staff";
 
@@ -199,6 +200,125 @@ export async function clearSession(token: string | undefined): Promise<void> {
 
 export async function invalidateUserSessions(userId: string): Promise<void> {
   db.prepare("DELETE FROM sessions WHERE userId = ?").run(userId);
+}
+
+const PENDING_MFA_TTL_MS = 5 * 60 * 1000;
+
+// Issued once a password has already checked out but MFA is still
+// outstanding — a real session is only created after verifyTotpOrBackupCode
+// succeeds against this token's userId, so a stolen/guessed pendingToken
+// alone can't authenticate anything.
+export async function createPendingMfaToken(userId: string): Promise<string> {
+  // Opportunistic cleanup of abandoned (never-completed) pending logins —
+  // cheap since this only runs once per login attempt, and keeps the table
+  // from growing unbounded without a separate scheduled job.
+  db.prepare("DELETE FROM pending_mfa WHERE expiresAt < ?").run(new Date().toISOString());
+
+  const token = randomBytes(32).toString("hex");
+  const now = Date.now();
+  db.prepare(
+    "INSERT INTO pending_mfa (tokenHash, userId, createdAt, expiresAt) VALUES (?, ?, ?, ?)",
+  ).run(hashToken(token), userId, new Date(now).toISOString(), new Date(now + PENDING_MFA_TTL_MS).toISOString());
+  return token;
+}
+
+// Single-use: always deletes the row, whether or not it turns out to be
+// valid/expired, so a leaked pending token can't be replayed after this call.
+export async function consumePendingMfaToken(token: string): Promise<string | null> {
+  const row = db
+    .prepare("SELECT userId, expiresAt FROM pending_mfa WHERE tokenHash = ?")
+    .get(hashToken(token)) as { userId: string; expiresAt: string } | undefined;
+  if (!row) return null;
+  db.prepare("DELETE FROM pending_mfa WHERE tokenHash = ?").run(hashToken(token));
+  if (new Date(row.expiresAt).getTime() < Date.now()) return null;
+  return row.userId;
+}
+
+export async function isTotpEnabled(userId: string): Promise<boolean> {
+  const row = db.prepare("SELECT totpEnabled FROM users WHERE id = ?").get(userId) as
+    | { totpEnabled: number }
+    | undefined;
+  return !!row?.totpEnabled;
+}
+
+// Stores the secret immediately (unconfirmed — totpEnabled stays 0) so
+// confirmTotpEnrollment has something to check the user's first code
+// against; starting enrollment again before confirming just overwrites it.
+export async function beginTotpEnrollment(userId: string): Promise<{ secret: string; otpAuthUri: string }> {
+  const user = await getUserById(userId);
+  if (!user) throw new Error("User not found");
+  const secret = generateTotpSecret();
+  db.prepare("UPDATE users SET totpSecret = ?, totpEnabled = 0 WHERE id = ?").run(secret, userId);
+  return { secret, otpAuthUri: generateOtpAuthUri(secret, user.email) };
+}
+
+function normalizeBackupCode(code: string): string {
+  return code.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function hashBackupCode(code: string): string {
+  return createHash("sha256").update(normalizeBackupCode(code)).digest("hex");
+}
+
+function generateBackupCodes(count = 8): string[] {
+  return Array.from({ length: count }, () => {
+    const raw = randomBytes(6).toString("hex");
+    return `${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}`;
+  });
+}
+
+// Requires a real code from the just-scanned secret before flipping
+// totpEnabled on — otherwise a typo'd/never-actually-configured
+// authenticator app would lock the account out at the very next login.
+// Returns the plaintext backup codes exactly once; only their hashes are
+// ever stored.
+export async function confirmTotpEnrollment(userId: string, code: string): Promise<string[]> {
+  const row = db.prepare("SELECT totpSecret FROM users WHERE id = ?").get(userId) as
+    | { totpSecret: string | null }
+    | undefined;
+  if (!row?.totpSecret) throw new Error("Start enrollment before confirming a code.");
+  if (!verifyTotp(row.totpSecret, code)) {
+    throw new Error("That code didn't match. Check your authenticator app and try again.");
+  }
+
+  const backupCodes = generateBackupCodes();
+  db.prepare("UPDATE users SET totpEnabled = 1, totpBackupCodesJson = ? WHERE id = ?").run(
+    JSON.stringify(backupCodes.map(hashBackupCode)),
+    userId,
+  );
+  return backupCodes;
+}
+
+export async function disableTotp(userId: string, currentPassword: string): Promise<boolean> {
+  const row = db.prepare("SELECT * FROM users WHERE id = ?").get(userId) as UserRow | undefined;
+  if (!row || !passwordMatches(currentPassword, row.passwordSalt, row.passwordHash)) return false;
+  db.prepare(
+    "UPDATE users SET totpEnabled = 0, totpSecret = NULL, totpBackupCodesJson = NULL WHERE id = ?",
+  ).run(userId);
+  return true;
+}
+
+// Tries a live TOTP code first, then falls back to a backup code — each
+// backup code is consumed (removed from the stored list) on successful use
+// so it can't be replayed.
+export async function verifyTotpOrBackupCode(userId: string, code: string): Promise<boolean> {
+  const row = db.prepare("SELECT totpSecret, totpBackupCodesJson FROM users WHERE id = ?").get(userId) as
+    | { totpSecret: string | null; totpBackupCodesJson: string | null }
+    | undefined;
+  if (!row?.totpSecret) return false;
+
+  if (verifyTotp(row.totpSecret, code)) return true;
+
+  const backupCodeHashes: string[] = row.totpBackupCodesJson ? JSON.parse(row.totpBackupCodesJson) : [];
+  const index = backupCodeHashes.indexOf(hashBackupCode(code));
+  if (index === -1) return false;
+
+  backupCodeHashes.splice(index, 1);
+  db.prepare("UPDATE users SET totpBackupCodesJson = ? WHERE id = ?").run(
+    JSON.stringify(backupCodeHashes),
+    userId,
+  );
+  return true;
 }
 
 // Convenience for Server Components/Route Handlers: reads the session

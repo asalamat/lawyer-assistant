@@ -21,8 +21,8 @@ export interface WeatherLocation {
   longitude: number;
 }
 
-export type AiProvider = "anthropic" | "openai";
-const DEFAULT_AI_PROVIDER_ORDER: AiProvider[] = ["anthropic", "openai"];
+export type AiProvider = "anthropic" | "openai" | "gemini";
+const DEFAULT_AI_PROVIDER_ORDER: AiProvider[] = ["anthropic", "openai", "gemini"];
 
 export interface PiiMaskingSettings {
   enabled: boolean;
@@ -257,9 +257,15 @@ export async function setPiiMaskingSettings(
 
 export async function getAiProviderOrder(): Promise<AiProvider[]> {
   const settings = await readSettings();
-  return settings.aiProviderOrder && settings.aiProviderOrder.length > 0
-    ? settings.aiProviderOrder
-    : DEFAULT_AI_PROVIDER_ORDER;
+  if (!settings.aiProviderOrder || settings.aiProviderOrder.length === 0) {
+    return DEFAULT_AI_PROVIDER_ORDER;
+  }
+  // A provider added after the user already saved a custom order (e.g.
+  // Gemini joining what used to be a 2-provider anthropic/openai order)
+  // would otherwise never be tried at all, not just deprioritized — append
+  // anything missing to the end rather than dropping it.
+  const missing = DEFAULT_AI_PROVIDER_ORDER.filter((p) => !settings.aiProviderOrder!.includes(p));
+  return [...settings.aiProviderOrder, ...missing];
 }
 
 export async function setAiProviderOrder(order: AiProvider[]): Promise<void> {

@@ -45,9 +45,11 @@ intake, and a client roster that automatically links a client's matters
 together.
 
 **Document intake** — drag-and-drop upload of text, PDF, Word, Excel/CSV,
-images (OCR), and audio/video (transcription); duplicate detection by
-content hash; a shared reference library for statutes/case law you attach
-to whichever matters need them.
+images (OCR), and audio/video (transcription); exact-duplicate detection
+by content hash, plus near-duplicate detection by content similarity for
+re-scanned or reformatted copies; a review queue for documents that fail
+extraction, with a one-click retry; a shared reference library for
+statutes/case law you attach to whichever matters need them.
 
 **AI features, grounded and cited** — chat Q&A (retrieval-based, so it
 stays fast and accurate even on large matters), executive digests,
@@ -79,14 +81,17 @@ and discounts, direct email sending with attachments and AI-assisted
 drafting, connected-inbox browsing (Gmail/Microsoft/Yahoo) with import to
 a matter.
 
-**Security & governance** — real multi-user accounts and roles; API keys,
-SMTP credentials, and uploaded documents encrypted at rest; a
-cryptographically tamper-evident audit log with a one-click integrity
-check (and an admin-gated, written-reason-required re-anchor path for the
-rare case the chain needs deliberate repair); per-matter legal holds and
-classification; SIN/SSN/credit card numbers (and, optionally, phone
-numbers and email addresses) automatically masked out of matter content
-before it's sent to any AI provider, on by default (Settings > Privacy).
+**Security & governance** — real multi-user accounts and roles;
+two-factor authentication (QR-code enrollment, backup codes); per-matter
+ethical walls that restrict a matter to its assigned team, enforced on
+every page and API route; API keys, SMTP credentials, and uploaded
+documents encrypted at rest; a cryptographically tamper-evident audit log
+with a one-click integrity check (and an admin-gated, written-reason-required
+re-anchor path for the rare case the chain needs deliberate repair);
+per-matter legal holds and classification; SIN/SSN/credit card numbers
+(and, optionally, phone numbers and email addresses) automatically masked
+out of matter content before it's sent to any AI provider, on by default
+(Settings > Privacy).
 
 **Backup & restore** — one-click backup of the entire app (matters,
 documents, clients, users, settings) to a downloadable archive, with
@@ -112,7 +117,8 @@ git clone https://github.com/asalamat/lawyer-assistant.git && cd lawyer-assistan
 Then open `http://localhost:3000` — first run prompts you to create the
 first admin account, and AI features are configured afterward from inside
 the app at Settings (no `.env` editing required). Full details, including
-Windows-specific notes and how to add more user accounts, in
+Windows-specific notes, two-factor authentication, how to add more user
+accounts, and how to uninstall cleanly, in
 [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
 ## Stack
@@ -124,6 +130,18 @@ independent review. Runs identically on macOS, Windows, and Linux.
 
 ## Recent changes
 
+- Per-matter ethical walls (Compliance tab) — restricts a matter to its
+  assigned team plus admins, enforced centrally for every page and API
+  route, and the matter disappears from the matters list, dashboard,
+  search, and related-matter lookups for anyone it's walled off from
+- Two-factor authentication (Settings > Security) — QR-code enrollment
+  (hand-rolled RFC 6238 TOTP, verified against the official RFC 4226 test
+  vectors, no secret ever leaves the app to render the QR code), backup
+  codes, required on every login once enabled
+- Near-duplicate document detection (content-similarity, not just exact
+  file hash) and a failed-extraction review queue with a one-click retry,
+  so a document that couldn't be read no longer just silently vanishes
+  from AI context
 - PII masking (Settings > Privacy) — SIN/SSN/credit card numbers, and
   optionally phone/email, automatically masked out of matter content
   before it reaches any AI provider; on by default, verified live that a
@@ -247,10 +265,15 @@ reasoning behind each decision, is in
   against their own documentation, not assumed. Citations against a
   matter's *own* uploaded documents are verified; citations to outside
   case law are not.
-- **Everyone sees every matter.** Roles gate admin actions (Settings, user
-  management), not matter visibility — there's no per-matter ethical-wall
-  feature yet. Fine for a small office where confidentiality is handled by
-  trust + audit trail; revisit if a real conflict scenario needs it.
+- **Ethical walls are opt-in per matter, not the default.** Every matter is
+  visible to every staff member unless you explicitly apply an ethical wall
+  on that matter's Compliance tab. Fine for a small office where
+  confidentiality is normally handled by trust + audit trail — turn a wall
+  on for the specific matter a real conflict scenario requires it for.
+- **The ethical-wall toggle itself isn't admin-restricted.** Any staff
+  member who can open a matter can apply or remove its wall, same as legal
+  hold and classification. Revisit if that turns out to be too permissive
+  in practice.
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for the full reasoning behind every
 item above, plus what's still queued.

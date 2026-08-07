@@ -9,10 +9,14 @@ import {
   DigestIcon,
   DraftIcon,
   EvidenceIcon,
+  IntakeIcon,
   MailIcon,
   NoteIcon,
   OverviewIcon,
+  ScaleIcon,
+  SignatureIcon,
   TimesheetIcon,
+  UsersIcon,
 } from "./icons";
 
 export default function MatterSidebarNav({ matterId }: { matterId: string }) {
@@ -22,9 +26,13 @@ export default function MatterSidebarNav({ matterId }: { matterId: string }) {
   const links = [
     { href: base, label: "Overview", Icon: OverviewIcon },
     { href: `${base}/notes`, label: "Notes", Icon: NoteIcon },
+    { href: `${base}/parties`, label: "Parties", Icon: UsersIcon },
+    { href: `${base}/intake`, label: "Intake", Icon: IntakeIcon },
+    { href: `${base}/consent`, label: "Consent & signatures", Icon: SignatureIcon },
     { href: `${base}/digest`, label: "Digest", Icon: DigestIcon },
     { href: `${base}/deadlines`, label: "Deadlines", Icon: DeadlineIcon },
     { href: `${base}/evidence-matrix`, label: "Evidence matrix", Icon: EvidenceIcon },
+    { href: `${base}/case-noteup`, label: "Case citations", Icon: ScaleIcon },
     { href: `${base}/drafts`, label: "Drafts", Icon: DraftIcon },
     { href: `${base}/timesheet`, label: "Timesheet", Icon: TimesheetIcon },
     { href: `${base}/email`, label: "Email", Icon: MailIcon },

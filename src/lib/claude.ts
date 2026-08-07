@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { completeJSONWithOpenAI, completeWithOpenAI } from "./openaiText";
-import { getAiProviderOrder, getAnthropicApiKey, getOpenaiApiKey } from "./settings";
+import { completeGemini, completeJSONGemini } from "./gemini";
+import { getAiProviderOrder, getAnthropicApiKey, getGeminiApiKey, getOpenaiApiKey } from "./settings";
 import type { AiProvider } from "./settings";
 import type { DraftType, MatterClassification } from "./types";
 
@@ -84,7 +85,9 @@ async function completeJSONAnthropic<T>(params: {
 }
 
 async function isProviderConfigured(provider: AiProvider): Promise<boolean> {
-  return Boolean(provider === "anthropic" ? await getAnthropicApiKey() : await getOpenaiApiKey());
+  if (provider === "anthropic") return Boolean(await getAnthropicApiKey());
+  if (provider === "openai") return Boolean(await getOpenaiApiKey());
+  return Boolean(await getGeminiApiKey());
 }
 
 // Tries each configured provider in the user's chosen order (Settings > AI
@@ -120,9 +123,11 @@ async function complete(params: {
   messages: { role: "user" | "assistant"; content: string }[];
   maxTokens?: number;
 }): Promise<string> {
-  return forEachConfiguredProvider((provider) =>
-    provider === "anthropic" ? completeAnthropic(params) : completeWithOpenAI(params),
-  );
+  return forEachConfiguredProvider((provider) => {
+    if (provider === "anthropic") return completeAnthropic(params);
+    if (provider === "openai") return completeWithOpenAI(params);
+    return completeGemini(params);
+  });
 }
 
 async function completeJSON<T>(params: {
@@ -132,11 +137,11 @@ async function completeJSON<T>(params: {
   schemaName: string;
   maxTokens?: number;
 }): Promise<T> {
-  return forEachConfiguredProvider((provider) =>
-    provider === "anthropic"
-      ? completeJSONAnthropic<T>(params)
-      : completeJSONWithOpenAI<T>(params),
-  );
+  return forEachConfiguredProvider((provider) => {
+    if (provider === "anthropic") return completeJSONAnthropic<T>(params);
+    if (provider === "openai") return completeJSONWithOpenAI<T>(params);
+    return completeJSONGemini<T>(params);
+  });
 }
 
 export async function askClaude(params: {

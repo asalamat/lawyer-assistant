@@ -1,5 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
+import { canAccessMatter } from "@/lib/matterAccess";
+
+// Sub-routes of /api/matters/ (and only /api/matters/, not /matters/ pages)
+// that aren't a matterId — a real matterId can never collide with these
+// since matter ids are UUIDs.
+const NON_ID_API_MATTERS_SEGMENTS = new Set(["search", "conflicts"]);
+
+function extractMatterId(pathname: string): string | null {
+  const apiMatch = pathname.match(/^\/api\/matters\/([^/]+)/);
+  if (apiMatch) {
+    return NON_ID_API_MATTERS_SEGMENTS.has(apiMatch[1]) ? null : apiMatch[1];
+  }
+  const pageMatch = pathname.match(/^\/matters\/([^/]+)/);
+  return pageMatch ? pageMatch[1] : null;
+}
 
 // The legislation-watches check-all and backup/scheduled routes are meant
 // for an unattended OS cron job (no browser session exists there) — each
@@ -8,9 +23,16 @@ import { getSessionUser } from "@/lib/auth";
 const PUBLIC_PATHS = [
   "/login",
   "/api/auth/login",
+  "/api/auth/mfa",
   "/api/legislation-watches/check-all",
   "/api/backup/scheduled",
 ];
+
+// Client-facing, no-login, token-gated routes (see src/lib/clientAccess.ts).
+// Each one is scoped to a single expiring resource token, not a session —
+// deliberately not a client portal. Auth for these lives in the route
+// handler itself (validating the token), not here.
+const PUBLIC_PATH_PREFIXES = ["/sign/", "/api/sign/", "/intake/", "/api/intake/"];
 
 // Settings pages/API routes configure shared, firm-wide resources (API
 // keys, SMTP, integrations, system updates, backups) — restricted to
@@ -55,7 +77,10 @@ function isAdminOnlyApi(pathname: string): boolean {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (PUBLIC_PATHS.includes(pathname)) {
+  if (
+    PUBLIC_PATHS.includes(pathname) ||
+    PUBLIC_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+  ) {
     return NextResponse.next();
   }
 
@@ -87,6 +112,17 @@ export async function proxy(request: NextRequest) {
       return NextResponse.json({ error: "Password change required" }, { status: 403 });
     }
     return NextResponse.redirect(new URL("/settings/security", request.url));
+  }
+
+  const matterId = extractMatterId(pathname);
+  if (matterId && !canAccessMatter(user.id, user.role, matterId)) {
+    if (pathname.startsWith("/api")) {
+      return NextResponse.json(
+        { error: "This matter is restricted to its assigned team" },
+        { status: 403 },
+      );
+    }
+    return NextResponse.redirect(new URL("/matters", request.url));
   }
 
   return NextResponse.next();

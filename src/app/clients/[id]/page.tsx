@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
 import { getClient, listMattersForClient } from "@/lib/clients";
+import { filterAccessibleMatterIds } from "@/lib/matterAccess";
 import ClientDetailActions from "@/components/ClientDetailActions";
 import MatterCard from "@/components/MatterCard";
 
@@ -13,7 +15,12 @@ export default async function ClientDetailPage({
   const { id } = await params;
   const client = await getClient(id);
   if (!client) notFound();
-  const matters = await listMattersForClient(id);
+  const user = await getCurrentUser();
+  const allMatters = await listMattersForClient(id);
+  const accessibleIds = user
+    ? filterAccessibleMatterIds(user.id, user.role, allMatters.map((m) => m.id))
+    : new Set(allMatters.map((m) => m.id));
+  const matters = allMatters.filter((m) => accessibleIds.has(m.id));
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-10">

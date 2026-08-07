@@ -570,8 +570,9 @@ see git log for exact history.
       password/session-token model. Roles: admin (full access, including
       Settings/API keys and user management), lawyer, staff (lawyer and
       staff currently have identical permissions — everyone sees every
-      matter by design choice, not an oversight; per-matter ethical walls
-      were explicitly deferred until a real conflict scenario needs them).
+      matter by default; per-matter ethical walls, deferred at the time
+      this was written, shipped 2026-08-07, see "Security-audit follow-up"
+      below).
       Admin creates accounts from Settings > Users with a one-time-shown
       temporary password; the new user must set their own password on
       first login (`mustChangePassword`, enforced by a redirect in
@@ -1250,6 +1251,62 @@ see git log for exact history.
   present after installing it are the same pre-existing Next.js
   `postcss`/`sharp` findings as above, confirmed by diffing
   `package-lock.json` before/after.
+- **`qrcode`** (+ `@types/qrcode`) — renders the MFA enrollment QR code
+  server-side to a PNG data URI. Adds zero vulnerabilities of its own per
+  `npm audit`, confirmed by diffing `npm audit --json` output before/after
+  install (4 pre-existing high-severity findings, unchanged).
+
+## Security-audit follow-up (2026-08-07)
+
+Four items picked off a self-review against the original architecture vision
+doc's security/ingestion requirements. All verified live against the real
+SQLite DB (throwaway users/matters, cleaned up after) and a running dev
+server, not just build/lint.
+
+- [x] **Per-matter ethical walls** (`matters.ethicalWall`, `src/lib/matterAccess.ts`,
+      enforced centrally in `src/proxy.ts`) — resolves the "everyone sees
+      every matter" limitation noted below and at line ~1283. Off by default
+      (unchanged shared-visibility behaviour); turning it on for a specific
+      matter restricts it to that matter's `matter_team` members plus admins.
+      Enforced at the route level (every `/matters/[id]/*` page and
+      `/api/matters/[id]/*` API route redirects/403s a non-member), and the
+      matter is also filtered out of the matters list, dashboard, global
+      search, related-matter search, and client detail pages for anyone
+      without access — a wall that only blocked direct navigation but still
+      leaked the matter's existence through search would defeat the point.
+      Conflict-of-interest checking (`checkConflicts`) deliberately still
+      searches across *all* matters including walled ones — real
+      conflict-check systems intentionally cross wall boundaries for exactly
+      this reason, so a lawyer still gets warned about a possible conflict
+      even if they can't see the walled matter's details. The toggle itself
+      isn't admin-restricted (matches legal hold/classification precedent);
+      revisit if that's too permissive in practice.
+- [x] **TOTP-based MFA** (`src/lib/totp.ts`, `src/lib/auth.ts`) — RFC 6238
+      implemented directly on `node:crypto` rather than a dependency (the
+      HOTP core was verified against the official RFC 4226 Appendix D test
+      vectors before shipping). Login becomes two-step once enabled: a
+      short-lived, single-use `pendingToken` is issued after the password
+      checks out, and a session is only created after
+      `/api/auth/mfa` accepts a code against it. Backup codes (8, one-time,
+      hashed at rest like passwords) cover losing the authenticator device.
+      QR-code enrollment (`qrcode` package, see above) renders server-side
+      so the `otpauth://` URI — which embeds the secret — never has to be
+      typed or leave the app's own response.
+- [x] **Near-duplicate document detection** (`checkNearDuplicateOnUpload`,
+      `annotateNearDuplicates` in `src/lib/matters.ts`) — reuses the
+      existing per-document centroid-embedding infrastructure behind
+      "Similar documents" rather than building a second similarity system;
+      flags ≥96% cosine similarity between two documents in the same matter
+      as a near-duplicate (a re-scan, a reformatted copy) on top of the
+      pre-existing exact-hash duplicate check, which only ever caught
+      byte-for-byte identical files.
+- [x] **Failed-document extraction review queue** (`src/lib/extractionStatus.ts`)
+      — extraction attempts now persist status (`ok`/`failed`/`unsupported`)
+      and the real error message per document/reference document, instead of
+      the previous behaviour (both in `getMatterTextContext` and the RAG
+      chunking path) of silently swallowing the error into a generic
+      placeholder string. A failed document shows a badge with the real
+      error on hover and a "Retry" button on the matter Overview page.
 
 ## Decisions that need the account owner, not a default
 
@@ -1281,9 +1338,9 @@ they're not silently skipped or silently guessed:
    ~~Yahoo~~ needs no such registration — it's **resolved** via an app
    password over IMAP instead (see above), which is already working.
 7. ~~**Multi-user access model**~~ — **Resolved 2026-08-04.** Confirmed:
-   every user sees every matter (roles gate admin/settings actions, not
-   matter visibility — per-matter ethical walls deferred until a real
-   conflict needs them); admin creates accounts manually with a
-   temporary password (no self-registration/invite-link surface). First
-   admin account: ali.salamat@cortexhq.ai / Ali Salamat, migrated from
-   the pre-existing single password (same password, no reset needed).
+   every user sees every matter by default (roles gate admin/settings
+   actions); admin creates accounts manually with a temporary password
+   (no self-registration/invite-link surface). First admin account:
+   ali.salamat@cortexhq.ai / Ali Salamat, migrated from the pre-existing
+   single password (same password, no reset needed). ~~Per-matter ethical
+   walls~~ — **resolved 2026-08-07**, see "Security-audit follow-up" above.

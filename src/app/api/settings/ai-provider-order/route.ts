@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAiProviderOrder, setAiProviderOrder } from "@/lib/settings";
 import type { AiProvider } from "@/lib/settings";
 
-const VALID_PROVIDERS: AiProvider[] = ["anthropic", "openai"];
+const VALID_PROVIDERS: AiProvider[] = ["anthropic", "openai", "gemini"];
 
 export async function GET() {
   const order = await getAiProviderOrder();

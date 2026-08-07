@@ -314,6 +314,25 @@ export const ScaleIcon = (props: IconProps) =>
     props,
   );
 
+export const IntakeIcon = (props: IconProps) =>
+  base(
+    <>
+      <rect x="5" y="4" width="14" height="17" rx="2" />
+      <path d="M9 3h6v3H9z" />
+      <path d="M9 11h6M9 15h4" />
+    </>,
+    props,
+  );
+
+export const SignatureIcon = (props: IconProps) =>
+  base(
+    <>
+      <path d="M3 20h18" />
+      <path d="M4 16c2.5-6.5 4.2-9.5 5.7-9.5 1.2 0 1.2 1.9.3 4.2-1 2.6-2 4.6-.8 4.6 1.1 0 2.4-1.9 3.8-1.9 1.3 0 1.5 1.2 3 1.2h2" />
+    </>,
+    props,
+  );
+
 export const PanelCollapseIcon = (props: IconProps) =>
   base(
     <>

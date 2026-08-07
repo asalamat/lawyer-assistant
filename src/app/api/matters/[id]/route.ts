@@ -3,6 +3,7 @@ import {
   deleteMatter,
   getMatter,
   setMatterClassification,
+  setMatterEthicalWall,
   setMatterLegalHold,
   setMatterRetentionDate,
   updateMatterHourlyRate,
@@ -60,6 +61,15 @@ export async function PATCH(
       return NextResponse.json({ error: "legalHold must be a boolean" }, { status: 400 });
     }
     const matter = await setMatterLegalHold(id, body.legalHold, body.legalHoldReason);
+    if (!matter) return NextResponse.json({ error: "Matter not found" }, { status: 404 });
+    return NextResponse.json(matter);
+  }
+
+  if (body?.ethicalWall !== undefined) {
+    if (typeof body.ethicalWall !== "boolean") {
+      return NextResponse.json({ error: "ethicalWall must be a boolean" }, { status: 400 });
+    }
+    const matter = await setMatterEthicalWall(id, body.ethicalWall);
     if (!matter) return NextResponse.json({ error: "Matter not found" }, { status: 404 });
     return NextResponse.json(matter);
   }

@@ -38,6 +38,35 @@ export async function completeWithOpenAI(params: {
   return response.output_text;
 }
 
+// OpenAI enforces an org-wide tokens-per-minute cap (500k on this account) on
+// top of any per-model context window — a single oversized request 429s no
+// matter how idle the account is, so unlike a normal rate limit this can't be
+// fixed by retrying. Observed in production: a matter with enough documents
+// pushed one request to 509,730 tokens. ~4 chars/token is a safe estimate for
+// English legal text, so this cap leaves generous headroom for the system
+// prompt, the content being reviewed, and the output-token reservation.
+const MAX_CONTEXT_CHARS = 1_200_000;
+
+export async function getIndependentReview(content: string, context: string): Promise<string> {
+  const systemInstruction = `You are an independent reviewer checking another AI's legal analysis of case documents for accuracy, completeness, and blind spots. You are NOT regenerating the analysis — you are critiquing it. Be specific about any disagreements, missed issues, or unsupported claims. Ground your critique in the source documents provided; if the analysis makes a claim the documents do not support, say so and name the document. Do not invent facts.`;
+
+  const truncated = context.length > MAX_CONTEXT_CHARS;
+  const boundedContext = truncated ? context.slice(0, MAX_CONTEXT_CHARS) : context;
+  const sourceSection = context
+    ? `Here are the matter's source documents${truncated ? " (truncated — this matter has more source material than fits in one review)" : ""}:\n\n${boundedContext}`
+    : "No source documents were provided for this matter.";
+
+  return completeWithOpenAI({
+    system: systemInstruction,
+    messages: [
+      {
+        role: "user",
+        content: `${sourceSection}\n\nHere is the other AI's analysis to review:\n\n${content}\n\nProvide your independent critique.`,
+      },
+    ],
+  });
+}
+
 export async function completeJSONWithOpenAI<T>(params: {
   system: string;
   messages: { role: "user" | "assistant"; content: string }[];

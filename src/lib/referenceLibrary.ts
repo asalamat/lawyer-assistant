@@ -53,6 +53,9 @@ export async function addReferenceDocument(file: File): Promise<ReferenceDocumen
     approvedBy: null,
     approvedAt: null,
     sensitivityFlag,
+    extractionStatus: null,
+    extractionError: null,
+    extractionCheckedAt: null,
   };
   db.prepare(
     `INSERT INTO reference_documents

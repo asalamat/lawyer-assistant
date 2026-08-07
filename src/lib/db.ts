@@ -218,6 +218,17 @@ execWithRetry(`
     FOREIGN KEY (userId) REFERENCES users(id)
   );
 
+  -- Issued once a password has already been verified but MFA is still
+  -- outstanding — a real session is only ever created after the TOTP/backup
+  -- code check passes. Short-lived (see createPendingMfaToken), single-use.
+  CREATE TABLE IF NOT EXISTS pending_mfa (
+    tokenHash TEXT PRIMARY KEY,
+    userId TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    expiresAt TEXT NOT NULL,
+    FOREIGN KEY (userId) REFERENCES users(id)
+  );
+
   CREATE TABLE IF NOT EXISTS saved_searches (
     id TEXT PRIMARY KEY,
     userId TEXT NOT NULL,
@@ -287,6 +298,160 @@ execWithRetry(`
   CREATE INDEX IF NOT EXISTS idx_time_entries_matterId ON time_entries(matterId);
   CREATE INDEX IF NOT EXISTS idx_independent_reviews_matterId ON independent_reviews(matterId);
   CREATE INDEX IF NOT EXISTS idx_invoices_matterId ON invoices(matterId);
+
+  -- Single-purpose, no-login links handed to a client (to sign a document or
+  -- fill out an intake questionnaire). Deliberately not a client portal/account
+  -- system: each token is scoped to exactly one resource and expires.
+  CREATE TABLE IF NOT EXISTS client_access_tokens (
+    token TEXT PRIMARY KEY,
+    purpose TEXT NOT NULL,
+    matterId TEXT NOT NULL,
+    resourceId TEXT NOT NULL,
+    expiresAt TEXT NOT NULL,
+    usedAt TEXT,
+    revokedAt TEXT,
+    createdAt TEXT NOT NULL,
+    createdByUserId TEXT,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_client_access_tokens_resourceId ON client_access_tokens(resourceId);
+
+  -- Retainer agreements / conflict waivers / privacy consent / custom
+  -- documents that need a client signature. status tracks the workflow
+  -- (draft -> sent -> signed/declined/voided/expired); the actual signature
+  -- capture lives in the signatures table below.
+  CREATE TABLE IF NOT EXISTS signable_documents (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    title TEXT NOT NULL,
+    sourceDocumentId TEXT,
+    status TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    createdByUserId TEXT,
+    sentAt TEXT,
+    signedAt TEXT,
+    declinedAt TEXT,
+    FOREIGN KEY (matterId) REFERENCES matters(id),
+    FOREIGN KEY (sourceDocumentId) REFERENCES documents(id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_signable_documents_matterId ON signable_documents(matterId);
+
+  -- A basic electronic signature (typed name + optional drawn signature
+  -- image), not a qualified/advanced e-signature. documentHash pins down
+  -- exactly what was signed for later verification.
+  CREATE TABLE IF NOT EXISTS signatures (
+    id TEXT PRIMARY KEY,
+    signableDocumentId TEXT NOT NULL,
+    signerName TEXT NOT NULL,
+    signerEmail TEXT,
+    signatureText TEXT NOT NULL,
+    signatureImage TEXT,
+    documentHash TEXT NOT NULL,
+    ipAddress TEXT,
+    userAgent TEXT,
+    signedAt TEXT NOT NULL,
+    FOREIGN KEY (signableDocumentId) REFERENCES signable_documents(id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_signatures_signableDocumentId ON signatures(signableDocumentId);
+
+  -- Fixed question set defined in code (see intake.ts), not a configurable
+  -- template builder — consistent with this app's no-config, hand-rolled
+  -- style at MVP scale.
+  CREATE TABLE IF NOT EXISTS intake_responses (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    status TEXT NOT NULL,
+    answersJson TEXT,
+    clientName TEXT,
+    clientEmail TEXT,
+    createdAt TEXT NOT NULL,
+    createdByUserId TEXT,
+    sentAt TEXT,
+    completedAt TEXT,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_intake_responses_matterId ON intake_responses(matterId);
+
+  -- Ownership/assignment bookkeeping (who's actually working the file).
+  -- Every matter is visible to every staff member by default (shared
+  -- visibility, see docs/ROADMAP.md) — this table becomes the real access
+  -- list only once a matter's ethicalWall flag is on (see matterAccess.ts).
+  CREATE TABLE IF NOT EXISTS matter_team (
+    matterId TEXT NOT NULL,
+    userId TEXT NOT NULL,
+    roleOnMatter TEXT NOT NULL,
+    addedAt TEXT NOT NULL,
+    addedByUserId TEXT,
+    PRIMARY KEY (matterId, userId),
+    FOREIGN KEY (matterId) REFERENCES matters(id),
+    FOREIGN KEY (userId) REFERENCES users(id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_matter_team_matterId ON matter_team(matterId);
+  CREATE INDEX IF NOT EXISTS idx_matter_team_userId ON matter_team(userId);
+
+  -- First-class party records (opposing party, witness, co-counsel, etc.) —
+  -- previously only existed as ephemeral AI-generated graph labels, never
+  -- stored/queryable. See checkConflicts() in matters.ts for why this was
+  -- called out as a gap.
+  CREATE TABLE IF NOT EXISTS parties (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL,
+    email TEXT,
+    phone TEXT,
+    notes TEXT,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_parties_matterId ON parties(matterId);
+
+  -- Directed link between two matters (e.g. same opposing party, related
+  -- litigation). Stored one row per direction so each side can carry its own
+  -- note; list queries check both matterId and relatedMatterId.
+  CREATE TABLE IF NOT EXISTS related_matters (
+    matterId TEXT NOT NULL,
+    relatedMatterId TEXT NOT NULL,
+    note TEXT,
+    createdAt TEXT NOT NULL,
+    createdByUserId TEXT,
+    PRIMARY KEY (matterId, relatedMatterId),
+    FOREIGN KEY (matterId) REFERENCES matters(id),
+    FOREIGN KEY (relatedMatterId) REFERENCES matters(id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_related_matters_matterId ON related_matters(matterId);
+  CREATE INDEX IF NOT EXISTS idx_related_matters_relatedMatterId ON related_matters(relatedMatterId);
+
+  -- One row per case citation found in a matter's documents/notes, refreshed
+  -- wholesale (delete-then-reinsert) each time "Check case citations" runs —
+  -- see refreshCaseNoteups() in caseNoteup.ts. Not history: only the latest
+  -- check per citation is kept.
+  CREATE TABLE IF NOT EXISTS case_noteups (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    citation TEXT NOT NULL,
+    databaseId TEXT NOT NULL,
+    caseId TEXT NOT NULL,
+    found INTEGER NOT NULL,
+    title TEXT,
+    url TEXT,
+    citedCasesJson TEXT NOT NULL,
+    citingCasesJson TEXT NOT NULL,
+    citedLegislationsJson TEXT NOT NULL,
+    error TEXT,
+    checkedAt TEXT NOT NULL,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_case_noteups_matterId ON case_noteups(matterId);
 `);
 
 // Schema migrations for columns added after the table already existed on a
@@ -321,6 +486,19 @@ ensureColumn("reference_documents", "approved", "INTEGER NOT NULL DEFAULT 1");
 ensureColumn("reference_documents", "approvedBy", "TEXT");
 ensureColumn("reference_documents", "approvedAt", "TEXT");
 ensureColumn("reference_documents", "sensitivityFlag", "TEXT");
+// Extraction status is null until the first extraction attempt (upload or a
+// later retrigger via digest/chat/etc.) rather than assuming "ok" for
+// documents that predate this column — see extractionStatus.ts.
+ensureColumn("documents", "extractionStatus", "TEXT");
+ensureColumn("documents", "extractionError", "TEXT");
+ensureColumn("documents", "extractionCheckedAt", "TEXT");
+ensureColumn("reference_documents", "extractionStatus", "TEXT");
+ensureColumn("reference_documents", "extractionError", "TEXT");
+ensureColumn("reference_documents", "extractionCheckedAt", "TEXT");
+ensureColumn("matters", "ethicalWall", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("users", "totpSecret", "TEXT");
+ensureColumn("users", "totpEnabled", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("users", "totpBackupCodesJson", "TEXT");
 
 // One-time migration: matters used to store client identity only as free
 // text (clientName/clientEmail), with no real entity linking one client's

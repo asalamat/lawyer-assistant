@@ -1,11 +1,18 @@
+import { getCurrentUser } from "@/lib/auth";
 import { listClients } from "@/lib/clients";
+import { filterAccessibleMatterIds } from "@/lib/matterAccess";
 import { listMatters } from "@/lib/matters";
 import MatterList from "@/components/MatterList";
 
 export const dynamic = "force-dynamic";
 
 export default async function MattersPage() {
-  const matters = await listMatters();
+  const user = await getCurrentUser();
+  const allMatters = await listMatters();
+  const accessibleIds = user
+    ? filterAccessibleMatterIds(user.id, user.role, allMatters.map((m) => m.id))
+    : new Set(allMatters.map((m) => m.id));
+  const matters = allMatters.filter((m) => accessibleIds.has(m.id));
   const clients = await listClients();
 
   return (

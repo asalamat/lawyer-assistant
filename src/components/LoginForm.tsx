@@ -11,6 +11,8 @@ export default function LoginForm({ mode }: { mode: "login" | "create" }) {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [pendingToken, setPendingToken] = useState<string | null>(null);
+  const [code, setCode] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,6 +30,10 @@ export default function LoginForm({ mode }: { mode: "login" | "create" }) {
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Login failed");
+      if (body.mfaRequired) {
+        setPendingToken(body.pendingToken);
+        return;
+      }
       router.push("/");
       router.refresh();
     } catch (err) {
@@ -35,6 +41,54 @@ export default function LoginForm({ mode }: { mode: "login" | "create" }) {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleMfaSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/mfa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pendingToken, code }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Verification failed");
+      router.push("/");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+      setPendingToken(null);
+      setPassword("");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (pendingToken) {
+    return (
+      <form onSubmit={handleMfaSubmit} className="flex flex-col gap-3">
+        <p className="text-sm text-muted">
+          Enter the 6-digit code from your authenticator app, or one of your backup codes.
+        </p>
+        <input
+          type="text"
+          required
+          autoFocus
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="123456"
+          className="surface-input"
+        />
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <button type="submit" disabled={submitting} className="btn-primary">
+          {submitting ? "…" : "Verify"}
+        </button>
+      </form>
+    );
   }
 
   return (

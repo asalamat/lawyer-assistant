@@ -23,13 +23,13 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "compliance",
         name: "Compliance",
         detail:
-          "Each matter has a classification (standard/privileged/highly-sensitive), an optional retention date (informational — nothing auto-deletes on it), and a legal hold toggle. A matter on legal hold shows a badge in its header and can't be deleted, even from the danger zone, until the hold is released. All changes here are recorded in the audit log. While a matter is still at the default \"standard\" classification, uploading documents runs an intake agent that reads them and suggests tightening the classification if the content warrants it (privileged communications, medical/financial/highly personal details) — shown as a banner with Apply/Dismiss right where you uploaded; nothing changes automatically, and once you've classified a matter (by accepting a suggestion or setting it manually) it stops suggesting.",
+          "Each matter has a classification (standard/privileged/highly-sensitive), an optional retention date (informational — nothing auto-deletes on it), a legal hold toggle, and an ethical wall toggle. A matter on legal hold shows a badge in its header and can't be deleted, even from the danger zone, until the hold is released. Applying an ethical wall restricts the matter to whoever is on its Team assignment list (see below) plus admins — everyone else is transparently redirected as if the matter didn't exist, on every page and API route, and the matter disappears from the matters list, dashboard, and search for them too. Assign the right team before applying a wall, not after, or only admins will be able to get back in; removing the wall restores the default shared visibility immediately. All changes here are recorded in the audit log. While a matter is still at the default \"standard\" classification, uploading documents runs an intake agent that reads them and suggests tightening the classification if the content warrants it (privileged communications, medical/financial/highly personal details) — shown as a banner with Apply/Dismiss right where you uploaded; nothing changes automatically, and once you've classified a matter (by accepting a suggestion or setting it manually) it stops suggesting.",
       },
       {
         slug: "document-upload",
         name: "Document upload",
         detail:
-          "Drag and drop files onto a matter. Text, PDF, Word (.docx), Excel/CSV, images (via OCR), and audio/video recordings (via OpenAI Whisper, once configured) are readable by chat and AI features — other file types still upload but aren't used as AI context. Dropping a .zip (e.g. a disclosure package or a folder someone zipped up) unpacks it and uploads each file inside individually — useful for bulk intake instead of uploading one at a time; a per-file result list shows what succeeded or failed. Identical files uploaded twice are flagged as duplicates. Documents are encrypted at rest and decrypted transparently when read. Click \"Similar\" next to a chat-readable document to find other documents in the same matter (including attached reference-library material) with related content, ranked by similarity — useful for spotting related correspondence or duplicate-in-substance disclosure that isn't a byte-for-byte duplicate.",
+          "Drag and drop files onto a matter. Text, PDF, Word (.docx), Excel/CSV, images (via OCR), and audio/video recordings (via OpenAI Whisper, once configured) are readable by chat and AI features — other file types still upload but aren't used as AI context. Dropping a .zip (e.g. a disclosure package or a folder someone zipped up) unpacks it and uploads each file inside individually — useful for bulk intake instead of uploading one at a time; a per-file result list shows what succeeded or failed. Identical files uploaded twice are flagged as duplicates; near-identical content (e.g. the same letter re-scanned or re-saved in another format) is separately flagged as a near-duplicate, based on how similar the extracted text is, not the file bytes. If a document can't be read at all (a corrupt PDF, an unsupported encoding), it shows an \"extraction failed\" badge with the real error on hover and a Retry button, instead of silently vanishing from AI context. Documents are encrypted at rest and decrypted transparently when read. Click \"Similar\" next to a chat-readable document to find other documents in the same matter (including attached reference-library material) with related content, ranked by similarity — useful for spotting related correspondence or content that overlaps without being a near-duplicate.",
       },
       {
         slug: "notes",
@@ -48,6 +48,30 @@ export const HELP_SECTIONS: HelpSection[] = [
         name: "Clients",
         detail:
           "Every matter is automatically linked to a client record (nav > Clients) — creating a second matter for the same client (same name and email) links it to the same client instead of creating a duplicate, so a client's detail page shows their full matter history in one place. Typing a client name on the new-matter form autocompletes against existing clients and fills in their email automatically once matched. Clients can also be added, edited, or deleted directly from the Clients page — deleting is blocked while any matter still references that client, to avoid orphaning it.",
+      },
+      {
+        slug: "matter-team",
+        name: "Team assignment",
+        detail:
+          "Record who's working a matter and in what capacity from its Overview tab — pick any active account at the firm and describe their role on that matter in your own words (\"Lead lawyer\", \"Paralegal\", \"Second chair\"). Somebody can only be listed once per matter, and a deactivated account can't be assigned. Assigning and removing are both recorded in the audit log. This is ordinary responsibility bookkeeping by default — everyone at the firm can still see every matter whether or not they're on its team — unless the matter's ethical wall (Compliance tab) is turned on, in which case this list becomes the actual access list.",
+      },
+      {
+        slug: "parties-related-matters",
+        name: "Parties & related matters",
+        detail:
+          "A matter's Parties tab records everyone involved besides the client — opposing party, opposing counsel, witnesses, experts, insurers — with a role, optional email/phone, and notes. Role is free text with common roles suggested, so unusual ones (adjuster, estate trustee, translator) still fit. Adding, editing, and removing a party is recorded in the audit log. The same tab links this matter to other matters that share an opposing party, arise from the same incident, or otherwise need reading together: search by title or file number, add an optional note explaining the connection, and the link shows on both matters' Parties tabs — unlinking from either side removes it.",
+      },
+      {
+        slug: "consent-signatures",
+        name: "Consent & signatures",
+        detail:
+          "A matter's \"Consent & signatures\" tab prepares retainer agreements, conflict waivers, privacy consents, or any other document that needs the client's signature, and tracks each one through draft > awaiting signature > signed/declined/voided. Optionally attach one of the matter's uploaded documents as the thing being signed — the signature record then stores that file's content hash, so it's provable later which exact version was agreed to. \"Send for signature\" issues a single-purpose link (/sign/…) to hand to the client: no login, no account, scoped to that one document, and it expires on its own after two weeks. Copy the link straight from the tab and send it however you normally reach the client. The link is only shown at the moment it's issued — if it's lost, \"Resend link\" mints a fresh one and the previous link stops working immediately. The client's page shows the document title and their name, takes their typed full legal name, an optional drawn signature, and an explicit \"I intend this as my legal signature\" confirmation; their IP address, browser, and timestamp are recorded alongside it. You can also mark a document declined (if the client says no by phone or email) or void it entirely, both of which kill any outstanding link. Every step is recorded in the audit log — signatures submitted through the client link show no attributed user, since the client isn't a user of this app. Note this is a basic electronic signature, not a certificate-backed qualified/advanced e-signature.",
+      },
+      {
+        slug: "intake-questionnaires",
+        name: "Intake questionnaires",
+        detail:
+          "A matter's Intake tab sends the client a no-login link (/intake/…) to a fixed intake questionnaire — full legal name, contact details and preference, how they found the firm, a description of the matter in their own words, whether another lawyer was previously retained on it, dates and deadlines they know about, and what documents they already hold. The question set is the same for every matter and isn't configurable; that's deliberate, so answers stay comparable across files. The link is scoped to that one questionnaire, works for a single submission, and expires on its own after two weeks. Copy it from the tab and send it however you normally reach the client — it's only shown at the moment it's issued, so send another questionnaire if it's lost. The client's page shows nothing about the matter itself (no title, file number, or documents), just the questions. Once submitted the tab shows their answers inline with a Completed badge; sending and completion are both recorded in the audit log, with completion showing no attributed user since the client isn't a user of this app.",
       },
       {
         slug: "timesheet-invoicing",
@@ -70,7 +94,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "chat",
         name: "Chat",
         detail:
-          "Ask questions grounded in that matter's uploaded documents and notes — dictate the question instead of typing if you prefer. Under the hood, chat retrieves the most relevant passages from your documents (rather than dumping every document into every question), so it stays accurate and fast even on matters with a large volume of material. Citations include a page number when the source is a PDF, e.g. \"(file.pdf, p. 4)\". Any filename cited is checked against the matter's real documents — an unverified citation is flagged in the answer. Rate answers with a thumbs up/down, translate an answer (or its independent review) into another language, export it as PDF, or request an independent second-opinion review from Google Gemini (requires a Gemini key in Settings).",
+          "Ask questions grounded in that matter's uploaded documents and notes — dictate the question instead of typing if you prefer. Under the hood, chat retrieves the most relevant passages from your documents (rather than dumping every document into every question), so it stays accurate and fast even on matters with a large volume of material. Citations include a page number when the source is a PDF, e.g. \"(file.pdf, p. 4)\". Any filename cited is checked against the matter's real documents — an unverified citation is flagged in the answer. Rate answers with a thumbs up/down, translate an answer (or its independent review) into another language, export it as PDF, or request an independent second-opinion review from OpenAI (requires an OpenAI key in Settings).",
       },
       {
         slug: "matter-digest",
@@ -82,7 +106,13 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "independent-review",
         name: "Independent review",
         detail:
-          "Get a second opinion from Google Gemini on a generated digest, evidence matrix, or any individual chat answer, to catch blind spots a single model might share with itself. Requires a Gemini key in Settings.",
+          "Get a second opinion from OpenAI on a generated digest, evidence matrix, or any individual chat answer, to catch blind spots a single model might share with itself. Requires an OpenAI key in Settings.",
+      },
+      {
+        slug: "case-noteup",
+        name: "Case citations",
+        detail:
+          "Scans this matter's documents and notes for Canadian neutral case citations (e.g. \"2020 ONCA 123\") and looks each one up on CanLII: whether it's a real, findable decision, plus its cited/citing cases and cited legislation (a \"note-up\"). Only the standard neutral-citation format is detected — citations written another way won't be picked up. Re-checking replaces the previous results; this isn't a history. Requires a CanLII key in Settings.",
       },
       {
         slug: "deadlines",
@@ -189,13 +219,13 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "security",
         name: "Security",
         detail:
-          "Change your own login password here — this page is available to every user, not just admins (or reset a forgotten one from the terminal with npm run reset-password -- you@example.com). Login is rate-limited per account after repeated failed attempts.",
+          "Change your own login password here — this page is available to every user, not just admins (or reset a forgotten one from the terminal with npm run reset-password -- you@example.com). Login is rate-limited per account after repeated failed attempts. Also available: two-factor authentication (2FA). Enabling it shows a QR code — scan it with an authenticator app (Google Authenticator, 1Password, Authy, etc.), or use the \"can't scan\" link for manual entry — then confirm with the 6-digit code it generates. From then on, logging in requires that code (or one of the 8 one-time backup codes shown right after setup — save them somewhere safe, they're not shown again) in addition to your password. Disabling 2FA requires your current password.",
       },
       {
         slug: "users",
         name: "Users",
         detail:
-          "Admin-only. Add a lawyer or staff account with a role (admin/lawyer/staff) — a temporary password is shown once for you to pass along; they're required to set their own password on first login. Change anyone's role, reset a password, or deactivate an account (deactivating immediately signs them out everywhere). Everyone can see every matter today; roles control access to Settings/API keys and user management, not matter visibility.",
+          "Admin-only. Add a lawyer or staff account with a role (admin/lawyer/staff) — a temporary password is shown once for you to pass along; they're required to set their own password on first login. Change anyone's role, reset a password, or deactivate an account (deactivating immediately signs them out everywhere). Every matter is visible to everyone by default; roles control access to Settings/API keys and user management, and a matter's own ethical-wall toggle (its Compliance tab) is what restricts matter visibility on a case-by-case basis — see Team assignment and Compliance above.",
       },
       {
         slug: "backup",

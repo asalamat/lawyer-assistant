@@ -1,4 +1,9 @@
-import { getAiProviderOrder, getAnthropicApiKeyStatus, getOpenaiApiKeyStatus } from "@/lib/settings";
+import {
+  getAiProviderOrder,
+  getAnthropicApiKeyStatus,
+  getGeminiApiKeyStatus,
+  getOpenaiApiKeyStatus,
+} from "@/lib/settings";
 import AiProviderOrder from "@/components/AiProviderOrder";
 import SettingsForm from "@/components/SettingsForm";
 import SettingsSection from "@/components/SettingsSection";
@@ -9,12 +14,13 @@ export const dynamic = "force-dynamic";
 export default async function AiSettingsPage() {
   const status = await getAnthropicApiKeyStatus();
   const openaiStatus = await getOpenaiApiKeyStatus();
+  const geminiStatus = await getGeminiApiKeyStatus();
   const providerOrder = await getAiProviderOrder();
 
   return (
     <SettingsSection
       title="AI model"
-      description="Powers chat, digests, deadline extraction, drafting, and the evidence matrix. Configure a second provider as a backup — if the primary fails, the app automatically falls through to it."
+      description="Powers chat, digests, deadline extraction, drafting, and the evidence matrix. Configure additional providers as backups — if one fails, the app automatically falls through to the next one in the order below."
       icon={AiIcon}
     >
       <SettingsForm initialStatus={status} />
@@ -24,6 +30,13 @@ export default async function AiSettingsPage() {
         placeholder="sk-..."
         apiPath="/api/settings/openai"
         bodyKey="openaiApiKey"
+      />
+      <SettingsForm
+        initialStatus={geminiStatus}
+        title="Gemini API key (backup provider)"
+        placeholder="AIza..."
+        apiPath="/api/settings/gemini"
+        bodyKey="geminiApiKey"
       />
       <AiProviderOrder initialOrder={providerOrder} />
     </SettingsSection>

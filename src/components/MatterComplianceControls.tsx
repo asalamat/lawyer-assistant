@@ -117,6 +117,35 @@ export default function MatterComplianceControls({ matter }: { matter: Matter })
         </p>
       </div>
 
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-medium">Ethical wall</label>
+        {matter.ethicalWall ? (
+          <div className="flex items-center gap-2">
+            <span className="badge bg-red-600/10 text-red-700 dark:text-red-400">Restricted</span>
+            <button
+              onClick={() => patch({ ethicalWall: false })}
+              disabled={updating}
+              className="text-xs text-accent underline decoration-accent/40 disabled:opacity-50"
+            >
+              Remove wall
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => patch({ ethicalWall: true })}
+            disabled={updating}
+            className="self-start text-xs text-red-600 underline decoration-red-600/40 disabled:opacity-50"
+          >
+            Apply ethical wall
+          </button>
+        )}
+        <p className="text-xs text-muted">
+          When applied, only this matter&apos;s assigned team (below) plus admins can see or open
+          it — everyone else gets redirected as if it doesn&apos;t exist. Make sure the right team
+          is assigned before applying, or only admins will be able to get back in.
+        </p>
+      </div>
+
       {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
   );

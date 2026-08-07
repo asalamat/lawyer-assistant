@@ -6,6 +6,7 @@ import type { AiProvider } from "@/lib/settings";
 const LABELS: Record<AiProvider, string> = {
   anthropic: "Anthropic (Claude)",
   openai: "OpenAI",
+  gemini: "Google (Gemini)",
 };
 
 export default function AiProviderOrder({ initialOrder }: { initialOrder: AiProvider[] }) {

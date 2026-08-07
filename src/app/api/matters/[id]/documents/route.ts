@@ -3,6 +3,7 @@ import {
   addDocument,
   checkForNewDeadlines,
   checkMatterClassification,
+  checkNearDuplicateOnUpload,
   getMatter,
   listDocuments,
 } from "@/lib/matters";
@@ -41,6 +42,7 @@ export async function POST(
   // shouldn't fail the upload itself, which already succeeded.
   let newDeadlines = 0;
   let classificationSuggestion = null;
+  let nearDuplicate = null;
   if (isExtractableDocument(document.fileName)) {
     try {
       newDeadlines = (await checkForNewDeadlines(id)).newCount;
@@ -53,7 +55,18 @@ export async function POST(
     } catch {
       classificationSuggestion = null;
     }
+    // Near-duplicate check — same best-effort treatment; needs an OpenAI
+    // key configured for embeddings, so a missing key shouldn't fail the
+    // upload that already succeeded.
+    try {
+      nearDuplicate = await checkNearDuplicateOnUpload(id, document.id);
+    } catch {
+      nearDuplicate = null;
+    }
   }
 
-  return NextResponse.json({ ...document, newDeadlines, classificationSuggestion }, { status: 201 });
+  return NextResponse.json(
+    { ...document, newDeadlines, classificationSuggestion, nearDuplicate },
+    { status: 201 },
+  );
 }

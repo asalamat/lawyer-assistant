@@ -1,7 +1,8 @@
 import { cosineSimilarity, embedText, embedTexts } from "./embeddings";
 import { chunkExtractedText } from "./chunking";
 import db, { toPlain } from "./db";
-import { extractDocumentText, isExtractableDocument } from "./textExtraction";
+import { extractTextTracked } from "./extractionStatus";
+import { isExtractableDocument } from "./textExtraction";
 import type { Document, ReferenceDocument } from "./types";
 
 // Generous on purpose: for a small matter with few chunks this returns
@@ -34,12 +35,8 @@ async function ensureChunksForSource(params: {
   if (existing.count > 0) return "chunked";
   if (!isExtractableDocument(fileName)) return "skipped";
 
-  let text: string | null;
-  try {
-    text = await extractDocumentText(fileName, storagePath);
-  } catch {
-    return "unreadable";
-  }
+  const table = sourceColumn === "documentId" ? "documents" : "reference_documents";
+  const text = await extractTextTracked(table, sourceId, fileName, storagePath);
   if (!text) return "unreadable";
 
   const chunks = chunkExtractedText(text);

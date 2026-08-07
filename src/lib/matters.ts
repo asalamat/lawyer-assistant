@@ -8,6 +8,7 @@ import { encryptFile } from "./crypto";
 import db, { toPlain } from "./db";
 import { nameSimilarity } from "./fuzzyMatch";
 import { cosineSimilarity } from "./embeddings";
+import { extractTextTracked } from "./extractionStatus";
 import { maskForAI } from "./piiMask";
 import { listAttachedReferenceDocuments } from "./referenceLibrary";
 import {
@@ -16,7 +17,7 @@ import {
   ensureReferenceDocumentChunks,
   getRelevantChunks,
 } from "./rag";
-import { extractDocumentText, isExtractableDocument } from "./textExtraction";
+import { isExtractableDocument } from "./textExtraction";
 import { extractDeadlines, suggestMatterClassification, type ExtractedDeadline } from "./claude";
 import type {
   ChatMessage,
@@ -139,6 +140,7 @@ export async function createMatter(input: {
     legalHold: 0,
     legalHoldReason: null,
     retentionDate: null,
+    ethicalWall: 0,
     createdAt,
   };
   db.prepare(
@@ -228,6 +230,29 @@ export async function setMatterLegalHold(
   return matter;
 }
 
+// Off by default (every matter visible to every staff member, unchanged
+// behaviour) — turning this on restricts the matter to matter_team members
+// plus admins (enforced in src/proxy.ts). Doesn't validate the team is
+// non-empty: an admin can still always get in, and warning-not-blocking
+// keeps this simple rather than coupling matter and team-membership writes.
+export async function setMatterEthicalWall(
+  matterId: string,
+  ethicalWall: boolean,
+): Promise<Matter | null> {
+  db.prepare("UPDATE matters SET ethicalWall = ? WHERE id = ?").run(ethicalWall ? 1 : 0, matterId);
+  const matter = await getMatter(matterId);
+  if (matter) {
+    await recordAuditEvent(
+      ethicalWall ? "matter_ethical_wall_applied" : "matter_ethical_wall_released",
+      matterId,
+      ethicalWall
+        ? "Restricted this matter to its assigned team (ethical wall applied)"
+        : "Removed the ethical wall — matter is visible to all staff again",
+    );
+  }
+  return matter;
+}
+
 export async function setMatterRetentionDate(
   matterId: string,
   retentionDate: string | null,
@@ -269,6 +294,21 @@ export async function deleteMatter(matterId: string): Promise<boolean> {
   db.prepare("DELETE FROM matter_reference_documents WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM document_chunks WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM agent_runs WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM parties WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM related_matters WHERE matterId = ? OR relatedMatterId = ?").run(
+    matterId,
+    matterId,
+  );
+  db.prepare("DELETE FROM matter_team WHERE matterId = ?").run(matterId);
+  db.prepare(
+    "DELETE FROM signatures WHERE signableDocumentId IN (SELECT id FROM signable_documents WHERE matterId = ?)",
+  ).run(matterId);
+  db.prepare("DELETE FROM signable_documents WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM intake_responses WHERE matterId = ?").run(matterId);
+  // Must go last of these: an outstanding /sign or /intake link is validated
+  // against this table alone, so leaving a row behind would let a client keep
+  // signing or submitting against a matter that no longer exists.
+  db.prepare("DELETE FROM client_access_tokens WHERE matterId = ?").run(matterId);
   // Audit rows are deliberately NOT deleted here. Two reasons: an audit
   // trail is supposed to survive deletion of the thing it audited (real
   // compliance practice — "we deleted this matter" should still be
@@ -301,6 +341,27 @@ export async function listDocuments(matterId: string): Promise<Document[]> {
     .map((row) => toPlain<Document>(row));
 }
 
+export async function getDocument(matterId: string, documentId: string): Promise<Document | null> {
+  const row = db
+    .prepare("SELECT * FROM documents WHERE id = ? AND matterId = ?")
+    .get(documentId, matterId);
+  return row ? toPlain<Document>(row) : null;
+}
+
+// Extraction is idempotent/cached (see ensureChunksForSource) so a failed
+// document never gets retried on its own — nothing re-triggers it once the
+// upload-time attempt fails. This forces one now, on demand, for the review
+// queue's "Retry" action.
+export async function retryDocumentExtraction(
+  matterId: string,
+  documentId: string,
+): Promise<Document | null> {
+  const document = await getDocument(matterId, documentId);
+  if (!document) return null;
+  await ensureDocumentChunks(document);
+  return getDocument(matterId, documentId);
+}
+
 export async function addDocument(
   matterId: string,
   file: File,
@@ -322,6 +383,9 @@ export async function addDocument(
     uploadedAt: new Date().toISOString(),
     storagePath,
     contentHash,
+    extractionStatus: null,
+    extractionError: null,
+    extractionCheckedAt: null,
   };
   db.prepare(
     "INSERT INTO documents (id, matterId, fileName, sizeBytes, uploadedAt, storagePath, contentHash) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -933,12 +997,10 @@ export async function getMatterTextContext(matterId: string): Promise<string> {
 
   const sections = await Promise.all(
     extractable.map(async (doc) => {
-      try {
-        const text = await extractDocumentText(doc.fileName, doc.storagePath);
-        return text ? `--- ${doc.fileName} ---\n${text}` : null;
-      } catch {
-        return `--- ${doc.fileName} ---\n[Could not extract text from this file]`;
-      }
+      const text = await extractTextTracked("documents", doc.id, doc.fileName, doc.storagePath);
+      return text
+        ? `--- ${doc.fileName} ---\n${text}`
+        : `--- ${doc.fileName} ---\n[Could not extract text from this file]`;
     }),
   );
 
@@ -947,12 +1009,15 @@ export async function getMatterTextContext(matterId: string): Promise<string> {
     referenceDocs
       .filter((doc) => isExtractableDocument(doc.fileName))
       .map(async (doc) => {
-        try {
-          const text = await extractDocumentText(doc.fileName, doc.storagePath);
-          return text ? `--- Reference: ${doc.fileName} ---\n${text}` : null;
-        } catch {
-          return `--- Reference: ${doc.fileName} ---\n[Could not extract text from this file]`;
-        }
+        const text = await extractTextTracked(
+          "reference_documents",
+          doc.id,
+          doc.fileName,
+          doc.storagePath,
+        );
+        return text
+          ? `--- Reference: ${doc.fileName} ---\n${text}`
+          : `--- Reference: ${doc.fileName} ---\n[Could not extract text from this file]`;
       }),
   );
 
@@ -1107,4 +1172,104 @@ export async function getSimilarDocuments(
   }
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, topK);
+}
+
+// High on purpose: two documents about the same matter easily share 0.8-0.9
+// cosine similarity just from overlapping legal boilerplate/subject matter.
+// This threshold is meant to catch near-identical content (a re-scanned copy,
+// a reformatted version of the same letter) — not "related", which is what
+// getSimilarDocuments above is for. Tune if real usage shows false positives
+// or misses.
+const NEAR_DUPLICATE_THRESHOLD = 0.96;
+
+// Only matter-owned documents (not reference-library material) — near-duplicate
+// detection is about catching the same disclosure landing twice, not flagging
+// a matter document for resembling a statute it cites.
+async function getDocumentCentroids(matterId: string): Promise<Map<string, { fileName: string; centroid: number[] }>> {
+  const rows = db
+    .prepare(
+      "SELECT documentId, fileName, embedding FROM document_chunks WHERE matterId = ? AND documentId IS NOT NULL",
+    )
+    .all(matterId)
+    .map((row) => toPlain<{ documentId: string; fileName: string; embedding: string }>(row));
+
+  const vectorsByDocument = new Map<string, { fileName: string; vectors: number[][] }>();
+  for (const row of rows) {
+    const group = vectorsByDocument.get(row.documentId) ?? { fileName: row.fileName, vectors: [] };
+    group.vectors.push(JSON.parse(row.embedding) as number[]);
+    vectorsByDocument.set(row.documentId, group);
+  }
+
+  const centroids = new Map<string, { fileName: string; centroid: number[] }>();
+  for (const [documentId, group] of vectorsByDocument) {
+    centroids.set(documentId, { fileName: group.fileName, centroid: centroidEmbedding(group.vectors) });
+  }
+  return centroids;
+}
+
+function bestNearDuplicateMatch(
+  centroids: Map<string, { fileName: string; centroid: number[] }>,
+  documentId: string,
+): { fileName: string; score: number } | null {
+  const source = centroids.get(documentId);
+  if (!source) return null;
+
+  let best: { fileName: string; score: number } | null = null;
+  for (const [otherId, other] of centroids) {
+    if (otherId === documentId) continue;
+    const score = cosineSimilarity(source.centroid, other.centroid);
+    if (score >= NEAR_DUPLICATE_THRESHOLD && (!best || score > best.score)) {
+      best = { fileName: other.fileName, score };
+    }
+  }
+  return best;
+}
+
+// Called right after upload (best-effort, same as the deadline/classification
+// checks) — forces chunking/embedding of the new document (and any other
+// not-yet-chunked matter documents) so the check has real vectors to compare,
+// rather than only working once something else (chat, "Similar") happens to
+// have triggered chunking first.
+export async function checkNearDuplicateOnUpload(
+  matterId: string,
+  documentId: string,
+): Promise<{ fileName: string; score: number } | null> {
+  const documents = await listDocuments(matterId);
+  const extractable = documents.filter((doc) => isExtractableDocument(doc.fileName));
+  await Promise.all(extractable.map((doc) => ensureDocumentChunks(doc)));
+
+  const centroids = await getDocumentCentroids(matterId);
+  const match = bestNearDuplicateMatch(centroids, documentId);
+  if (match) {
+    await recordAuditEvent(
+      "near_duplicate_document_detected",
+      matterId,
+      `"${documents.find((d) => d.id === documentId)?.fileName}" is a near-duplicate (${Math.round(match.score * 100)}% similar) of "${match.fileName}"`,
+    );
+  }
+  return match;
+}
+
+// For rendering the documents list: only uses embeddings already cached in
+// document_chunks (no embedding-API calls just to load a page) — documents
+// that haven't been chunked yet by any other feature simply show no
+// near-duplicate badge yet, the same lazy-until-needed tradeoff the rest of
+// this app's chunking makes. Skips a document already flagged as an exact
+// (hash) duplicate so the two badges don't both show for the same file.
+export async function annotateNearDuplicates<T extends Document & { duplicateOfFileName?: string | null }>(
+  matterId: string,
+  documents: T[],
+): Promise<(T & { nearDuplicateOfFileName: string | null; nearDuplicateScore: number | null })[]> {
+  const centroids = await getDocumentCentroids(matterId);
+  return documents.map((doc) => {
+    if (doc.duplicateOfFileName) {
+      return { ...doc, nearDuplicateOfFileName: null, nearDuplicateScore: null };
+    }
+    const match = bestNearDuplicateMatch(centroids, doc.id);
+    return {
+      ...doc,
+      nearDuplicateOfFileName: match?.fileName ?? null,
+      nearDuplicateScore: match?.score ?? null,
+    };
+  });
 }

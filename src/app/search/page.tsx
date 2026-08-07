@@ -2,6 +2,7 @@ import Link from "next/link";
 import { searchAll } from "@/lib/search";
 import { listSavedSearches } from "@/lib/savedSearches";
 import { getCurrentUser } from "@/lib/auth";
+import { filterAccessibleMatterIds } from "@/lib/matterAccess";
 import SearchHighlight from "@/components/SearchHighlight";
 import SavedSearchesPanel from "@/components/SavedSearchesPanel";
 
@@ -34,10 +35,38 @@ export default async function SearchPage({
 }) {
   const { q } = await searchParams;
   const query = (q ?? "").trim();
-  const results = query.length > 0 ? await searchAll(query) : null;
-  const terms = results?.terms ?? [];
+  const rawResults = query.length > 0 ? await searchAll(query) : null;
   const user = await getCurrentUser();
   const savedSearches = user ? await listSavedSearches(user.id) : [];
+
+  // Ethical-wall filtering: a walled matter's title/documents/chat/etc.
+  // shouldn't surface here for someone who isn't on its team, even though
+  // the underlying SQL search has no notion of matter access.
+  const results =
+    rawResults && user
+      ? (() => {
+          const accessibleIds = filterAccessibleMatterIds(user.id, user.role, [
+            ...rawResults.matters.map((m) => m.id),
+            ...rawResults.documents.map((d) => d.matterId),
+            ...rawResults.documentContent.map((d) => d.matterId),
+            ...rawResults.chatMessages.map((c) => c.matterId),
+            ...rawResults.digests.map((d) => d.matterId),
+            ...rawResults.drafts.map((d) => d.matterId),
+            ...rawResults.evidenceMatrices.map((e) => e.matterId),
+          ]);
+          return {
+            ...rawResults,
+            matters: rawResults.matters.filter((m) => accessibleIds.has(m.id)),
+            documents: rawResults.documents.filter((d) => accessibleIds.has(d.matterId)),
+            documentContent: rawResults.documentContent.filter((d) => accessibleIds.has(d.matterId)),
+            chatMessages: rawResults.chatMessages.filter((c) => accessibleIds.has(c.matterId)),
+            digests: rawResults.digests.filter((d) => accessibleIds.has(d.matterId)),
+            drafts: rawResults.drafts.filter((d) => accessibleIds.has(d.matterId)),
+            evidenceMatrices: rawResults.evidenceMatrices.filter((e) => accessibleIds.has(e.matterId)),
+          };
+        })()
+      : rawResults;
+  const terms = results?.terms ?? [];
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-10">

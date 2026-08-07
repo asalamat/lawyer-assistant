@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
-import { bootstrapFirstAdmin, createSession, hasAnyUsers, verifyLogin } from "@/lib/auth";
+import {
+  bootstrapFirstAdmin,
+  createPendingMfaToken,
+  createSession,
+  hasAnyUsers,
+  isTotpEnabled,
+  verifyLogin,
+} from "@/lib/auth";
 import { checkLoginRateLimit, recordFailedLogin, recordSuccessfulLogin } from "@/lib/rateLimit";
 
 export async function POST(request: Request) {
@@ -36,6 +43,13 @@ export async function POST(request: Request) {
     if (!user) {
       recordFailedLogin(email);
       return NextResponse.json({ error: "Incorrect email or password" }, { status: 401 });
+    }
+    // Password is correct at this point, but a session isn't created yet if
+    // MFA is enabled — the client has to complete /api/auth/mfa first.
+    if (await isTotpEnabled(user.id)) {
+      recordSuccessfulLogin(email);
+      const pendingToken = await createPendingMfaToken(user.id);
+      return NextResponse.json({ mfaRequired: true, pendingToken });
     }
     userId = user.id;
   }

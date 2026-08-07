@@ -1,6 +1,6 @@
-import { ApiError } from "@google/genai";
+import { APIError } from "openai";
 import { NextResponse } from "next/server";
-import { getIndependentReview } from "@/lib/gemini";
+import { getIndependentReview } from "@/lib/openaiText";
 import {
   addIndependentReview,
   getMatter,
@@ -53,7 +53,7 @@ export async function POST(
     const review = await addIndependentReview(id, sourceType, sourceId, critique);
     return NextResponse.json(review, { status: 201 });
   } catch (err) {
-    if (err instanceof ApiError) {
+    if (err instanceof APIError) {
       return NextResponse.json(
         { error: `AI service error: ${err.message}` },
         { status: err.status ?? 502 },

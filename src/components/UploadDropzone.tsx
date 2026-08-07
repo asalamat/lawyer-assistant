@@ -22,6 +22,11 @@ interface ZipImportResponse {
   results: ZipImportResult[];
 }
 
+interface NearDuplicateMatch {
+  fileName: string;
+  score: number;
+}
+
 export default function UploadDropzone({
   matterId,
   uploadUrl,
@@ -39,6 +44,7 @@ export default function UploadDropzone({
   const [newDeadlines, setNewDeadlines] = useState(0);
   const [classificationSuggestion, setClassificationSuggestion] =
     useState<ClassificationSuggestion | null>(null);
+  const [nearDuplicates, setNearDuplicates] = useState<NearDuplicateMatch[]>([]);
   const [backgroundCheckPending, setBackgroundCheckPending] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
@@ -70,9 +76,11 @@ export default function UploadDropzone({
     setZipResults(null);
     setNewDeadlines(0);
     setClassificationSuggestion(null);
+    setNearDuplicates([]);
     setBackgroundCheckPending(false);
     let foundDeadlines = 0;
     let foundSuggestion: ClassificationSuggestion | null = null;
+    const foundNearDuplicates: NearDuplicateMatch[] = [];
     try {
       for (const file of Array.from(files)) {
         if (zipImportUrl && file.name.toLowerCase().endsWith(".zip")) {
@@ -89,9 +97,11 @@ export default function UploadDropzone({
         const body = await res.json().catch(() => null);
         if (typeof body?.newDeadlines === "number") foundDeadlines += body.newDeadlines;
         if (body?.classificationSuggestion) foundSuggestion = body.classificationSuggestion;
+        if (body?.nearDuplicate) foundNearDuplicates.push(body.nearDuplicate);
       }
       setNewDeadlines(foundDeadlines);
       setClassificationSuggestion(foundSuggestion);
+      setNearDuplicates(foundNearDuplicates);
       if (onUploaded) onUploaded();
       else router.refresh();
     } catch (err) {
@@ -154,6 +164,17 @@ export default function UploadDropzone({
             </>
           )}
         </p>
+      )}
+
+      {nearDuplicates.length > 0 && (
+        <ul className="mt-2 flex flex-col gap-1 text-xs text-amber-700 dark:text-amber-400">
+          {nearDuplicates.map((match, i) => (
+            <li key={`${match.fileName}-${i}`}>
+              Near-duplicate ({Math.round(match.score * 100)}% similar) of &quot;{match.fileName}&quot; —
+              worth checking whether this is the same document re-uploaded in a different format.
+            </li>
+          ))}
+        </ul>
       )}
 
       {zipResults && (

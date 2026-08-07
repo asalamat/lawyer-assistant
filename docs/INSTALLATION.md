@@ -89,6 +89,21 @@ from the terminal, in the project directory:
 npm run reset-password -- you@example.com
 ```
 
+Note `npm run reset-password` only clears the password — if that account also
+has two-factor authentication (below) turned on, they'll still need it after
+resetting. An admin can turn 2FA off for a locked-out account from Settings >
+Users if needed.
+
+### Optional: two-factor authentication (2FA)
+
+Each user can turn on 2FA for their own account from **Settings > Security** —
+scan the QR code shown there with an authenticator app (Google Authenticator,
+1Password, Authy, etc.), confirm with the 6-digit code it generates, and save
+the one-time backup codes shown right after (each works once, for when the
+authenticator app itself isn't available). This is entirely optional and
+per-account — nothing here requires a third-party service or API key, the
+whole thing runs locally.
+
 ## 4. Configure AI features (Settings)
 
 Everything below is configured from inside the app at **Settings** — no
@@ -166,3 +181,71 @@ automatically.
 
 To update dependencies after a pull that adds new packages, run
 `npm install` again before restarting.
+
+## Uninstalling
+
+There's no installer to run in reverse — this app is just the project
+directory plus a couple of small files it stores outside it (the encryption
+key, and, only on macOS, one Keychain entry). Back up `data/` first if you
+might want this installation's matters/documents/settings again later — see
+"Data & backup" above.
+
+**1. Stop the app.** If it's running in a terminal (`npm run dev` or
+`npm run start`), press `Ctrl+C` there. If it's running in the background:
+
+macOS / Linux:
+```bash
+pkill -f "next start"   # or: pkill -f "next dev"
+```
+Windows (Command Prompt or PowerShell), find and stop the Node process:
+```bat
+tasklist | findstr node
+taskkill /PID <the PID from the line above> /F
+```
+
+**2. Remove any scheduled tasks you set up.** If you wired the optional
+backup-scheduling or legislation-watch endpoints into an OS scheduler
+(Settings > Backup / Settings > Legal research), remove those entries too —
+this app never creates them on its own, so only remove what you added
+yourself:
+- **macOS / Linux (cron):** `crontab -e` and delete the line(s) referencing
+  this app's URL/`check-all`/`scheduled` endpoints.
+- **Windows (Task Scheduler):** open Task Scheduler, find the task you
+  created for this app, right-click > Delete.
+
+**3. Remove the encryption key stored outside the project directory** — it's
+useless without `data/` and vice versa, so delete both together or neither:
+
+macOS:
+```bash
+security delete-generic-password -a masterEncryptionKey -s LawyerAssistant
+```
+(If that reports "item could not be found," the key was stored as a fallback
+file instead — see the Windows/Linux command below; either is normal
+depending on Keychain availability at the time.)
+
+Windows (Command Prompt):
+```bat
+del "%USERPROFILE%\.lawyer-assistant\masterkey"
+```
+Linux, or Windows PowerShell:
+```bash
+rm -f ~/.lawyer-assistant/masterkey
+```
+
+**4. Delete the project directory** — this removes everything else
+(`data/`, the app code, `node_modules`):
+
+macOS / Linux:
+```bash
+rm -rf /path/to/lawyer-assistant
+```
+Windows (Command Prompt or PowerShell):
+```bat
+rmdir /s /q "C:\path\to\lawyer-assistant"
+```
+
+Node.js and git are general-purpose developer tools, not specific to this
+app — uninstall them separately (via the OS's normal Programs/Apps removal,
+or `brew uninstall node` on macOS with Homebrew) only if nothing else on the
+machine needs them.

@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
+import { filterAccessibleMatterIds } from "@/lib/matterAccess";
 import { createMatter, listMatters } from "@/lib/matters";
 
 export async function GET() {
-  const matters = await listMatters();
-  return NextResponse.json(matters);
+  const user = await getCurrentUser();
+  const allMatters = await listMatters();
+  if (!user) return NextResponse.json(allMatters);
+  const accessibleIds = filterAccessibleMatterIds(user.id, user.role, allMatters.map((m) => m.id));
+  return NextResponse.json(allMatters.filter((m) => accessibleIds.has(m.id)));
 }
 
 export async function POST(request: Request) {

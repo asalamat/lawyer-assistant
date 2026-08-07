@@ -14,6 +14,7 @@ export interface Matter {
   legalHold: number;
   legalHoldReason: string | null;
   retentionDate: string | null;
+  ethicalWall: number;
   createdAt: string;
 }
 
@@ -26,6 +27,46 @@ export interface Client {
   createdAt: string;
 }
 
+// Common party roles, offered as autocomplete suggestions on the parties
+// form rather than as a closed set — real matters throw up roles no fixed
+// list would cover ("adjuster", "translator", "estate trustee"), so role is
+// stored as free text and only required to be non-empty.
+export const PARTY_ROLE_SUGGESTIONS = [
+  "Opposing party",
+  "Opposing counsel",
+  "Witness",
+  "Expert witness",
+  "Co-counsel",
+  "Insurer",
+  "Investigating officer",
+  "Court",
+  "Other",
+] as const;
+
+export interface Party {
+  id: string;
+  matterId: string;
+  name: string;
+  role: string;
+  email: string | null;
+  phone: string | null;
+  notes: string | null;
+  createdAt: string;
+}
+
+// One entry per matter linked to the matter being viewed — already resolved
+// to the *other* matter's identifying fields, since a bare id is useless to
+// display and the link is symmetric from the reader's point of view even
+// though the stored row is directed.
+export interface RelatedMatterLink {
+  matterId: string;
+  fileNumber: string;
+  title: string;
+  status: Matter["status"];
+  note: string | null;
+  createdAt: string;
+}
+
 export interface SavedSearch {
   id: string;
   userId: string;
@@ -33,6 +74,11 @@ export interface SavedSearch {
   query: string;
   createdAt: string;
 }
+
+// extractionStatus is null until the first extraction attempt: "ok" (readable),
+// "failed" (extractable in principle but the attempt errored/produced nothing —
+// see extractionError), or "unsupported" (not a type this app tries to read).
+export type ExtractionStatus = "ok" | "failed" | "unsupported";
 
 export interface Document {
   id: string;
@@ -42,6 +88,9 @@ export interface Document {
   uploadedAt: string;
   storagePath: string;
   contentHash: string;
+  extractionStatus: ExtractionStatus | null;
+  extractionError: string | null;
+  extractionCheckedAt: string | null;
 }
 
 // A shared, firm-wide document library (e.g. statutes, the Criminal Code,
@@ -60,6 +109,9 @@ export interface ReferenceDocument {
   approvedBy: string | null;
   approvedAt: string | null;
   sensitivityFlag: string | null;
+  extractionStatus: ExtractionStatus | null;
+  extractionError: string | null;
+  extractionCheckedAt: string | null;
 }
 
 // A CanLII legislation record being watched for changes. CanLII's API only
@@ -162,6 +214,27 @@ export interface EvidenceMatrix {
   matterId: string;
   content: string;
   createdAt: string;
+}
+
+export interface CaseNoteupRef {
+  title: string;
+  citation: string;
+}
+
+export interface CaseNoteup {
+  id: string;
+  matterId: string;
+  citation: string;
+  databaseId: string;
+  caseId: string;
+  found: boolean;
+  title: string | null;
+  url: string | null;
+  citedCases: CaseNoteupRef[];
+  citingCases: CaseNoteupRef[];
+  citedLegislations: CaseNoteupRef[];
+  error: string | null;
+  checkedAt: string;
 }
 
 export interface IndependentReview {

@@ -1,9 +1,12 @@
-import { annotateDuplicates, getMatter, listDocuments } from "@/lib/matters";
+import { annotateDuplicates, annotateNearDuplicates, getMatter, listDocuments } from "@/lib/matters";
+import { listTeam } from "@/lib/matterTeam";
 import { listAttachedReferenceDocuments, listReferenceDocuments } from "@/lib/referenceLibrary";
 import { isExtractableDocument } from "@/lib/textExtraction";
 import DeleteMatterButton from "@/components/DeleteMatterButton";
 import MatterComplianceControls from "@/components/MatterComplianceControls";
+import MatterTeamPanel from "@/components/MatterTeamPanel";
 import ReferenceDocumentsAttachPanel from "@/components/ReferenceDocumentsAttachPanel";
+import RetryExtractionButton from "@/components/RetryExtractionButton";
 import SimilarDocumentsButton from "@/components/SimilarDocumentsButton";
 import UploadDropzone from "@/components/UploadDropzone";
 
@@ -14,8 +17,9 @@ export default async function MatterOverviewPage({
 }) {
   const { id } = await params;
   const matter = await getMatter(id);
-  const documents = annotateDuplicates(await listDocuments(id));
+  const documents = await annotateNearDuplicates(id, annotateDuplicates(await listDocuments(id)));
   const attachedReferenceDocs = await listAttachedReferenceDocuments(id);
+  const team = await listTeam(id);
   // Only approved reference documents can be attached to a matter — a
   // pending upload isn't available here yet, even to the person who
   // uploaded it, until a lawyer/admin has signed off (see /reference-library).
@@ -40,13 +44,33 @@ export default async function MatterOverviewPage({
                       duplicate of {doc.duplicateOfFileName}
                     </span>
                   )}
+                  {doc.nearDuplicateOfFileName && (
+                    <span
+                      className="ml-2 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-400"
+                      title={`${Math.round((doc.nearDuplicateScore ?? 0) * 100)}% similar`}
+                    >
+                      near-duplicate of {doc.nearDuplicateOfFileName}
+                    </span>
+                  )}
                 </span>
                 <span className="flex items-center gap-3 text-muted">
                   {isExtractableDocument(doc.fileName) ? (
-                    <>
-                      <span className="badge">chat-readable</span>
-                      <SimilarDocumentsButton matterId={id} documentId={doc.id} />
-                    </>
+                    doc.extractionStatus === "failed" ? (
+                      <>
+                        <span
+                          className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs text-red-700 dark:text-red-400"
+                          title={doc.extractionError ?? undefined}
+                        >
+                          extraction failed
+                        </span>
+                        <RetryExtractionButton matterId={id} documentId={doc.id} />
+                      </>
+                    ) : (
+                      <>
+                        <span className="badge">chat-readable</span>
+                        <SimilarDocumentsButton matterId={id} documentId={doc.id} />
+                      </>
+                    )
                   ) : (
                     <span className="badge">not used in chat</span>
                   )}
@@ -63,6 +87,8 @@ export default async function MatterOverviewPage({
         initialAttached={attachedReferenceDocs}
         library={referenceLibrary}
       />
+
+      <MatterTeamPanel matterId={id} initialTeam={team} />
 
       {matter && <MatterComplianceControls matter={matter} />}
 
