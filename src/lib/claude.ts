@@ -177,7 +177,65 @@ export async function askClaude(params: {
   });
 }
 
-export async function generateMatterDigest(context: string): Promise<string> {
+export interface MatterDocumentSection {
+  label: string;
+  text: string;
+}
+
+// Comfortably under every configured provider's real limit — Anthropic's is
+// the highest of the three at 1M tokens, OpenAI's and Gemini's free tier are
+// both far lower. A matter whose full text exceeds this switches to
+// per-document summarization (below) instead of one giant prompt, so a
+// large real matter degrades gracefully instead of failing outright on
+// every provider (confirmed live: a 37-document, ~1.6M-token matter failed
+// digest generation on Anthropic, OpenAI, AND Gemini before this existed).
+const MAP_REDUCE_THRESHOLD_CHARS = 500_000;
+// Bounded concurrency for the per-document summarization pass — a matter
+// with dozens of documents firing that many simultaneous AI calls at once
+// would trip a provider's own per-minute rate limit (confirmed against
+// Gemini's free-tier quota in practice).
+const MAP_REDUCE_BATCH_SIZE = 5;
+
+function joinSections(sections: MatterDocumentSection[]): string {
+  return sections.map((s) => `--- ${s.label} ---\n${s.text}`).join("\n\n");
+}
+
+async function summarizeSectionForMatterContext(section: MatterDocumentSection): Promise<string> {
+  try {
+    const summary = await complete({
+      system:
+        "You are extracting the key facts from ONE document, as an intermediate step before it's combined with other documents' summaries into a full analysis. List, in your own concise words (not a copy of the text): parties/people named, key dates, key facts/claims/admissions, and evidence described. If this document isn't substantively relevant (e.g. a blank cover sheet), say so in one line instead of padding.",
+      messages: [{ role: "user", content: `Document: ${section.label}\n\n${section.text}` }],
+      maxTokens: 700,
+    });
+    return `--- ${section.label} (summarized) ---\n${summary}`;
+  } catch (err) {
+    return `--- ${section.label} ---\n[Could not summarize this document: ${err instanceof Error ? err.message : "unknown error"}]`;
+  }
+}
+
+// Every "full corpus" AI feature (digest, evidence matrix, deadlines,
+// drafts, email drafts) needs comprehensive coverage of every document —
+// there's no query to retrieve "the relevant parts" against, unlike chat
+// (see getMatterChatContext, which uses real retrieval instead). For a
+// matter small enough to fit in one prompt this just joins everything, same
+// as before this existed. Past the threshold, summarizing each document
+// first keeps every document genuinely represented in the final answer
+// instead of the request just failing.
+export async function buildMatterContext(sections: MatterDocumentSection[]): Promise<string> {
+  if (sections.length === 0) return "";
+  const full = joinSections(sections);
+  if (full.length <= MAP_REDUCE_THRESHOLD_CHARS) return full;
+
+  const summaries: string[] = [];
+  for (let i = 0; i < sections.length; i += MAP_REDUCE_BATCH_SIZE) {
+    const batch = sections.slice(i, i + MAP_REDUCE_BATCH_SIZE);
+    summaries.push(...(await Promise.all(batch.map(summarizeSectionForMatterContext))));
+  }
+  return summaries.join("\n\n");
+}
+
+export async function generateMatterDigest(sections: MatterDocumentSection[]): Promise<string> {
   const system = `You are a legal assistant producing an executive matter digest for a lawyer. Base every statement only on the provided matter documents — never invent facts, parties, or dates. Cite the source filename in parentheses after any fact you draw from a document — if the source text has page markers (e.g. "[Page 4]"), include the page too, like "(file.pdf, p. 4)". Structure your answer in these sections, using "Not stated in the provided documents" for anything you cannot support:
 
 ## Executive summary
@@ -187,10 +245,11 @@ export async function generateMatterDigest(context: string): Promise<string> {
 ## Evidence inventory
 ## Missing documents / open questions`;
 
-  if (!context) {
+  if (sections.length === 0) {
     return "No documents have been uploaded for this matter yet — upload documents first, then generate a digest.";
   }
 
+  const context = await buildMatterContext(sections);
   return complete({
     system,
     messages: [
@@ -240,11 +299,12 @@ const DEADLINES_SCHEMA = {
   additionalProperties: false,
 };
 
-export async function extractDeadlines(context: string): Promise<ExtractedDeadline[]> {
-  if (!context) return [];
+export async function extractDeadlines(sections: MatterDocumentSection[]): Promise<ExtractedDeadline[]> {
+  if (sections.length === 0) return [];
 
   const system = `You extract deadlines and important dates from legal matter documents. Only include dates that represent a genuine deadline, court date, limitation period, or similarly actionable date — not every date mentioned. If a date is mentioned but not clearly formatted, set dueDate to null and describe it in the description. If the same real-world deadline is mentioned in more than one document (e.g. the same court date cited in two different letters), list it only once — don't repeat it per source document. If there are no such dates, return an empty list.`;
 
+  const context = await buildMatterContext(sections);
   const result = await completeJSON<{ deadlines: ExtractedDeadline[] }>({
     system,
     messages: [
@@ -286,9 +346,10 @@ export function buildDraftUserPrompt(draftType: DraftType, context: string, inst
 
 export async function generateDraft(
   draftType: DraftType,
-  context: string,
+  sections: MatterDocumentSection[],
   instructions: string,
 ): Promise<string> {
+  const context = await buildMatterContext(sections);
   return complete({
     system: buildDraftSystemPrompt(draftType),
     messages: [{ role: "user", content: buildDraftUserPrompt(draftType, context, instructions) }],
@@ -301,12 +362,16 @@ export interface EmailDraft {
   body: string;
 }
 
-export async function generateEmailDraft(context: string, instructions: string): Promise<EmailDraft> {
+export async function generateEmailDraft(
+  sections: MatterDocumentSection[],
+  instructions: string,
+): Promise<EmailDraft> {
   const system = `You are a legal assistant drafting an email to a client on a lawyer's behalf, for the lawyer's review before sending — never send anything yourself, this is a first draft only. Base every fact on the provided matter documents — cite the source filename in parentheses after any fact you draw from a document. Keep the tone professional and appropriately concise for a client email, not a formal memo. Respond in exactly this format, with nothing before or after it:
 Subject: <subject line>
 
 <email body>`;
 
+  const context = await buildMatterContext(sections);
   const contextSection = context
     ? `Matter documents:\n\n${context}\n\n`
     : "No documents have been uploaded for this matter yet.\n\n";
@@ -327,7 +392,7 @@ Subject: <subject line>
   return { subject: match[1].trim(), body: match[2].trim() };
 }
 
-export async function generateEvidenceMatrix(context: string): Promise<string> {
+export async function generateEvidenceMatrix(sections: MatterDocumentSection[]): Promise<string> {
   const system = `You are a legal assistant building an evidence-mapping matrix for a lawyer. Base every statement only on the provided matter documents — never invent allegations, evidence, or elements. Cite the source filename in parentheses after any fact you draw from a document — if the source text has page markers (e.g. "[Page 4]"), include the page too, like "(file.pdf, p. 4)". Structure your answer as:
 
 ## Allegations / claims / charges
@@ -338,10 +403,11 @@ export async function generateEvidenceMatrix(context: string): Promise<string> {
 
 Use "Not stated in the provided documents" for anything you cannot support. Do not predict an outcome or assign a probability of success — only map what is and isn't supported by the record.`;
 
-  if (!context) {
+  if (sections.length === 0) {
     return "No documents have been uploaded for this matter yet — upload documents first, then generate the matrix.";
   }
 
+  const context = await buildMatterContext(sections);
   return complete({
     system,
     messages: [

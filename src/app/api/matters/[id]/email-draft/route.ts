@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { aiErrorResponse } from "@/lib/aiErrorResponse";
 import { recordAuditEvent } from "@/lib/auditLog";
 import { generateEmailDraft } from "@/lib/claude";
-import { getMatter, getMatterTextContext } from "@/lib/matters";
+import { getMatter, getMatterDocumentSections } from "@/lib/matters";
 
 export async function POST(
   request: Request,
@@ -17,9 +17,9 @@ export async function POST(
   const body = await request.json().catch(() => ({}));
   const instructions = typeof body?.instructions === "string" ? body.instructions : "";
 
-  const context = await getMatterTextContext(id);
+  const sections = await getMatterDocumentSections(id);
   try {
-    const draft = await generateEmailDraft(context, instructions);
+    const draft = await generateEmailDraft(sections, instructions);
     await recordAuditEvent("email_draft_generated", id, "Generated a smart email draft");
     return NextResponse.json(draft);
   } catch (err) {

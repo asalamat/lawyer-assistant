@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { aiErrorResponse } from "@/lib/aiErrorResponse";
 import { generateMatterDigest } from "@/lib/claude";
-import { addDigest, getMatter, getMatterTextContext, listDigests } from "@/lib/matters";
+import { addDigest, getMatter, getMatterDocumentSections, listDigests } from "@/lib/matters";
 
 export async function GET(
   _request: Request,
@@ -22,9 +22,9 @@ export async function POST(
     return NextResponse.json({ error: "Matter not found" }, { status: 404 });
   }
 
-  const context = await getMatterTextContext(id);
+  const sections = await getMatterDocumentSections(id);
   try {
-    const content = await generateMatterDigest(context);
+    const content = await generateMatterDigest(sections);
     const digest = await addDigest(id, content);
     return NextResponse.json(digest, { status: 201 });
   } catch (err) {

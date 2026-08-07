@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { aiErrorResponse } from "@/lib/aiErrorResponse";
 import { extractDeadlines } from "@/lib/claude";
-import { getMatter, getMatterTextContext, listDeadlines, replaceDeadlines } from "@/lib/matters";
+import { getMatter, getMatterDocumentSections, listDeadlines, replaceDeadlines } from "@/lib/matters";
 
 export async function GET(
   _request: Request,
@@ -22,9 +22,9 @@ export async function POST(
     return NextResponse.json({ error: "Matter not found" }, { status: 404 });
   }
 
-  const context = await getMatterTextContext(id);
+  const sections = await getMatterDocumentSections(id);
   try {
-    const extracted = await extractDeadlines(context);
+    const extracted = await extractDeadlines(sections);
     const deadlines = await replaceDeadlines(id, extracted);
     return NextResponse.json(deadlines, { status: 201 });
   } catch (err) {

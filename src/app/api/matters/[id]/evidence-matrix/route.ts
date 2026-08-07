@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { aiErrorResponse } from "@/lib/aiErrorResponse";
 import { generateEvidenceMatrix } from "@/lib/claude";
-import { addEvidenceMatrix, getMatter, getMatterTextContext, listEvidenceMatrices } from "@/lib/matters";
+import { addEvidenceMatrix, getMatter, getMatterDocumentSections, listEvidenceMatrices } from "@/lib/matters";
 
 export async function GET(
   _request: Request,
@@ -22,9 +22,9 @@ export async function POST(
     return NextResponse.json({ error: "Matter not found" }, { status: 404 });
   }
 
-  const context = await getMatterTextContext(id);
+  const sections = await getMatterDocumentSections(id);
   try {
-    const content = await generateEvidenceMatrix(context);
+    const content = await generateEvidenceMatrix(sections);
     const matrix = await addEvidenceMatrix(id, content);
     return NextResponse.json(matrix, { status: 201 });
   } catch (err) {

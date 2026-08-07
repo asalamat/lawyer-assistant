@@ -4,7 +4,7 @@ import { saveAgentRun } from "@/lib/agentRuns";
 import { recordAuditEvent } from "@/lib/auditLog";
 import { generateDraft } from "@/lib/claude";
 import { runDraftingAgent } from "@/lib/draftingAgent";
-import { addDraft, getMatter, getMatterTextContext, listDrafts } from "@/lib/matters";
+import { addDraft, getMatter, getMatterDocumentSections, listDrafts } from "@/lib/matters";
 import { DRAFT_TYPES, type DraftType } from "@/lib/types";
 
 export async function GET(
@@ -38,9 +38,14 @@ export async function POST(
     );
   }
 
-  const context = await getMatterTextContext(id);
+  const sections = await getMatterDocumentSections(id);
   try {
     if (agentic) {
+      // The agentic path still gets one plain joined string — it also has
+      // a search tool to pull specific passages on demand, so it's less
+      // exposed to the same context-overflow problem generateDraft's
+      // plain path had (see buildMatterContext); left as-is for now.
+      const context = sections.map((s) => `--- ${s.label} ---\n${s.text}`).join("\n\n");
       const result = await runDraftingAgent(id, draftType, instructions, context);
       const draft = await addDraft(id, draftType, result.content);
       const agentRun = await saveAgentRun({
@@ -58,7 +63,7 @@ export async function POST(
       return NextResponse.json({ ...draft, agentRun }, { status: 201 });
     }
 
-    const content = await generateDraft(draftType, context, instructions);
+    const content = await generateDraft(draftType, sections, instructions);
     const draft = await addDraft(id, draftType, content);
     return NextResponse.json(draft, { status: 201 });
   } catch (err) {

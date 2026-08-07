@@ -650,8 +650,8 @@ export async function checkForNewDeadlines(
 ): Promise<{ deadlines: MatterDeadline[]; newCount: number }> {
   const before = await listDeadlines(matterId);
 
-  const context = await getMatterTextContext(matterId);
-  const extracted = await extractDeadlines(context);
+  const sections = await getMatterDocumentSections(matterId);
+  const extracted = await extractDeadlines(sections);
   const deadlines = await replaceDeadlines(matterId, extracted);
 
   const newCount = deadlines.filter((d) => !isKnownDeadline(d, before)).length;
@@ -992,16 +992,28 @@ export async function deleteMatterNote(matterId: string, noteId: string): Promis
   db.prepare("DELETE FROM matter_notes WHERE id = ? AND matterId = ?").run(noteId, matterId);
 }
 
-export async function getMatterTextContext(matterId: string): Promise<string> {
+export interface MatterDocumentSection {
+  label: string;
+  text: string;
+}
+
+// Per-document breakdown of everything getMatterTextContext used to
+// concatenate directly — split out so callers that need comprehensive
+// coverage but can't fit it all in one AI call (see buildMatterContext in
+// claude.ts) can summarize document-by-document instead of only ever
+// having one giant pre-joined string to work with. Each section's text is
+// already PII-masked, so every caller gets that for free.
+export async function getMatterDocumentSections(matterId: string): Promise<MatterDocumentSection[]> {
   const documents = await listDocuments(matterId);
   const extractable = documents.filter((doc) => isExtractableDocument(doc.fileName));
 
-  const sections = await Promise.all(
+  const docSections = await Promise.all(
     extractable.map(async (doc) => {
       const text = await extractTextTracked("documents", doc.id, doc.fileName, doc.storagePath);
-      return text
-        ? `--- ${doc.fileName} ---\n${text}`
-        : `--- ${doc.fileName} ---\n[Could not extract text from this file]`;
+      return {
+        label: doc.fileName,
+        text: await maskForAI(text ?? "[Could not extract text from this file]"),
+      };
     }),
   );
 
@@ -1016,28 +1028,32 @@ export async function getMatterTextContext(matterId: string): Promise<string> {
           doc.fileName,
           doc.storagePath,
         );
-        return text
-          ? `--- Reference: ${doc.fileName} ---\n${text}`
-          : `--- Reference: ${doc.fileName} ---\n[Could not extract text from this file]`;
+        return {
+          label: `Reference: ${doc.fileName}`,
+          text: await maskForAI(text ?? "[Could not extract text from this file]"),
+        };
       }),
   );
 
   const notes = await listMatterNotes(matterId);
-  const notesSection =
+  const noteSections =
     notes.length > 0
       ? [
-          `--- Lawyer's notes ---\n${notes
-            .map((n) => `[${n.createdAt.slice(0, 10)}] ${n.content}`)
-            .join("\n\n")}`,
+          {
+            label: "Lawyer's notes",
+            text: await maskForAI(
+              notes.map((n) => `[${n.createdAt.slice(0, 10)}] ${n.content}`).join("\n\n"),
+            ),
+          },
         ]
       : [];
 
-  const context = [
-    ...sections.filter((section) => section !== null),
-    ...referenceSections.filter((section) => section !== null),
-    ...notesSection,
-  ].join("\n\n");
-  return maskForAI(context);
+  return [...docSections, ...referenceSections, ...noteSections];
+}
+
+export async function getMatterTextContext(matterId: string): Promise<string> {
+  const sections = await getMatterDocumentSections(matterId);
+  return sections.map((s) => `--- ${s.label} ---\n${s.text}`).join("\n\n");
 }
 
 // Chat context, built via retrieval instead of concatenating every document
