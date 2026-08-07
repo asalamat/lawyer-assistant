@@ -89,7 +89,60 @@ export interface SearchResults {
   evidenceMatrices: { id: string; matterId: string; matterTitle: string; snippet: string }[];
 }
 
-export async function searchAll(query: string): Promise<SearchResults> {
+export interface SearchFilters {
+  partyName?: string;
+  matterType?: string;
+  status?: Matter["status"];
+  // Inclusive, compared against matters.createdAt (ISO strings sort
+  // correctly as plain text, no date parsing needed).
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+// Computes which matters satisfy the given filters, or null if none are
+// set (meaning "don't restrict by filters at all" — distinct from an empty
+// Set, which would mean "no matter matches"). Every other result category
+// already carries a matterId, so this one allowlist cascades to all of
+// them without needing a per-table filter query.
+function computeMatterIdFilter(filters: SearchFilters): Set<string> | null {
+  const clauses: string[] = [];
+  const params: string[] = [];
+  let joinParties = false;
+
+  if (filters.partyName?.trim()) {
+    joinParties = true;
+    clauses.push("p.name LIKE ? ESCAPE '\\'");
+    params.push(`%${escapeLike(filters.partyName.trim())}%`);
+  }
+  if (filters.matterType?.trim()) {
+    clauses.push("m.matterType = ?");
+    params.push(filters.matterType.trim());
+  }
+  if (filters.status) {
+    clauses.push("m.status = ?");
+    params.push(filters.status);
+  }
+  if (filters.dateFrom) {
+    clauses.push("m.createdAt >= ?");
+    params.push(filters.dateFrom);
+  }
+  if (filters.dateTo) {
+    // createdAt is a full timestamp; a bare date like "2026-08-01" as the
+    // upper bound would exclude that whole day — push to end-of-day.
+    clauses.push("m.createdAt <= ?");
+    params.push(`${filters.dateTo}T23:59:59.999Z`);
+  }
+
+  if (clauses.length === 0) return null;
+
+  const sql = `SELECT DISTINCT m.id as id FROM matters m ${
+    joinParties ? "JOIN parties p ON p.matterId = m.id" : ""
+  } WHERE ${clauses.join(" AND ")}`;
+  const rows = db.prepare(sql).all(...params) as { id: string }[];
+  return new Set(rows.map((r) => r.id));
+}
+
+export async function searchAll(query: string, filters: SearchFilters = {}): Promise<SearchResults> {
   const parsed = parseSearchQuery(query);
   if (parsed.include.length === 0) {
     return {
@@ -104,6 +157,8 @@ export async function searchAll(query: string): Promise<SearchResults> {
     };
   }
   const terms = parsed.include;
+  const matterIdFilter = computeMatterIdFilter(filters);
+  const passesFilter = (matterId: string) => matterIdFilter === null || matterIdFilter.has(matterId);
 
   const mattersWhere = buildBooleanWhere(["title", "clientName", "matterType"], parsed);
   const matters = db
@@ -222,5 +277,14 @@ export async function searchAll(query: string): Promise<SearchResults> {
       snippet: snippet(row.content, firstMatchingTerm(row.content, terms)),
     }));
 
-  return { terms, matters, documents, documentContent, chatMessages, digests, drafts, evidenceMatrices };
+  return {
+    terms,
+    matters: matters.filter((m) => passesFilter(m.id)),
+    documents: documents.filter((d) => passesFilter(d.matterId)),
+    documentContent: documentContent.filter((d) => passesFilter(d.matterId)),
+    chatMessages: chatMessages.filter((c) => passesFilter(c.matterId)),
+    digests: digests.filter((d) => passesFilter(d.matterId)),
+    drafts: drafts.filter((d) => passesFilter(d.matterId)),
+    evidenceMatrices: evidenceMatrices.filter((e) => passesFilter(e.matterId)),
+  };
 }

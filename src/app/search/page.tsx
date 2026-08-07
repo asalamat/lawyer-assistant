@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { searchAll } from "@/lib/search";
+import { searchAll, type SearchFilters } from "@/lib/search";
 import { listSavedSearches } from "@/lib/savedSearches";
 import { getCurrentUser } from "@/lib/auth";
 import { filterAccessibleMatterIds } from "@/lib/matterAccess";
@@ -31,11 +31,26 @@ function ResultGroup({
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    party?: string;
+    matterType?: string;
+    status?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }>;
 }) {
-  const { q } = await searchParams;
+  const { q, party, matterType, status, dateFrom, dateTo } = await searchParams;
   const query = (q ?? "").trim();
-  const rawResults = query.length > 0 ? await searchAll(query) : null;
+  const filters: SearchFilters = {
+    partyName: party?.trim() || undefined,
+    matterType: matterType?.trim() || undefined,
+    status: status === "open" || status === "closed" || status === "archived" ? status : undefined,
+    dateFrom: dateFrom?.trim() || undefined,
+    dateTo: dateTo?.trim() || undefined,
+  };
+  const hasFilters = Object.values(filters).some(Boolean);
+  const rawResults = query.length > 0 ? await searchAll(query, filters) : null;
   const user = await getCurrentUser();
   const savedSearches = user ? await listSavedSearches(user.id) : [];
 
@@ -90,6 +105,50 @@ export default async function SearchPage({
           <code>&quot;show cause hearing&quot;</code>) and a leading minus to exclude a term (
           <code>-adjourned</code>).
         </p>
+
+        <details className="mt-3" open={hasFilters}>
+          <summary className="cursor-pointer text-sm text-muted">
+            Filters{hasFilters ? " (active)" : ""}
+          </summary>
+          <form className="surface-card mt-2 grid gap-3 sm:grid-cols-3">
+            <input type="hidden" name="q" value={query} />
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-muted">Party name</span>
+              <input name="party" defaultValue={party ?? ""} className="surface-input" placeholder="e.g. Neda Assadian" />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-muted">Matter type</span>
+              <input name="matterType" defaultValue={matterType ?? ""} className="surface-input" placeholder="e.g. Criminal" />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-muted">Status</span>
+              <select name="status" defaultValue={status ?? ""} className="surface-input">
+                <option value="">Any</option>
+                <option value="open">Open</option>
+                <option value="closed">Closed</option>
+                <option value="archived">Archived</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-muted">Matter created after</span>
+              <input type="date" name="dateFrom" defaultValue={dateFrom ?? ""} className="surface-input" />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-muted">Matter created before</span>
+              <input type="date" name="dateTo" defaultValue={dateTo ?? ""} className="surface-input" />
+            </label>
+            <div className="flex items-end gap-2">
+              <button type="submit" className="btn-secondary">
+                Apply filters
+              </button>
+              {hasFilters && (
+                <a href={`/search?q=${encodeURIComponent(query)}`} className="text-sm text-muted hover:text-foreground">
+                  Clear
+                </a>
+              )}
+            </div>
+          </form>
+        </details>
         <div className="mt-3">
           <SavedSearchesPanel initialSearches={savedSearches} currentQuery={query} />
         </div>
