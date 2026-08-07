@@ -1,5 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
+import { aiErrorResponse } from "@/lib/aiErrorResponse";
 import { saveAgentRun } from "@/lib/agentRuns";
 import { recordAuditEvent } from "@/lib/auditLog";
 import { generateDraft } from "@/lib/claude";
@@ -62,18 +62,9 @@ export async function POST(
     const draft = await addDraft(id, draftType, content);
     return NextResponse.json(draft, { status: 201 });
   } catch (err) {
-    if (err instanceof Anthropic.APIError) {
-      return NextResponse.json(
-        { error: `AI service error: ${err.message}` },
-        { status: err.status ?? 502 },
-      );
-    }
-    if (err instanceof Error && err.message.includes("Anthropic API key")) {
-      return NextResponse.json({ error: err.message }, { status: 400 });
-    }
     if (err instanceof Error && err.message.includes("too many search steps")) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }
-    throw err;
+    return aiErrorResponse(err);
   }
 }

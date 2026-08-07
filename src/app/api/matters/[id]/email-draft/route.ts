@@ -1,5 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
+import { aiErrorResponse } from "@/lib/aiErrorResponse";
 import { recordAuditEvent } from "@/lib/auditLog";
 import { generateEmailDraft } from "@/lib/claude";
 import { getMatter, getMatterTextContext } from "@/lib/matters";
@@ -23,15 +23,6 @@ export async function POST(
     await recordAuditEvent("email_draft_generated", id, "Generated a smart email draft");
     return NextResponse.json(draft);
   } catch (err) {
-    if (err instanceof Anthropic.APIError) {
-      return NextResponse.json(
-        { error: `AI service error: ${err.message}` },
-        { status: err.status ?? 502 },
-      );
-    }
-    if (err instanceof Error) {
-      return NextResponse.json({ error: err.message }, { status: 400 });
-    }
-    throw err;
+    return aiErrorResponse(err);
   }
 }

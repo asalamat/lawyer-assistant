@@ -1,5 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
+import { aiErrorResponse } from "@/lib/aiErrorResponse";
 import { translateText } from "@/lib/claude";
 
 // Generic — not tied to a matter, so any authenticated user can translate
@@ -19,15 +19,6 @@ export async function POST(request: Request) {
     const translated = await translateText(text, targetLanguage);
     return NextResponse.json({ translated });
   } catch (err) {
-    if (err instanceof Anthropic.APIError) {
-      return NextResponse.json(
-        { error: `AI service error: ${err.message}` },
-        { status: err.status ?? 502 },
-      );
-    }
-    if (err instanceof Error) {
-      return NextResponse.json({ error: err.message }, { status: 400 });
-    }
-    throw err;
+    return aiErrorResponse(err);
   }
 }

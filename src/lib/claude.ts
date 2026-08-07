@@ -107,15 +107,30 @@ async function forEachConfiguredProvider<T>(
   }
   const attemptOrder = configured.length > 0 ? configured : order;
 
-  let lastError: unknown;
+  const failures: { provider: AiProvider; error: unknown }[] = [];
   for (const provider of attemptOrder) {
     try {
       return await attempt(provider);
     } catch (err) {
-      lastError = err;
+      failures.push({ provider, error: err });
     }
   }
-  throw lastError;
+
+  // Only one provider was ever tried — surface its real error as-is
+  // (preserves its specific error type, e.g. Anthropic.APIError, so
+  // route-level handling like aiErrorResponse still gets the right status
+  // code) instead of wrapping a single failure in a generic message.
+  if (failures.length === 1) throw failures[0].error;
+
+  // Multiple providers were tried and ALL failed — combine every provider's
+  // real reason into one message. Without this, only the LAST provider's
+  // error ever surfaced, which could hide a more actionable earlier failure
+  // (e.g. Anthropic's "credit balance too low" hidden behind Gemini's
+  // rate-limit message just because Gemini happened to be tried last).
+  const combined = failures
+    .map(({ provider, error }) => `${provider}: ${error instanceof Error ? error.message : String(error)}`)
+    .join(" | ");
+  throw new Error(`All configured AI providers failed. ${combined}`);
 }
 
 async function complete(params: {

@@ -1,5 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
+import { aiErrorResponse } from "@/lib/aiErrorResponse";
 import { recordAuditEvent } from "@/lib/auditLog";
 import { extractDefenceGraph } from "@/lib/claude";
 import { getMatter, listDrafts } from "@/lib/matters";
@@ -29,15 +29,6 @@ export async function POST(
     await recordAuditEvent("defence_graph_generated", id, "Generated a defence graph visualization");
     return NextResponse.json(graph);
   } catch (err) {
-    if (err instanceof Anthropic.APIError) {
-      return NextResponse.json(
-        { error: `AI service error: ${err.message}` },
-        { status: err.status ?? 502 },
-      );
-    }
-    if (err instanceof Error) {
-      return NextResponse.json({ error: err.message }, { status: 400 });
-    }
-    throw err;
+    return aiErrorResponse(err);
   }
 }

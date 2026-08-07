@@ -1,5 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
+import { aiErrorResponse } from "@/lib/aiErrorResponse";
 import { askClaude } from "@/lib/claude";
 import {
   addChatMessage,
@@ -46,15 +46,6 @@ export async function POST(
     const assistantMessage = await addChatMessage(id, "assistant", answer);
     return NextResponse.json(assistantMessage, { status: 201 });
   } catch (err) {
-    if (err instanceof Anthropic.APIError) {
-      return NextResponse.json(
-        { error: `AI service error: ${err.message}` },
-        { status: err.status ?? 502 },
-      );
-    }
-    if (err instanceof Error && err.message.includes("No Anthropic API key")) {
-      return NextResponse.json({ error: err.message }, { status: 400 });
-    }
-    throw err;
+    return aiErrorResponse(err);
   }
 }
