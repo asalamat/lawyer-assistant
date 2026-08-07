@@ -582,6 +582,15 @@ ensureColumn("reference_documents", "malwareScanDetail", "TEXT");
 // table is needed.
 ensureColumn("documents", "parentDocumentId", "TEXT");
 
+// Splits the reference library's single shelf into the two shared tiers of
+// the vision doc's three-layer knowledge architecture (client-matter
+// documents are already their own tier — the `documents` table above):
+// the firm's own precedents/know-how vs. third-party public legal
+// authority (statutes, case law). Existing rows default to firm_knowledge,
+// the more conservative assumption for material already uploaded without
+// a tier in mind.
+ensureColumn("reference_documents", "category", "TEXT NOT NULL DEFAULT 'firm_knowledge'");
+
 // One-time migration: matters used to store client identity only as free
 // text (clientName/clientEmail), with no real entity linking one client's
 // several matters together. Backfill a clients row per distinct

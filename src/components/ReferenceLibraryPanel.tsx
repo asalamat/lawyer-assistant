@@ -1,7 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { ReferenceDocument } from "@/lib/types";
+import {
+  REFERENCE_DOCUMENT_CATEGORIES,
+  REFERENCE_DOCUMENT_CATEGORY_LABELS,
+  type ReferenceDocument,
+  type ReferenceDocumentCategory,
+} from "@/lib/types";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -21,6 +26,7 @@ export default function ReferenceLibraryPanel({
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [uploadCategory, setUploadCategory] = useState<ReferenceDocumentCategory>("firm_knowledge");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const pending = documents.filter((doc) => !doc.approved);
@@ -52,6 +58,7 @@ export default function ReferenceLibraryPanel({
       for (const file of Array.from(files)) {
         const formData = new FormData();
         formData.append("file", file);
+        formData.append("category", uploadCategory);
         const res = await fetch("/api/reference-library", { method: "POST", body: formData });
         const body = await res.json();
         if (!res.ok) throw new Error(body.error ?? `Failed to upload ${file.name}`);
@@ -71,6 +78,23 @@ export default function ReferenceLibraryPanel({
 
   return (
     <div className="flex flex-col gap-6">
+      <div className="flex items-center gap-2 text-sm">
+        <span className="text-muted">New uploads are:</span>
+        {REFERENCE_DOCUMENT_CATEGORIES.map((cat) => (
+          <button
+            key={cat}
+            type="button"
+            onClick={() => setUploadCategory(cat)}
+            className={
+              uploadCategory === cat
+                ? "rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-foreground"
+                : "rounded-full border border-border px-3 py-1 text-xs text-muted transition-colors hover:text-foreground"
+            }
+          >
+            {REFERENCE_DOCUMENT_CATEGORY_LABELS[cat]}
+          </button>
+        ))}
+      </div>
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -112,7 +136,10 @@ export default function ReferenceLibraryPanel({
             {pending.map((doc) => (
               <li key={doc.id} className="surface-row flex flex-col gap-1 text-sm">
                 <div className="flex items-center justify-between">
-                  <span>{doc.fileName}</span>
+                  <span>
+                    {doc.fileName}
+                    <span className="badge ml-2">{REFERENCE_DOCUMENT_CATEGORY_LABELS[doc.category]}</span>
+                  </span>
                   <span className="flex items-center gap-3 text-muted">
                     {formatBytes(doc.sizeBytes)}
                     {canApprove && (
@@ -151,7 +178,10 @@ export default function ReferenceLibraryPanel({
           <ul className="flex flex-col gap-2">
             {approved.map((doc) => (
               <li key={doc.id} className="surface-row flex items-center justify-between text-sm">
-                <span>{doc.fileName}</span>
+                <span>
+                  {doc.fileName}
+                  <span className="badge ml-2">{REFERENCE_DOCUMENT_CATEGORY_LABELS[doc.category]}</span>
+                </span>
                 <span className="flex items-center gap-3 text-muted">
                   {formatBytes(doc.sizeBytes)}
                   <button

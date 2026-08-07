@@ -134,7 +134,19 @@ export interface ReferenceDocument {
   qualityScore: number | null;
   malwareScanStatus: MalwareScanStatus | null;
   malwareScanDetail: string | null;
+  category: ReferenceDocumentCategory;
 }
+
+// The two shared tiers of the three-layer knowledge architecture — the
+// firm's own precedents/know-how vs. third-party public legal authority
+// (statutes, case law). Client-matter documents are the third tier and
+// never appear here — they live in the `documents` table, matter-scoped.
+export const REFERENCE_DOCUMENT_CATEGORIES = ["firm_knowledge", "public_authority"] as const;
+export type ReferenceDocumentCategory = (typeof REFERENCE_DOCUMENT_CATEGORIES)[number];
+export const REFERENCE_DOCUMENT_CATEGORY_LABELS: Record<ReferenceDocumentCategory, string> = {
+  firm_knowledge: "Firm knowledge",
+  public_authority: "Public legal authority",
+};
 
 // A CanLII legislation record being watched for changes. CanLII's API only
 // exposes metadata + a part/section list, not the actual statute text, so

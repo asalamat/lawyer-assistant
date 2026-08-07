@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import type { ReferenceDocument } from "@/lib/types";
+import {
+  REFERENCE_DOCUMENT_CATEGORIES,
+  REFERENCE_DOCUMENT_CATEGORY_LABELS,
+  type ReferenceDocument,
+} from "@/lib/types";
 
 export default function ReferenceDocumentsAttachPanel({
   matterId,
@@ -65,7 +69,10 @@ export default function ReferenceDocumentsAttachPanel({
         <ul className="flex flex-col gap-2">
           {attached.map((doc) => (
             <li key={doc.id} className="surface-row flex items-center justify-between text-sm">
-              <span>{doc.fileName}</span>
+              <span>
+                {doc.fileName}
+                <span className="badge ml-2">{REFERENCE_DOCUMENT_CATEGORY_LABELS[doc.category]}</span>
+              </span>
               <button
                 onClick={() => handleDetach(doc.id)}
                 className="text-xs text-muted hover:text-red-600"
@@ -85,11 +92,19 @@ export default function ReferenceDocumentsAttachPanel({
             className="surface-input flex-1"
           >
             <option value="">Select a reference document…</option>
-            {available.map((doc) => (
-              <option key={doc.id} value={doc.id}>
-                {doc.fileName}
-              </option>
-            ))}
+            {REFERENCE_DOCUMENT_CATEGORIES.map((cat) => {
+              const inCategory = available.filter((doc) => doc.category === cat);
+              if (inCategory.length === 0) return null;
+              return (
+                <optgroup key={cat} label={REFERENCE_DOCUMENT_CATEGORY_LABELS[cat]}>
+                  {inCategory.map((doc) => (
+                    <option key={doc.id} value={doc.id}>
+                      {doc.fileName}
+                    </option>
+                  ))}
+                </optgroup>
+              );
+            })}
           </select>
           <button
             onClick={handleAttach}

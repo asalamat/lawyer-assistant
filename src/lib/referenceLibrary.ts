@@ -8,7 +8,7 @@ import { encryptFile } from "./crypto";
 import db, { toPlain } from "./db";
 import { scanBuffer } from "./malwareScan";
 import { extractDocumentText, isExtractableDocument } from "./textExtraction";
-import type { ReferenceDocument } from "./types";
+import type { ReferenceDocument, ReferenceDocumentCategory } from "./types";
 
 const REFERENCE_DIR = path.join(process.cwd(), "data", "reference-uploads");
 const REFERENCE_QUARANTINE_DIR = path.join(process.cwd(), "data", "quarantine", "reference-library");
@@ -20,7 +20,10 @@ export async function listReferenceDocuments(): Promise<ReferenceDocument[]> {
     .map((row) => toPlain<ReferenceDocument>(row));
 }
 
-export async function addReferenceDocument(file: File): Promise<ReferenceDocument> {
+export async function addReferenceDocument(
+  file: File,
+  category: ReferenceDocumentCategory = "firm_knowledge",
+): Promise<ReferenceDocument> {
   const id = crypto.randomUUID();
   const bytes = Buffer.from(await file.arrayBuffer());
   const contentHash = createHash("sha256").update(bytes).digest("hex");
@@ -66,11 +69,12 @@ export async function addReferenceDocument(file: File): Promise<ReferenceDocumen
     qualityScore: null,
     malwareScanStatus: scanResult.status,
     malwareScanDetail: scanResult.signature,
+    category,
   };
   db.prepare(
     `INSERT INTO reference_documents
-       (id, fileName, sizeBytes, uploadedAt, storagePath, contentHash, approved, approvedBy, approvedAt, sensitivityFlag, malwareScanStatus, malwareScanDetail)
-     VALUES (?, ?, ?, ?, ?, ?, 0, NULL, NULL, ?, ?, ?)`,
+       (id, fileName, sizeBytes, uploadedAt, storagePath, contentHash, approved, approvedBy, approvedAt, sensitivityFlag, malwareScanStatus, malwareScanDetail, category)
+     VALUES (?, ?, ?, ?, ?, ?, 0, NULL, NULL, ?, ?, ?, ?)`,
   ).run(
     document.id,
     document.fileName,
@@ -81,6 +85,7 @@ export async function addReferenceDocument(file: File): Promise<ReferenceDocumen
     document.sensitivityFlag,
     document.malwareScanStatus,
     document.malwareScanDetail,
+    document.category,
   );
 
   if (scanResult.status === "infected") {
