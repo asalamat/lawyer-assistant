@@ -6,13 +6,13 @@ import { transcribeAudio } from "@/lib/transcription";
 // document. Reuses the same OpenAI Whisper call already used for uploaded
 // audio/video files.
 export async function POST(request: Request) {
-  const formData = await request.formData();
-  const file = formData.get("audio");
-  if (!(file instanceof File)) {
-    return NextResponse.json({ error: "audio file is required" }, { status: 400 });
-  }
-
   try {
+    const formData = await request.formData();
+    const file = formData.get("audio");
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: "audio file is required" }, { status: 400 });
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
     const text = await transcribeAudio(buffer, file.name || "dictation.webm");
     return NextResponse.json({ text });

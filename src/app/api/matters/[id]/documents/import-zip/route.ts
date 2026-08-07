@@ -12,13 +12,13 @@ export async function POST(
     return NextResponse.json({ error: "Matter not found" }, { status: 404 });
   }
 
-  const formData = await request.formData();
-  const file = formData.get("file");
-  if (!(file instanceof File)) {
-    return NextResponse.json({ error: "file is required" }, { status: 400 });
-  }
-
   try {
+    const formData = await request.formData();
+    const file = formData.get("file");
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: "file is required" }, { status: 400 });
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
     const results = await bulkImportZip(id, buffer);
 

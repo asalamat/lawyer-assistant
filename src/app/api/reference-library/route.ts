@@ -7,10 +7,19 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const formData = await request.formData();
-  const file = formData.get("file");
-  if (!(file instanceof File)) {
-    return NextResponse.json({ error: "file is required" }, { status: 400 });
+  let file: File;
+  try {
+    const formData = await request.formData();
+    const formFile = formData.get("file");
+    if (!(formFile instanceof File)) {
+      return NextResponse.json({ error: "file is required" }, { status: 400 });
+    }
+    file = formFile;
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Failed to read the uploaded file" },
+      { status: 400 },
+    );
   }
 
   const document = await addReferenceDocument(file);
