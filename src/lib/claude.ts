@@ -608,6 +608,46 @@ List two or three plausible Crown positions (e.g. proceed to trial on all counts
   });
 }
 
+async function scanDocumentForPrivilegeAndPii(section: MatterDocumentSection): Promise<string> {
+  const system = `You are reviewing ONE document from a legal matter for privilege and sensitive-content concerns, as part of a review before the document might be disclosed externally. Identify: (1) passages that appear to be solicitor-client privileged communications or litigation work product; (2) sensitive personal information beyond standard identifiers (SIN/SSN/credit card numbers, phone numbers, and email addresses are already handled separately — don't repeat those) — e.g. medical or psychiatric details, financial account specifics, information about a minor, immigration status, or similarly sensitive personal detail. For each finding, quote the exact passage verbatim (so it can be located and redacted) and give a one-line reason tagged [PRIVILEGE] or [SENSITIVE]. If nothing of concern is found in this document, say so in one line — don't manufacture a marginal finding just to have something to report.`;
+  try {
+    const result = await complete({
+      system,
+      messages: [{ role: "user", content: `Document: ${section.label}\n\n${section.text}` }],
+      maxTokens: 1024,
+      // Classification/flagging against a well-defined rubric, not open-ended
+      // legal reasoning — the routing table's case for a lower-cost model.
+      tier: "fast",
+    });
+    return `### ${section.label}\n${result}`;
+  } catch (err) {
+    return `### ${section.label}\n[Could not review this document: ${err instanceof Error ? err.message : "unknown error"}]`;
+  }
+}
+
+// Deliberately NOT routed through buildMatterContext's map-reduce fallback
+// — that summarizes documents for size management, which would lose the
+// exact wording a redaction suggestion needs to quote verbatim. Privilege
+// review is inherently a per-document task anyway (unlike digest/Crown-
+// position, which need everything read together), so every document gets
+// its own direct scan regardless of matter size — bounded concurrency, same
+// batching approach as the map-reduce step, to avoid tripping a provider's
+// per-minute rate limit.
+const PRIVILEGE_REVIEW_BATCH_SIZE = 5;
+
+export async function generatePrivilegeReview(sections: MatterDocumentSection[]): Promise<string> {
+  if (sections.length === 0) {
+    return "No documents have been uploaded for this matter yet — upload documents first, then generate this review.";
+  }
+
+  const findings: string[] = [];
+  for (let i = 0; i < sections.length; i += PRIVILEGE_REVIEW_BATCH_SIZE) {
+    const batch = sections.slice(i, i + PRIVILEGE_REVIEW_BATCH_SIZE);
+    findings.push(...(await Promise.all(batch.map(scanDocumentForPrivilegeAndPii))));
+  }
+  return `# Privilege & Redaction Review\n\nEach document below was reviewed individually. Quoted passages are candidates for redaction before external disclosure — review before acting, this is not a final privilege determination.\n\n${findings.join("\n\n")}`;
+}
+
 export interface EvidenceGraphNode {
   id: string;
   label: string;

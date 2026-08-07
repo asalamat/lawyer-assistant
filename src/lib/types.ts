@@ -271,7 +271,8 @@ export interface IndependentReview {
     | "contradiction_analysis"
     | "exhibit_list"
     | "disclosure_checklist"
-    | "crown_position_analysis";
+    | "crown_position_analysis"
+    | "privilege_review";
   sourceId: string;
   content: string;
   createdAt: string;

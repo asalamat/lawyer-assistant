@@ -298,6 +298,7 @@ export async function deleteMatter(matterId: string): Promise<boolean> {
   db.prepare("DELETE FROM exhibit_lists WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM disclosure_checklists WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM crown_position_analyses WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM privilege_reviews WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM independent_reviews WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM invoices WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM time_entries WHERE matterId = ?").run(matterId);
@@ -874,6 +875,19 @@ export async function addCrownPositionAnalysis(matterId: string, content: string
     content,
     "crown_position_analysis_generated",
     "Generated a Crown-position analysis",
+  );
+}
+
+export async function listPrivilegeReviews(matterId: string): Promise<SimpleGeneratedDoc[]> {
+  return listSimpleGeneratedDocs("privilege_reviews", matterId);
+}
+export async function addPrivilegeReview(matterId: string, content: string): Promise<SimpleGeneratedDoc> {
+  return addSimpleGeneratedDoc(
+    "privilege_reviews",
+    matterId,
+    content,
+    "privilege_review_generated",
+    "Generated a privilege & redaction review",
   );
 }
 

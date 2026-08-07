@@ -493,6 +493,15 @@ execWithRetry(`
     FOREIGN KEY (matterId) REFERENCES matters(id)
   );
   CREATE INDEX IF NOT EXISTS idx_crown_position_analyses_matterId ON crown_position_analyses(matterId);
+
+  CREATE TABLE IF NOT EXISTS privilege_reviews (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    content TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_privilege_reviews_matterId ON privilege_reviews(matterId);
 `);
 
 // Schema migrations for columns added after the table already existed on a

@@ -14,6 +14,7 @@ export const ACTION_LABELS: Record<string, string> = {
   exhibit_list_generated: "Exhibit list generated",
   disclosure_checklist_generated: "Disclosure checklist generated",
   crown_position_analysis_generated: "Crown-position analysis generated",
+  privilege_review_generated: "Privilege & redaction review generated",
   matter_ethical_wall_applied: "Ethical wall applied",
   matter_ethical_wall_released: "Ethical wall released",
   chat_question_asked: "Chat question asked",

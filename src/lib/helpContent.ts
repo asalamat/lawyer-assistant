@@ -151,6 +151,12 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Analyzes charges and statutory elements, available evidence for each, weaknesses, possible defences, and aggravating/mitigating factors — then ends with two or three plausible Crown positions, each with its supporting evidence, what's missing, and a confidence level (high/medium/low). Deliberately does not predict which one will happen, give a percentage, or present this as advice — it's a structured starting point for the lawyer's own judgment.",
       },
       {
+        slug: "privilege-review",
+        name: "Privilege & redaction review",
+        detail:
+          "Reviews each of the matter's documents individually (not summarized, so exact wording is preserved) for solicitor-client privileged communications/work product, and sensitive personal information beyond what's already automatically masked (SIN/SSN/credit card numbers, phone, email) — medical/psychiatric details, financial account specifics, information about a minor, immigration status, and similar. Each finding quotes the exact passage as a redaction candidate, tagged [PRIVILEGE] or [SENSITIVE]. This is a review aid, not a final privilege determination — always reviewed by a lawyer before anything is actually redacted or withheld.",
+      },
+      {
         slug: "drafting",
         name: "Drafting",
         detail:
