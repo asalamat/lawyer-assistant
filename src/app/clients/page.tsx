@@ -24,7 +24,12 @@ export default async function ClientsPage() {
               href={`/clients/${client.id}`}
               className="surface-card block transition-colors hover:border-accent/40"
             >
-              <h3 className="font-display text-lg">{client.name}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-display text-lg">{client.name}</h3>
+                {client.type !== "individual" && (
+                  <span className="badge capitalize">{client.type}</span>
+                )}
+              </div>
               {client.email && <p className="mt-1 text-sm text-muted">{client.email}</p>}
             </Link>
           ))}

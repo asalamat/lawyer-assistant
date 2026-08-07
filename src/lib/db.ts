@@ -499,6 +499,13 @@ ensureColumn("matters", "ethicalWall", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("users", "totpSecret", "TEXT");
 ensureColumn("users", "totpEnabled", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("users", "totpBackupCodesJson", "TEXT");
+// Default 'individual' — every client row created before this shipped was
+// implicitly an individual, so this backfills correctly with no migration
+// script needed. contactPerson/registrationNumber only make sense for
+// corporate/institutional clients but are nullable for everyone.
+ensureColumn("clients", "type", "TEXT NOT NULL DEFAULT 'individual'");
+ensureColumn("clients", "contactPerson", "TEXT");
+ensureColumn("clients", "registrationNumber", "TEXT");
 
 // One-time migration: matters used to store client identity only as free
 // text (clientName/clientEmail), with no real entity linking one client's

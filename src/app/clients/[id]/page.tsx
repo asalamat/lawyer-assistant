@@ -25,7 +25,18 @@ export default async function ClientDetailPage({
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-10">
       <div>
-        <h1 className="font-display text-3xl italic">{client.name}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="font-display text-3xl italic">{client.name}</h1>
+          {client.type !== "individual" && (
+            <span className="badge capitalize">{client.type}</span>
+          )}
+        </div>
+        {client.contactPerson && (
+          <p className="text-sm text-muted">Contact: {client.contactPerson}</p>
+        )}
+        {client.registrationNumber && (
+          <p className="text-sm text-muted">Registration/incorporation #: {client.registrationNumber}</p>
+        )}
         {client.email && <p className="text-sm text-muted">{client.email}</p>}
         {client.phone && <p className="text-sm text-muted">{client.phone}</p>}
         {client.notes && <p className="mt-1 text-sm text-muted">{client.notes}</p>}

@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { deleteClient, getClient, listMattersForClient, updateClient } from "@/lib/clients";
+import type { ClientType } from "@/lib/types";
+
+const VALID_CLIENT_TYPES: ClientType[] = ["individual", "corporate", "institutional"];
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -15,10 +18,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (body?.name !== undefined && !String(body.name).trim()) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
   }
+  if (body?.type !== undefined && !VALID_CLIENT_TYPES.includes(body.type)) {
+    return NextResponse.json(
+      { error: `type must be one of: ${VALID_CLIENT_TYPES.join(", ")}` },
+      { status: 400 },
+    );
+  }
 
   try {
     const client = await updateClient(id, {
       name: body?.name,
+      type: body?.type,
+      contactPerson: body?.contactPerson,
+      registrationNumber: body?.registrationNumber,
       email: body?.email,
       phone: body?.phone,
       notes: body?.notes,

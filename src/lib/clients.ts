@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { recordAuditEvent } from "./auditLog";
 import db, { toPlain } from "./db";
-import type { Client, Matter } from "./types";
+import type { Client, ClientType, Matter } from "./types";
 
 export async function listClients(): Promise<Client[]> {
   return db
@@ -24,6 +24,9 @@ export async function listMattersForClient(clientId: string): Promise<Matter[]> 
 
 export async function createClient(input: {
   name: string;
+  type?: ClientType;
+  contactPerson?: string | null;
+  registrationNumber?: string | null;
   email?: string | null;
   phone?: string | null;
   notes?: string | null;
@@ -42,38 +45,62 @@ export async function createClient(input: {
   const client: Client = {
     id: randomUUID(),
     name,
+    type: input.type ?? "individual",
+    contactPerson: input.contactPerson?.trim() || null,
+    registrationNumber: input.registrationNumber?.trim() || null,
     email,
     phone: input.phone?.trim() || null,
     notes: input.notes?.trim() || null,
     createdAt: new Date().toISOString(),
   };
   db.prepare(
-    "INSERT INTO clients (id, name, email, phone, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?)",
-  ).run(client.id, client.name, client.email, client.phone, client.notes, client.createdAt);
-  await recordAuditEvent("client_created", null, `Created client "${client.name}"`);
+    "INSERT INTO clients (id, name, type, contactPerson, registrationNumber, email, phone, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  ).run(
+    client.id,
+    client.name,
+    client.type,
+    client.contactPerson,
+    client.registrationNumber,
+    client.email,
+    client.phone,
+    client.notes,
+    client.createdAt,
+  );
+  await recordAuditEvent("client_created", null, `Created ${client.type} client "${client.name}"`);
   return client;
 }
 
 export async function updateClient(
   id: string,
-  input: { name?: string; email?: string | null; phone?: string | null; notes?: string | null },
+  input: {
+    name?: string;
+    type?: ClientType;
+    contactPerson?: string | null;
+    registrationNumber?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    notes?: string | null;
+  },
 ): Promise<Client | null> {
   const existing = await getClient(id);
   if (!existing) return null;
 
   const name = input.name !== undefined ? input.name.trim() : existing.name;
   if (!name) throw new Error("Client name is required");
+  const type = input.type ?? existing.type;
+  const contactPerson =
+    input.contactPerson !== undefined ? input.contactPerson?.trim() || null : existing.contactPerson;
+  const registrationNumber =
+    input.registrationNumber !== undefined
+      ? input.registrationNumber?.trim() || null
+      : existing.registrationNumber;
   const email = input.email !== undefined ? input.email?.trim() || null : existing.email;
   const phone = input.phone !== undefined ? input.phone?.trim() || null : existing.phone;
   const notes = input.notes !== undefined ? input.notes?.trim() || null : existing.notes;
 
-  db.prepare("UPDATE clients SET name = ?, email = ?, phone = ?, notes = ? WHERE id = ?").run(
-    name,
-    email,
-    phone,
-    notes,
-    id,
-  );
+  db.prepare(
+    "UPDATE clients SET name = ?, type = ?, contactPerson = ?, registrationNumber = ?, email = ?, phone = ?, notes = ? WHERE id = ?",
+  ).run(name, type, contactPerson, registrationNumber, email, phone, notes, id);
   await recordAuditEvent("client_updated", null, `Updated client "${name}"`);
   return getClient(id);
 }

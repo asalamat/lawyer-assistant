@@ -18,9 +18,16 @@ export interface Matter {
   createdAt: string;
 }
 
+export type ClientType = "individual" | "corporate" | "institutional";
+
 export interface Client {
   id: string;
   name: string;
+  type: ClientType;
+  // Who to actually contact at a corporate/institutional client — not
+  // meaningful for an individual client, who IS the contact.
+  contactPerson: string | null;
+  registrationNumber: string | null;
   email: string | null;
   phone: string | null;
   notes: string | null;
@@ -182,6 +189,11 @@ export const DRAFT_TYPES = [
   "Demand letter",
   "Client correspondence",
   "Defence strategy memo",
+  "Factum",
+  "Motion materials",
+  "Affidavit (first draft)",
+  "Cross-examination outline",
+  "Disclosure request",
 ] as const;
 export type DraftType = (typeof DRAFT_TYPES)[number];
 

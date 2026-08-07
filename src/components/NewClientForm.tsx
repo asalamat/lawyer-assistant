@@ -2,11 +2,21 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import type { ClientType } from "@/lib/types";
+
+const CLIENT_TYPE_LABELS: Record<ClientType, string> = {
+  individual: "Individual",
+  corporate: "Corporate",
+  institutional: "Institutional",
+};
 
 export default function NewClientForm() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const [type, setType] = useState<ClientType>("individual");
+  const [contactPerson, setContactPerson] = useState("");
+  const [registrationNumber, setRegistrationNumber] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -20,11 +30,21 @@ export default function NewClientForm() {
       const res = await fetch("/api/clients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, phone }),
+        body: JSON.stringify({
+          name,
+          type,
+          contactPerson: type === "individual" ? undefined : contactPerson,
+          registrationNumber: type === "individual" ? undefined : registrationNumber,
+          email,
+          phone,
+        }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Failed to create client");
       setName("");
+      setType("individual");
+      setContactPerson("");
+      setRegistrationNumber("");
       setEmail("");
       setPhone("");
       setOpen(false);
@@ -56,6 +76,33 @@ export default function NewClientForm() {
           onChange={(e) => setName(e.target.value)}
           className="surface-input"
         />
+        <select
+          value={type}
+          onChange={(e) => setType(e.target.value as ClientType)}
+          className="surface-input"
+        >
+          {Object.entries(CLIENT_TYPE_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+        {type !== "individual" && (
+          <>
+            <input
+              placeholder="Contact person"
+              value={contactPerson}
+              onChange={(e) => setContactPerson(e.target.value)}
+              className="surface-input"
+            />
+            <input
+              placeholder="Registration/incorporation number (optional)"
+              value={registrationNumber}
+              onChange={(e) => setRegistrationNumber(e.target.value)}
+              className="surface-input"
+            />
+          </>
+        )}
         <input
           type="email"
           placeholder="Email (optional)"
