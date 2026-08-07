@@ -1,5 +1,5 @@
 import { cosineSimilarity, embedText, embedTexts } from "./embeddings";
-import { chunkExtractedText } from "./chunking";
+import { CHUNK_OVERLAP, chunkExtractedText } from "./chunking";
 import db, { toPlain } from "./db";
 import { extractTextTracked } from "./extractionStatus";
 import { isExtractableDocument } from "./textExtraction";
@@ -8,10 +8,18 @@ import type { Document, ReferenceDocument } from "./types";
 // Generous on purpose: for a small matter with few chunks this returns
 // effectively everything (no information lost vs. full-context injection);
 // for a large matter it filters down to what's actually relevant to the
-// question instead of blowing past the model's context window. Retrieval
-// re-ranking / query expansion would improve this further but isn't
-// attempted in this pass.
+// question instead of blowing past the model's context window.
 const DEFAULT_TOP_K = 15;
+
+// Vector search alone under-ranks passages whose relevance is a specific
+// name, case number, or statute section rather than paraphrased meaning —
+// exactly the kind of exact-match legal text embeddings are weakest on. So
+// retrieval over-fetches by vector similarity, then re-ranks that wider
+// candidate pool with a cheap lexical-overlap signal before taking the
+// final top K. No extra AI call — both signals are computed locally.
+const CANDIDATE_POOL_MULTIPLIER = 4;
+const VECTOR_WEIGHT = 0.75;
+const LEXICAL_WEIGHT = 0.25;
 
 // "unreadable" means extractable in principle but extraction failed or
 // produced nothing — the caller uses this to still tell the model the
@@ -98,16 +106,93 @@ export interface RelevantChunk {
 }
 
 interface ChunkRow {
+  documentId: string | null;
+  referenceDocumentId: string | null;
   fileName: string;
   pageNumber: number | null;
+  chunkIndex: number;
   text: string;
   embedding: string;
+}
+
+interface NeighborRow {
+  pageNumber: number | null;
+  text: string;
+}
+
+// Splits the query into lowercase word tokens for lexical overlap scoring —
+// no stemming/stopword removal, just enough to catch exact-term matches
+// (names, case numbers, statute sections) vector similarity can miss.
+function tokenize(text: string): string[] {
+  return text.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+}
+
+// Fraction of distinct query terms that appear in the chunk text — cheap,
+// deterministic, no AI call. Combined with vector similarity as a
+// re-ranking signal (see CANDIDATE_POOL_MULTIPLIER above).
+function lexicalOverlapScore(queryTerms: Set<string>, text: string): number {
+  if (queryTerms.size === 0) return 0;
+  const chunkTerms = new Set(tokenize(text));
+  let hits = 0;
+  for (const term of queryTerms) {
+    if (chunkTerms.has(term)) hits++;
+  }
+  return hits / queryTerms.size;
+}
+
+// Fetches the chunk immediately before/after this one from the same
+// source document, so a matched passage can be stitched together with its
+// surrounding context ("parent-child" retrieval) instead of being handed
+// to the model as an isolated ~1500-char fragment.
+function fetchNeighborChunk(
+  documentId: string | null,
+  referenceDocumentId: string | null,
+  chunkIndex: number,
+): NeighborRow | null {
+  const column = documentId ? "documentId" : "referenceDocumentId";
+  const sourceId = documentId ?? referenceDocumentId;
+  const row = db
+    .prepare(`SELECT pageNumber, text FROM document_chunks WHERE ${column} = ? AND chunkIndex = ?`)
+    .get(sourceId, chunkIndex);
+  return row ? toPlain<NeighborRow>(row) : null;
+}
+
+// Same-page neighbors were produced by a sliding window with a known
+// overlap (see chunking.ts) — trim that exact overlap back out rather than
+// duplicating text in the model's context. Neighbors from a different page
+// (or none) are simply concatenated.
+function stitchWithNeighbors(
+  documentId: string | null,
+  referenceDocumentId: string | null,
+  pageNumber: number | null,
+  chunkIndex: number,
+  text: string,
+): string {
+  const prev = chunkIndex > 0 ? fetchNeighborChunk(documentId, referenceDocumentId, chunkIndex - 1) : null;
+  const next = fetchNeighborChunk(documentId, referenceDocumentId, chunkIndex + 1);
+
+  const beforePart = prev
+    ? prev.pageNumber === pageNumber && prev.text.length > CHUNK_OVERLAP
+      ? prev.text.slice(0, -CHUNK_OVERLAP)
+      : prev.text
+    : "";
+
+  const afterPart = next
+    ? next.pageNumber === pageNumber && next.text.length > CHUNK_OVERLAP
+      ? next.text.slice(CHUNK_OVERLAP)
+      : next.text
+    : "";
+
+  return [beforePart, text, afterPart].filter(Boolean).join(" … ");
 }
 
 // Pulls chunks from the matter's own documents plus whichever reference
 // library documents are attached to it — the same two-tier
 // private/shared model getMatterTextContext already used, just retrieved
-// by relevance instead of concatenated in full.
+// by relevance instead of concatenated in full. Retrieval is two stages:
+// a wide vector-similarity pass to build a candidate pool, then a hybrid
+// vector+lexical re-rank of that pool to pick the final top K, each
+// expanded with its neighboring chunks (parent-child retrieval).
 export async function getRelevantChunks(
   matterId: string,
   query: string,
@@ -115,7 +200,7 @@ export async function getRelevantChunks(
 ): Promise<RelevantChunk[]> {
   const rows = db
     .prepare(
-      `SELECT fileName, pageNumber, text, embedding FROM document_chunks
+      `SELECT documentId, referenceDocumentId, fileName, pageNumber, chunkIndex, text, embedding FROM document_chunks
        WHERE matterId = ?
           OR referenceDocumentId IN (
             SELECT referenceDocumentId FROM matter_reference_documents WHERE matterId = ?
@@ -127,14 +212,32 @@ export async function getRelevantChunks(
   if (rows.length === 0) return [];
 
   const queryEmbedding = await embedText(query);
-  const scored = rows.map((row) => ({
+  const byVectorScore = rows
+    .map((row) => ({ row, vectorScore: cosineSimilarity(queryEmbedding, JSON.parse(row.embedding) as number[]) }))
+    .sort((a, b) => b.vectorScore - a.vectorScore);
+
+  const candidatePoolSize = Math.min(byVectorScore.length, topK * CANDIDATE_POOL_MULTIPLIER);
+  const candidates = byVectorScore.slice(0, candidatePoolSize);
+
+  const queryTerms = new Set(tokenize(query));
+  const reranked = candidates
+    .map(({ row, vectorScore }) => ({
+      row,
+      vectorScore,
+      hybridScore: VECTOR_WEIGHT * vectorScore + LEXICAL_WEIGHT * lexicalOverlapScore(queryTerms, row.text),
+    }))
+    .sort((a, b) => b.hybridScore - a.hybridScore)
+    .slice(0, topK);
+
+  // `score` stays a plain vector cosine similarity (what
+  // LOW_CONFIDENCE_THRESHOLD below is calibrated against) — the hybrid
+  // score only decides which chunks made the cut and in what order.
+  return reranked.map(({ row, vectorScore }) => ({
     fileName: row.fileName,
     pageNumber: row.pageNumber,
-    text: row.text,
-    score: cosineSimilarity(queryEmbedding, JSON.parse(row.embedding) as number[]),
+    text: stitchWithNeighbors(row.documentId, row.referenceDocumentId, row.pageNumber, row.chunkIndex, row.text),
+    score: vectorScore,
   }));
-  scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, topK);
 }
 
 export function buildContextFromChunks(chunks: RelevantChunk[]): string {

@@ -9,7 +9,10 @@ export interface TextChunk {
 // small enough to keep retrieved context focused, large enough to keep a
 // paragraph or two of surrounding context together.
 const CHUNK_SIZE = 1500;
-const CHUNK_OVERLAP = 200;
+// Exported so parent-child retrieval (rag.ts) can trim this exact overlap
+// back out when stitching a matched chunk together with its same-page
+// neighbors, instead of duplicating text in the model's context.
+export const CHUNK_OVERLAP = 200;
 
 function splitIntoWindows(text: string): string[] {
   const trimmed = text.trim();
