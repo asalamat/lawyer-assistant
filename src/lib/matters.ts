@@ -13,6 +13,7 @@ import { maskForAI } from "./piiMask";
 import { listAttachedReferenceDocuments } from "./referenceLibrary";
 import {
   buildContextFromChunks,
+  buildRetrievalConfidenceNote,
   ensureDocumentChunks,
   ensureReferenceDocumentChunks,
   getRelevantChunks,
@@ -1090,6 +1091,7 @@ export async function getMatterChatContext(matterId: string, question: string): 
 
   const relevantChunks = await getRelevantChunks(matterId, question);
   const chunkContext = buildContextFromChunks(relevantChunks);
+  const confidenceSection = buildRetrievalConfidenceNote(relevantChunks);
 
   const notes = await listMatterNotes(matterId);
   const notesSection =
@@ -1099,7 +1101,9 @@ export async function getMatterChatContext(matterId: string, question: string): 
           .join("\n\n")}`
       : null;
 
-  const context = [chunkContext, unreadableSection, notesSection].filter(Boolean).join("\n\n");
+  const context = [chunkContext, confidenceSection, unreadableSection, notesSection]
+    .filter(Boolean)
+    .join("\n\n");
   return maskForAI(context);
 }
 

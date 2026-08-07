@@ -142,3 +142,27 @@ export function buildContextFromChunks(chunks: RelevantChunk[]): string {
     .map((c) => `--- ${c.fileName}${c.pageNumber ? `, p. ${c.pageNumber}` : ""} ---\n${c.text}`)
     .join("\n\n");
 }
+
+// Empirically, on text-embedding-3-small, a passage that genuinely answers
+// a legal question scores meaningfully above this against it — a top score
+// below it means retrieval didn't find anything strongly on-point, and the
+// model should be told that explicitly rather than left to infer it from
+// the passages' content alone (which risks stretching a tangential match
+// into an answer it can't really support).
+const LOW_CONFIDENCE_THRESHOLD = 0.35;
+
+// Surfaces retrieval confidence as an explicit signal in the prompt itself
+// — "insufficient evidence" gating per the architecture doc's retrieval
+// quality controls — rather than relying only on a general "don't guess"
+// instruction with no concrete signal of whether THIS retrieval actually
+// found anything relevant.
+export function buildRetrievalConfidenceNote(chunks: RelevantChunk[]): string | null {
+  if (chunks.length === 0) {
+    return "--- Retrieval note: no indexed passages exist for this matter yet (no readable documents, or none chunked). Say so rather than answering from general knowledge. ---";
+  }
+  const topScore = chunks[0].score;
+  if (topScore < LOW_CONFIDENCE_THRESHOLD) {
+    return `--- Retrieval confidence note: none of the retrieved passages scored strongly relevant to this specific question (top match score ${topScore.toFixed(2)}, low). If they don't actually answer what was asked, say the documents don't contain enough information rather than stretching a weak match into an answer. ---`;
+  }
+  return null;
+}

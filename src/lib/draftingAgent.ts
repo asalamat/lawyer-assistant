@@ -3,7 +3,13 @@ import { buildDraftSystemPrompt, buildDraftUserPrompt, buildMatterContext, type 
 import { verifyCitations } from "./citationCheck";
 import { listDocuments } from "./matters";
 import { maskForAI } from "./piiMask";
-import { buildContextFromChunks, ensureDocumentChunks, ensureReferenceDocumentChunks, getRelevantChunks } from "./rag";
+import {
+  buildContextFromChunks,
+  buildRetrievalConfidenceNote,
+  ensureDocumentChunks,
+  ensureReferenceDocumentChunks,
+  getRelevantChunks,
+} from "./rag";
 import { listAttachedReferenceDocuments } from "./referenceLibrary";
 import { getAnthropicApiKey } from "./settings";
 import { isExtractableDocument } from "./textExtraction";
@@ -92,8 +98,11 @@ async function runToolLoop(
             : "No relevant passages found",
         createdAt: new Date().toISOString(),
       });
+      const confidenceNote = buildRetrievalConfidenceNote(chunks);
       const resultContent =
-        chunks.length > 0 ? await maskForAI(buildContextFromChunks(chunks)) : "No relevant passages found.";
+        chunks.length > 0
+          ? [await maskForAI(buildContextFromChunks(chunks)), confidenceNote].filter(Boolean).join("\n\n")
+          : "No relevant passages found.";
       toolResults.push({
         type: "tool_result",
         tool_use_id: toolUse.id,
