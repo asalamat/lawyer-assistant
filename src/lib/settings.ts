@@ -21,8 +21,21 @@ export interface WeatherLocation {
   longitude: number;
 }
 
-export type AiProvider = "anthropic" | "openai" | "gemini";
-const DEFAULT_AI_PROVIDER_ORDER: AiProvider[] = ["anthropic", "openai", "gemini"];
+export type AiProvider = "anthropic" | "openai" | "gemini" | "ollama";
+// ollama last by default — it's the only provider that runs entirely on
+// this machine (no account, no cost, no data ever leaving it), which also
+// means its output quality depends entirely on which local model the
+// account owner has pulled. A good fit as the last-resort/sensitive-local
+// option the original architecture doc called for, not as the default
+// first choice.
+const DEFAULT_AI_PROVIDER_ORDER: AiProvider[] = ["anthropic", "openai", "gemini", "ollama"];
+
+export interface OllamaConfig {
+  baseUrl: string;
+  model: string;
+}
+
+export const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
 
 export interface PiiMaskingSettings {
   enabled: boolean;
@@ -53,6 +66,7 @@ interface Settings {
   cronSecret?: string;
   defaultTranslationLanguage?: string;
   piiMasking?: Partial<PiiMaskingSettings>;
+  ollama?: Partial<OllamaConfig>;
 }
 
 export const DEFAULT_TRANSLATION_LANGUAGE = "French";
@@ -298,6 +312,26 @@ export async function getOpenaiApiKeyStatus(): Promise<{
     source: settings.openaiApiKey ? "settings" : "env",
     preview: `••••${key.slice(-4)}`,
   };
+}
+
+// No API key, no encryption needed — a base URL and a locally-installed
+// model name aren't secrets. Model has no default: unlike a hosted
+// provider, there's no single model this app can assume is available —
+// the account owner has to say which one they've actually pulled
+// (`ollama pull <model>`) before this provider is usable.
+export async function getOllamaConfig(): Promise<OllamaConfig | undefined> {
+  const settings = await readSettings();
+  if (!settings.ollama?.model) return undefined;
+  return {
+    baseUrl: settings.ollama.baseUrl || DEFAULT_OLLAMA_BASE_URL,
+    model: settings.ollama.model,
+  };
+}
+
+export async function setOllamaConfig(config: OllamaConfig): Promise<void> {
+  const settings = await readSettings();
+  settings.ollama = { baseUrl: config.baseUrl.trim() || DEFAULT_OLLAMA_BASE_URL, model: config.model.trim() };
+  await writeSettings(settings);
 }
 
 // A separate secret for unattended endpoints (e.g. an OS cron job checking

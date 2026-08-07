@@ -125,11 +125,26 @@ accounts, and how to uninstall cleanly, in
 
 Next.js 16 (App Router, Turbopack) · TypeScript · Tailwind CSS v4 ·
 `node:sqlite` (no external database server) · Anthropic Claude for primary
-AI features, with optional OpenAI failover and Google Gemini for
-independent review. Runs identically on macOS, Windows, and Linux.
+AI features, with optional OpenAI, Google Gemini, and local Ollama failover,
+automatically routed to a lower-cost model for simple extraction tasks and
+the flagship model for real legal reasoning. Runs identically on macOS,
+Windows, and Linux.
 
 ## Recent changes
 
+- Ollama as a fourth AI provider (Settings > AI model) — runs entirely on
+  this machine, no account or cost, for offices that want a fully local
+  option available as a fallback
+- Automatic cost-aware model routing — simple extraction/classification
+  tasks (deadlines, sensitivity screening, per-document summarization) use
+  each provider's lower-cost model; digests, evidence matrices, drafts,
+  and chat always use the flagship model, so quality where it matters is
+  never traded for cost
+- Large-matter map-reduce fallback for digest/evidence-matrix/deadlines/
+  drafts/email-draft/independent-review/self-checking drafting agent —
+  documents are summarized individually first when a matter's total text
+  is too large for any provider's context window, instead of the request
+  just failing
 - Per-matter ethical walls (Compliance tab) — restricts a matter to its
   assigned team plus admins, enforced centrally for every page and API
   route, and the matter disappears from the matters list, dashboard,

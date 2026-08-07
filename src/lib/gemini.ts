@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { MODEL_IDS, type ModelTier } from "./modelTiers";
 import { getGeminiApiKey } from "./settings";
 
 let cachedKey: string | null = null;
@@ -28,10 +29,11 @@ export async function completeGemini(params: {
   system: string;
   messages: { role: "user" | "assistant"; content: string }[];
   maxTokens?: number;
+  tier?: ModelTier;
 }): Promise<string> {
   const client = await getClient();
   const response = await client.models.generateContent({
-    model: "gemini-3.5-flash",
+    model: MODEL_IDS.gemini[params.tier ?? "capable"],
     contents: flattenMessages(params.messages),
     config: {
       systemInstruction: params.system,
@@ -53,10 +55,11 @@ export async function completeJSONGemini<T>(params: {
   messages: { role: "user" | "assistant"; content: string }[];
   schema: Record<string, unknown>;
   maxTokens?: number;
+  tier?: ModelTier;
 }): Promise<T> {
   const client = await getClient();
   const response = await client.models.generateContent({
-    model: "gemini-3.5-flash",
+    model: MODEL_IDS.gemini[params.tier ?? "capable"],
     contents: flattenMessages(params.messages),
     config: {
       systemInstruction: params.system,

@@ -7,6 +7,7 @@ const LABELS: Record<AiProvider, string> = {
   anthropic: "Anthropic (Claude)",
   openai: "OpenAI",
   gemini: "Google (Gemini)",
+  ollama: "Ollama (local)",
 };
 
 export default function AiProviderOrder({ initialOrder }: { initialOrder: AiProvider[] }) {

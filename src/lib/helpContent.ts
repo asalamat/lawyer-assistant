@@ -136,7 +136,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "ai-redundancy",
         name: "AI provider redundancy",
         detail:
-          "Configure a second AI provider (OpenAI) as a backup in Settings > AI model. If your primary provider fails for a request (billing, rate limit, outage), the app automatically falls through to the backup for that request. You can reorder which provider is tried first.",
+          "Configure additional AI providers as backups in Settings > AI model — OpenAI, Google Gemini, and Ollama (a local model running entirely on this machine, no account or cost). If your primary provider fails for a request (billing, rate limit, outage), the app automatically falls through to the next configured one in the order you set. If all configured providers fail, the error shows every provider's real reason, not just the last one tried. Behind the scenes, simple extraction/classification tasks (deadline extraction, sensitivity screening, per-document summarization on a large matter) automatically use a faster, lower-cost model where each provider offers one — the tasks that need real legal reasoning (digests, evidence matrices, drafts, chat) always use the flagship model, so this only ever trades cost on the parts of the pipeline where it doesn't affect the quality of what you actually read.",
       },
     ],
   },

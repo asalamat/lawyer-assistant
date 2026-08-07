@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { buildDraftSystemPrompt, buildDraftUserPrompt } from "./claude";
+import { buildDraftSystemPrompt, buildDraftUserPrompt, buildMatterContext, type MatterDocumentSection } from "./claude";
 import { verifyCitations } from "./citationCheck";
 import { listDocuments } from "./matters";
 import { maskForAI } from "./piiMask";
@@ -123,7 +123,7 @@ export async function runDraftingAgent(
   matterId: string,
   draftType: DraftType,
   instructions: string,
-  context: string,
+  sections: MatterDocumentSection[],
 ): Promise<DraftingAgentResult> {
   const apiKey = await getAnthropicApiKey();
   if (!apiKey) {
@@ -151,6 +151,14 @@ export async function runDraftingAgent(
     ...documents.map((doc) => doc.fileName),
     ...referenceDocs.map((doc) => doc.fileName),
   ];
+
+  // Same map-reduce fallback the plain one-shot drafting path uses (see
+  // buildMatterContext) — this agent's search tool only helps it verify a
+  // *specific* fact on demand, it doesn't reduce the size of what gets
+  // stuffed into the very first message, which failed outright on a large
+  // real matter before this (Anthropic's own 1M-token ceiling, the highest
+  // of any configured provider, was still not enough).
+  const context = await buildMatterContext(sections);
 
   const system = `${buildDraftSystemPrompt(draftType)}\n\nYou have a search_matter_documents tool — use it to double-check a fact or find the right source before citing it, rather than guessing.`;
   const trace: AgentTraceStep[] = [];

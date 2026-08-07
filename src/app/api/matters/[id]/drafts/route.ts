@@ -41,12 +41,7 @@ export async function POST(
   const sections = await getMatterDocumentSections(id);
   try {
     if (agentic) {
-      // The agentic path still gets one plain joined string — it also has
-      // a search tool to pull specific passages on demand, so it's less
-      // exposed to the same context-overflow problem generateDraft's
-      // plain path had (see buildMatterContext); left as-is for now.
-      const context = sections.map((s) => `--- ${s.label} ---\n${s.text}`).join("\n\n");
-      const result = await runDraftingAgent(id, draftType, instructions, context);
+      const result = await runDraftingAgent(id, draftType, instructions, sections);
       const draft = await addDraft(id, draftType, result.content);
       const agentRun = await saveAgentRun({
         matterId: id,

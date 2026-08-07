@@ -113,7 +113,8 @@ in `data/settings.json` (0600 file permissions).
 | Feature | Settings page | Requires |
 |---|---|---|
 | Chat, digests, drafting, evidence matrix, deadlines | Settings > AI model | An Anthropic API key |
-| Automatic AI failover if the primary provider fails | Settings > AI model | An OpenAI API key (optional, as backup) |
+| Automatic AI failover if the primary provider fails | Settings > AI model | An OpenAI and/or Google Gemini API key (optional, as backup) |
+| Fully local/offline AI fallback, no account or cost | Settings > AI model | [Ollama](https://ollama.com) installed and running locally, with at least one model pulled (`ollama pull llama3.1`) |
 | Audio/video transcription | Settings > Transcription | An OpenAI API key (same key as above) |
 | Independent second-opinion review | Settings > Independent review | A Google Gemini API key (optional) |
 | Case-law lookup / citation history | Settings > Legal research | A CanLII API key (optional — request one via CanLII's feedback form) |

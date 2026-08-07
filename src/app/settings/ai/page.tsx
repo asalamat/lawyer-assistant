@@ -1,10 +1,13 @@
 import {
+  DEFAULT_OLLAMA_BASE_URL,
   getAiProviderOrder,
   getAnthropicApiKeyStatus,
   getGeminiApiKeyStatus,
+  getOllamaConfig,
   getOpenaiApiKeyStatus,
 } from "@/lib/settings";
 import AiProviderOrder from "@/components/AiProviderOrder";
+import OllamaSettingsForm from "@/components/OllamaSettingsForm";
 import SettingsForm from "@/components/SettingsForm";
 import SettingsSection from "@/components/SettingsSection";
 import { AiIcon } from "@/components/icons";
@@ -15,6 +18,7 @@ export default async function AiSettingsPage() {
   const status = await getAnthropicApiKeyStatus();
   const openaiStatus = await getOpenaiApiKeyStatus();
   const geminiStatus = await getGeminiApiKeyStatus();
+  const ollamaConfig = await getOllamaConfig();
   const providerOrder = await getAiProviderOrder();
 
   return (
@@ -37,6 +41,13 @@ export default async function AiSettingsPage() {
         placeholder="AIza..."
         apiPath="/api/settings/gemini"
         bodyKey="geminiApiKey"
+      />
+      <OllamaSettingsForm
+        initialStatus={{
+          configured: Boolean(ollamaConfig),
+          baseUrl: ollamaConfig?.baseUrl ?? DEFAULT_OLLAMA_BASE_URL,
+          model: ollamaConfig?.model ?? "",
+        }}
       />
       <AiProviderOrder initialOrder={providerOrder} />
     </SettingsSection>

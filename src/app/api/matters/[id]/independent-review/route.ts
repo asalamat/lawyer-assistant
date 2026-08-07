@@ -1,10 +1,11 @@
-import { APIError } from "openai";
 import { NextResponse } from "next/server";
+import { aiErrorResponse } from "@/lib/aiErrorResponse";
+import { buildMatterContext } from "@/lib/claude";
 import { getIndependentReview } from "@/lib/openaiText";
 import {
   addIndependentReview,
   getMatter,
-  getMatterTextContext,
+  getMatterDocumentSections,
   listIndependentReviews,
 } from "@/lib/matters";
 import type { IndependentReview } from "@/lib/types";
@@ -47,21 +48,13 @@ export async function POST(
     );
   }
 
-  const context = await getMatterTextContext(id);
+  const sections = await getMatterDocumentSections(id);
+  const context = await buildMatterContext(sections);
   try {
     const critique = await getIndependentReview(content, context);
     const review = await addIndependentReview(id, sourceType, sourceId, critique);
     return NextResponse.json(review, { status: 201 });
   } catch (err) {
-    if (err instanceof APIError) {
-      return NextResponse.json(
-        { error: `AI service error: ${err.message}` },
-        { status: err.status ?? 502 },
-      );
-    }
-    if (err instanceof Error) {
-      return NextResponse.json({ error: err.message }, { status: 400 });
-    }
-    throw err;
+    return aiErrorResponse(err);
   }
 }

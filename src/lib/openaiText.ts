@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { MODEL_IDS, type ModelTier } from "./modelTiers";
 import { getOpenaiApiKey } from "./settings";
 
 let cachedKey: string | null = null;
@@ -20,10 +21,11 @@ export async function completeWithOpenAI(params: {
   system: string;
   messages: { role: "user" | "assistant"; content: string }[];
   maxTokens?: number;
+  tier?: ModelTier;
 }): Promise<string> {
   const client = await getClient();
   const response = await client.responses.create({
-    model: "gpt-5.6",
+    model: MODEL_IDS.openai[params.tier ?? "capable"],
     input: [{ role: "system", content: params.system }, ...params.messages],
     max_output_tokens: params.maxTokens ?? 1024,
   });
@@ -64,6 +66,11 @@ export async function getIndependentReview(content: string, context: string): Pr
         content: `${sourceSection}\n\nHere is the other AI's analysis to review:\n\n${content}\n\nProvide your independent critique.`,
       },
     ],
+    // The 1024-token default was too small for this model's reasoning
+    // tokens to leave any room for visible output on a large matter — a
+    // 200 response with no output text, surfaced as "OpenAI returned an
+    // empty response." Reviews need real prose, not a short answer.
+    maxTokens: 4096,
   });
 }
 
@@ -73,10 +80,11 @@ export async function completeJSONWithOpenAI<T>(params: {
   schema: Record<string, unknown>;
   schemaName: string;
   maxTokens?: number;
+  tier?: ModelTier;
 }): Promise<T> {
   const client = await getClient();
   const response = await client.responses.create({
-    model: "gpt-5.6",
+    model: MODEL_IDS.openai[params.tier ?? "capable"],
     input: [{ role: "system", content: params.system }, ...params.messages],
     max_output_tokens: params.maxTokens ?? 1024,
     text: {

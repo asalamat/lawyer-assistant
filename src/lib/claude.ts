@@ -1,7 +1,15 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { completeJSONWithOpenAI, completeWithOpenAI } from "./openaiText";
 import { completeGemini, completeJSONGemini } from "./gemini";
-import { getAiProviderOrder, getAnthropicApiKey, getGeminiApiKey, getOpenaiApiKey } from "./settings";
+import { completeJSONOllama, completeOllama } from "./ollama";
+import { MODEL_IDS, type ModelTier } from "./modelTiers";
+import {
+  getAiProviderOrder,
+  getAnthropicApiKey,
+  getGeminiApiKey,
+  getOllamaConfig,
+  getOpenaiApiKey,
+} from "./settings";
 import type { AiProvider } from "./settings";
 import type { DraftType, MatterClassification } from "./types";
 
@@ -24,10 +32,11 @@ async function completeAnthropic(params: {
   system: string;
   messages: { role: "user" | "assistant"; content: string }[];
   maxTokens?: number;
+  tier?: ModelTier;
 }): Promise<string> {
   const client = await getClient();
   const response = await client.messages.create({
-    model: "claude-sonnet-5",
+    model: MODEL_IDS.anthropic[params.tier ?? "capable"],
     max_tokens: params.maxTokens ?? 1024,
     system: params.system,
     messages: params.messages,
@@ -56,10 +65,11 @@ async function completeJSONAnthropic<T>(params: {
   messages: { role: "user" | "assistant"; content: string }[];
   schema: Record<string, unknown>;
   maxTokens?: number;
+  tier?: ModelTier;
 }): Promise<T> {
   const client = await getClient();
   const response = await client.messages.create({
-    model: "claude-sonnet-5",
+    model: MODEL_IDS.anthropic[params.tier ?? "capable"],
     max_tokens: params.maxTokens ?? 1024,
     system: params.system,
     messages: params.messages,
@@ -87,7 +97,8 @@ async function completeJSONAnthropic<T>(params: {
 async function isProviderConfigured(provider: AiProvider): Promise<boolean> {
   if (provider === "anthropic") return Boolean(await getAnthropicApiKey());
   if (provider === "openai") return Boolean(await getOpenaiApiKey());
-  return Boolean(await getGeminiApiKey());
+  if (provider === "gemini") return Boolean(await getGeminiApiKey());
+  return Boolean(await getOllamaConfig());
 }
 
 // Tries each configured provider in the user's chosen order (Settings > AI
@@ -137,11 +148,13 @@ async function complete(params: {
   system: string;
   messages: { role: "user" | "assistant"; content: string }[];
   maxTokens?: number;
+  tier?: ModelTier;
 }): Promise<string> {
   return forEachConfiguredProvider((provider) => {
     if (provider === "anthropic") return completeAnthropic(params);
     if (provider === "openai") return completeWithOpenAI(params);
-    return completeGemini(params);
+    if (provider === "gemini") return completeGemini(params);
+    return completeOllama(params);
   });
 }
 
@@ -151,11 +164,13 @@ async function completeJSON<T>(params: {
   schema: Record<string, unknown>;
   schemaName: string;
   maxTokens?: number;
+  tier?: ModelTier;
 }): Promise<T> {
   return forEachConfiguredProvider((provider) => {
     if (provider === "anthropic") return completeJSONAnthropic<T>(params);
     if (provider === "openai") return completeJSONWithOpenAI<T>(params);
-    return completeJSONGemini<T>(params);
+    if (provider === "gemini") return completeJSONGemini<T>(params);
+    return completeJSONOllama<T>(params);
   });
 }
 
@@ -207,6 +222,11 @@ async function summarizeSectionForMatterContext(section: MatterDocumentSection):
         "You are extracting the key facts from ONE document, as an intermediate step before it's combined with other documents' summaries into a full analysis. List, in your own concise words (not a copy of the text): parties/people named, key dates, key facts/claims/admissions, and evidence described. If this document isn't substantively relevant (e.g. a blank cover sheet), say so in one line instead of padding.",
       messages: [{ role: "user", content: `Document: ${section.label}\n\n${section.text}` }],
       maxTokens: 700,
+      // Fires once per document on a large matter (potentially dozens of
+      // calls) — a fast/cheap model for this per-document extraction step,
+      // saving the capable/expensive one for the final synthesis call that
+      // actually needs real legal reasoning across all of them.
+      tier: "fast",
     });
     return `--- ${section.label} (summarized) ---\n${summary}`;
   } catch (err) {
@@ -316,6 +336,10 @@ export async function extractDeadlines(sections: MatterDocumentSection[]): Promi
     schema: DEADLINES_SCHEMA,
     schemaName: "deadlines",
     maxTokens: 2048,
+    // Extraction against a well-defined schema, not open-ended legal
+    // reasoning — a lower-cost model with structured output is exactly
+    // what the original architecture doc's routing table recommends here.
+    tier: "fast",
   });
 
   return result.deadlines ?? [];
@@ -629,6 +653,7 @@ export async function scanReferenceDocumentForSensitiveContent(text: string): Pr
     schema: SENSITIVITY_SCHEMA,
     schemaName: "sensitivity_scan",
     maxTokens: 512,
+    tier: "fast",
   });
 
   return result.containsSensitiveContent ? result.reason : null;
@@ -677,5 +702,6 @@ export async function suggestMatterClassification(
     schema: CLASSIFICATION_SCHEMA,
     schemaName: "classification_suggestion",
     maxTokens: 512,
+    tier: "fast",
   });
 }
