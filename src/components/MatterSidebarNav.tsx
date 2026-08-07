@@ -4,9 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ActivityIcon,
+  AuditIcon,
   ChatIcon,
   DeadlineIcon,
   DigestIcon,
+  DocumentIcon,
   DraftIcon,
   EvidenceIcon,
   IntakeIcon,
@@ -32,6 +34,10 @@ export default function MatterSidebarNav({ matterId }: { matterId: string }) {
     { href: `${base}/digest`, label: "Digest", Icon: DigestIcon },
     { href: `${base}/deadlines`, label: "Deadlines", Icon: DeadlineIcon },
     { href: `${base}/evidence-matrix`, label: "Evidence matrix", Icon: EvidenceIcon },
+    { href: `${base}/contradictions`, label: "Contradictions", Icon: EvidenceIcon },
+    { href: `${base}/exhibit-list`, label: "Exhibit list", Icon: DocumentIcon },
+    { href: `${base}/disclosure-checklist`, label: "Disclosure checklist", Icon: AuditIcon },
+    { href: `${base}/crown-position`, label: "Crown position", Icon: ScaleIcon },
     { href: `${base}/case-noteup`, label: "Case citations", Icon: ScaleIcon },
     { href: `${base}/drafts`, label: "Drafts", Icon: DraftIcon },
     { href: `${base}/timesheet`, label: "Timesheet", Icon: TimesheetIcon },

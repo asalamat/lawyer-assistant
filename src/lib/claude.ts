@@ -498,6 +498,116 @@ Use "Not stated in the provided documents" for anything you cannot support. Do n
   });
 }
 
+// Comprehensive analysis needing every document read together, same
+// category as digest/evidence-matrix — not a query to retrieve "the
+// relevant parts" against, so it routes through buildMatterContext for the
+// same map-reduce fallback on a large matter.
+export async function generateContradictionAnalysis(sections: MatterDocumentSection[]): Promise<string> {
+  const system = `You are a legal assistant comparing statements across a matter's documents (witness statements, correspondence, reports) to find genuine inconsistencies. Base every finding only on the provided matter documents — cite the source filename in parentheses after any fact you draw from a document, and the page too if the source has page markers (e.g. "[Page 4]"), like "(file.pdf, p. 4)". Structure your answer as:
+
+## Witnesses/sources compared
+## Date inconsistencies (same event, conflicting dates across sources)
+## Location inconsistencies
+## Amount/quantity inconsistencies
+## Identity/description inconsistencies
+## Other contradictory statements (same fact asserted and denied, or described differently)
+
+For each finding, quote or closely paraphrase both conflicting statements with their sources, and describe the nature of the conflict — don't speculate about which one is correct or why the discrepancy exists. If no genuine inconsistencies are found in a category, say so rather than manufacturing a marginal one. Do not treat normal variation (different levels of detail, different wording of the same fact) as a contradiction.`;
+
+  if (sections.length === 0) {
+    return "No documents have been uploaded for this matter yet — upload documents first, then generate this analysis.";
+  }
+
+  const context = await buildMatterContext(sections);
+  return complete({
+    system,
+    messages: [
+      { role: "user", content: `Here are the matter documents:\n\n${context}\n\nFind contradictions and inconsistencies.` },
+    ],
+    maxTokens: 4096,
+  });
+}
+
+export async function generateExhibitList(sections: MatterDocumentSection[]): Promise<string> {
+  const system = `You are a legal assistant building an exhibit list from a matter's documents — the kind used to organize evidence for a hearing or trial. Base every entry only on the provided matter documents — cite the source filename in parentheses. Structure your answer as a numbered list, each entry with:
+
+- **Exhibit description** — what it is, in plain terms
+- **Source document** — the filename (and page, if available)
+- **Relevance** — what allegation, fact, or issue it goes to support
+
+Only list items that are genuinely distinct pieces of evidence (a document, photograph, recording, or physical item described in the documents) — not every document is necessarily its own exhibit if several belong together (e.g. a chain of emails). Use "[NEEDS LAWYER INPUT]" for an item whose exact exhibit status or admissibility is unclear from the documents alone.`;
+
+  if (sections.length === 0) {
+    return "No documents have been uploaded for this matter yet — upload documents first, then generate an exhibit list.";
+  }
+
+  const context = await buildMatterContext(sections);
+  return complete({
+    system,
+    messages: [{ role: "user", content: `Here are the matter documents:\n\n${context}\n\nBuild the exhibit list.` }],
+    maxTokens: 4096,
+  });
+}
+
+export async function generateDisclosureChecklist(sections: MatterDocumentSection[]): Promise<string> {
+  const system = `You are a legal assistant reviewing a matter's documents for disclosure completeness — comparing what's actually been provided against what the documents themselves reference as existing. Base every item only on the provided matter documents — cite the source filename in parentheses for both what's received and what's referenced-but-missing. Structure your answer as:
+
+## Disclosure received (grouped by category — e.g. police reports, medical records, correspondence — with source citations)
+## Referenced but not yet provided (something a document mentions exists — a report, a recording, an attachment — that isn't itself among the uploaded documents, with a citation to where it's referenced)
+## Open questions about completeness (anything unclear about whether disclosure is complete, without speculating)
+
+Never assume something is missing just because it would typically exist in a case like this — only list an item here if a document in the matter actually references it existing.`;
+
+  if (sections.length === 0) {
+    return "No documents have been uploaded for this matter yet — upload documents first, then generate a disclosure checklist.";
+  }
+
+  const context = await buildMatterContext(sections);
+  return complete({
+    system,
+    messages: [
+      { role: "user", content: `Here are the matter documents:\n\n${context}\n\nProduce the disclosure-completeness checklist.` },
+    ],
+    maxTokens: 4096,
+  });
+}
+
+// Deliberately framed as "plausible positions with evidence and confidence"
+// per the architecture doc's explicit guidance — never "the Crown will
+// withdraw" or a bare probability. This is the one generator in this file
+// with a hardcoded refusal-style instruction against outcome prediction
+// baked into the system prompt itself, not just relying on the model's
+// general good judgment, given how easily this specific analysis type
+// could slide into exactly the kind of statement the doc warns against.
+export async function generateCrownPositionAnalysis(sections: MatterDocumentSection[]): Promise<string> {
+  const system = `You are a legal assistant analyzing the Crown's likely position in a criminal matter, for defence counsel's review. Base every statement only on the provided matter documents — cite the source filename in parentheses, and the page if available. Structure your answer as:
+
+## Charges and statutory elements
+## Available evidence for each element (with source citations)
+## Evidentiary weaknesses or gaps
+## Possible defences suggested by the record
+## Similar considerations from any case law or Crown policy documents actually present in the matter's own materials (not from general knowledge)
+## Aggravating and mitigating factors present in the record
+## Questions counsel should investigate further
+
+Then, as a final section:
+## Plausible Crown positions
+List two or three plausible Crown positions (e.g. proceed to trial on all counts, offer a resolution, withdraw a specific charge) — for each, state the evidence supporting it, what's missing, and your confidence level (high/medium/low) with a one-line reason. Do NOT state which one will happen, do NOT give a percentage or numeric probability, and do NOT present any of this as legal advice or a final assessment — this is a structured starting point for the lawyer's own judgment, explicitly not a prediction.`;
+
+  if (sections.length === 0) {
+    return "No documents have been uploaded for this matter yet — upload documents first, then generate this analysis.";
+  }
+
+  const context = await buildMatterContext(sections);
+  return complete({
+    system,
+    messages: [
+      { role: "user", content: `Here are the matter documents:\n\n${context}\n\nAnalyze the Crown's likely position.` },
+    ],
+    maxTokens: 4096,
+  });
+}
+
 export interface EvidenceGraphNode {
   id: string;
   label: string;

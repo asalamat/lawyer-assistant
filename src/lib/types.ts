@@ -264,7 +264,14 @@ export interface CaseNoteup {
 export interface IndependentReview {
   id: string;
   matterId: string;
-  sourceType: "digest" | "evidence_matrix" | "chat_message";
+  sourceType:
+    | "digest"
+    | "evidence_matrix"
+    | "chat_message"
+    | "contradiction_analysis"
+    | "exhibit_list"
+    | "disclosure_checklist"
+    | "crown_position_analysis";
   sourceId: string;
   content: string;
   createdAt: string;

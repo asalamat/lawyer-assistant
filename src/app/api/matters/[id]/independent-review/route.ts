@@ -40,10 +40,14 @@ export async function POST(
     "digest",
     "evidence_matrix",
     "chat_message",
+    "contradiction_analysis",
+    "exhibit_list",
+    "disclosure_checklist",
+    "crown_position_analysis",
   ];
   if (!sourceType || !validSourceTypes.includes(sourceType) || !sourceId || !content) {
     return NextResponse.json(
-      { error: "sourceType (digest|evidence_matrix|chat_message), sourceId, and content are required" },
+      { error: `sourceType (${validSourceTypes.join("|")}), sourceId, and content are required` },
       { status: 400 },
     );
   }

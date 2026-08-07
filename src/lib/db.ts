@@ -452,6 +452,47 @@ execWithRetry(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_case_noteups_matterId ON case_noteups(matterId);
+
+  -- Four new AI-generated analysis types, all the same shape as the
+  -- existing matter_digests/evidence_matrices tables (append-only history,
+  -- one markdown blob per generation) — see listSimpleGeneratedDocs in
+  -- matters.ts, which reads/writes all four generically instead of
+  -- duplicating four near-identical CRUD implementations.
+  CREATE TABLE IF NOT EXISTS contradiction_analyses (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    content TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_contradiction_analyses_matterId ON contradiction_analyses(matterId);
+
+  CREATE TABLE IF NOT EXISTS exhibit_lists (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    content TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_exhibit_lists_matterId ON exhibit_lists(matterId);
+
+  CREATE TABLE IF NOT EXISTS disclosure_checklists (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    content TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_disclosure_checklists_matterId ON disclosure_checklists(matterId);
+
+  CREATE TABLE IF NOT EXISTS crown_position_analyses (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    content TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_crown_position_analyses_matterId ON crown_position_analyses(matterId);
 `);
 
 // Schema migrations for columns added after the table already existed on a

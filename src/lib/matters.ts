@@ -294,6 +294,10 @@ export async function deleteMatter(matterId: string): Promise<boolean> {
   db.prepare("DELETE FROM matter_deadlines WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM drafts WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM evidence_matrices WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM contradiction_analyses WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM exhibit_lists WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM disclosure_checklists WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM crown_position_analyses WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM independent_reviews WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM invoices WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM time_entries WHERE matterId = ?").run(matterId);
@@ -782,6 +786,95 @@ export async function addEvidenceMatrix(matterId: string, content: string): Prom
   ).run(matrix.id, matrix.matterId, matrix.content, matrix.createdAt);
   await recordAuditEvent("evidence_matrix_generated", matterId, "Generated evidence matrix");
   return matrix;
+}
+
+export interface SimpleGeneratedDoc {
+  id: string;
+  matterId: string;
+  content: string;
+  createdAt: string;
+}
+
+// Shared read/write for the four new analysis tables added alongside
+// digest/evidence-matrix — all identical in shape (one markdown blob per
+// generation, append-only), so this avoids four near-identical
+// hand-written CRUD implementations. digest/evidence-matrix keep their own
+// dedicated functions above rather than being retrofitted onto this — not
+// broken, no reason to touch them just for consistency.
+function listSimpleGeneratedDocs(table: string, matterId: string): SimpleGeneratedDoc[] {
+  return db
+    .prepare(`SELECT * FROM ${table} WHERE matterId = ? ORDER BY createdAt DESC`)
+    .all(matterId)
+    .map((row) => toPlain<SimpleGeneratedDoc>(row));
+}
+
+async function addSimpleGeneratedDoc(
+  table: string,
+  matterId: string,
+  content: string,
+  auditAction: string,
+  auditDetail: string,
+): Promise<SimpleGeneratedDoc> {
+  const doc: SimpleGeneratedDoc = {
+    id: crypto.randomUUID(),
+    matterId,
+    content,
+    createdAt: new Date().toISOString(),
+  };
+  db.prepare(`INSERT INTO ${table} (id, matterId, content, createdAt) VALUES (?, ?, ?, ?)`).run(
+    doc.id,
+    doc.matterId,
+    doc.content,
+    doc.createdAt,
+  );
+  await recordAuditEvent(auditAction, matterId, auditDetail);
+  return doc;
+}
+
+export async function listContradictionAnalyses(matterId: string): Promise<SimpleGeneratedDoc[]> {
+  return listSimpleGeneratedDocs("contradiction_analyses", matterId);
+}
+export async function addContradictionAnalysis(matterId: string, content: string): Promise<SimpleGeneratedDoc> {
+  return addSimpleGeneratedDoc(
+    "contradiction_analyses",
+    matterId,
+    content,
+    "contradiction_analysis_generated",
+    "Generated a contradiction/witness-comparison analysis",
+  );
+}
+
+export async function listExhibitLists(matterId: string): Promise<SimpleGeneratedDoc[]> {
+  return listSimpleGeneratedDocs("exhibit_lists", matterId);
+}
+export async function addExhibitList(matterId: string, content: string): Promise<SimpleGeneratedDoc> {
+  return addSimpleGeneratedDoc("exhibit_lists", matterId, content, "exhibit_list_generated", "Generated an exhibit list");
+}
+
+export async function listDisclosureChecklists(matterId: string): Promise<SimpleGeneratedDoc[]> {
+  return listSimpleGeneratedDocs("disclosure_checklists", matterId);
+}
+export async function addDisclosureChecklist(matterId: string, content: string): Promise<SimpleGeneratedDoc> {
+  return addSimpleGeneratedDoc(
+    "disclosure_checklists",
+    matterId,
+    content,
+    "disclosure_checklist_generated",
+    "Generated a disclosure-completeness checklist",
+  );
+}
+
+export async function listCrownPositionAnalyses(matterId: string): Promise<SimpleGeneratedDoc[]> {
+  return listSimpleGeneratedDocs("crown_position_analyses", matterId);
+}
+export async function addCrownPositionAnalysis(matterId: string, content: string): Promise<SimpleGeneratedDoc> {
+  return addSimpleGeneratedDoc(
+    "crown_position_analyses",
+    matterId,
+    content,
+    "crown_position_analysis_generated",
+    "Generated a Crown-position analysis",
+  );
 }
 
 export async function listIndependentReviews(matterId: string): Promise<IndependentReview[]> {

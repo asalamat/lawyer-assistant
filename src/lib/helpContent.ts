@@ -127,6 +127,30 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Maps allegations/charges to the elements that must be proven, the supporting evidence for each, and evidentiary gaps. Does not predict outcomes. Translate it or export as PDF like any other generated document. Once generated, click Visualize to see it as a node graph — parties, allegations, evidence, and gaps, with their connections. Click any node to highlight just its direct connections, or use the checkboxes to show/hide a whole category and narrow down what you're looking at.",
       },
       {
+        slug: "contradictions",
+        name: "Contradictions",
+        detail:
+          "Compares witness statements and other documents for genuine inconsistencies — dates, locations, amounts, and identity/description details — with both sides of each conflict quoted and cited. Normal variation (different wording, different level of detail) is deliberately not flagged as a contradiction; only real conflicts are.",
+      },
+      {
+        slug: "exhibit-list",
+        name: "Exhibit list",
+        detail:
+          "Builds a numbered exhibit list from the matter's documents — description, source document, and relevance to a specific allegation or issue — the kind used to organize evidence for a hearing.",
+      },
+      {
+        slug: "disclosure-checklist",
+        name: "Disclosure checklist",
+        detail:
+          "Compares what's actually been disclosed against what the documents themselves reference as existing — e.g. a report that mentions a recording that isn't itself among the uploaded documents. Only flags something as missing if a document in the matter actually references it; never assumes something should exist just because it's typical for a case like this.",
+      },
+      {
+        slug: "crown-position",
+        name: "Crown position",
+        detail:
+          "Analyzes charges and statutory elements, available evidence for each, weaknesses, possible defences, and aggravating/mitigating factors — then ends with two or three plausible Crown positions, each with its supporting evidence, what's missing, and a confidence level (high/medium/low). Deliberately does not predict which one will happen, give a percentage, or present this as advice — it's a structured starting point for the lawyer's own judgment.",
+      },
+      {
         slug: "drafting",
         name: "Drafting",
         detail:
