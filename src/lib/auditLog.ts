@@ -20,6 +20,7 @@ export const ACTION_LABELS: Record<string, string> = {
   api_key_revoked: "API key revoked",
   webhook_subscription_created: "Webhook added",
   webhook_subscription_deleted: "Webhook removed",
+  lead_enrolled_in_campaign: "Lead enrolled in campaign",
   matter_ethical_wall_applied: "Ethical wall applied",
   matter_ethical_wall_released: "Ethical wall released",
   chat_question_asked: "Chat question asked",

@@ -771,6 +771,43 @@ execWithRetry(`
     createdAt TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_webhook_subscriptions_eventType ON webhook_subscriptions(eventType);
+
+  -- A campaign auto-enrolls a lead the moment it reaches triggerStage (see
+  -- enrollLead(), called from updateLead() in leads.ts) and steps it
+  -- through campaign_steps on a delay, tracked per-lead in
+  -- campaign_enrollments.
+  CREATE TABLE IF NOT EXISTS campaigns (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    triggerStage TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1,
+    createdAt TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS campaign_steps (
+    id TEXT PRIMARY KEY,
+    campaignId TEXT NOT NULL,
+    stepOrder INTEGER NOT NULL,
+    delayDays INTEGER NOT NULL DEFAULT 0,
+    subject TEXT NOT NULL,
+    body TEXT NOT NULL,
+    FOREIGN KEY (campaignId) REFERENCES campaigns(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_campaign_steps_campaignId ON campaign_steps(campaignId);
+
+  CREATE TABLE IF NOT EXISTS campaign_enrollments (
+    id TEXT PRIMARY KEY,
+    campaignId TEXT NOT NULL,
+    leadId TEXT NOT NULL,
+    enrolledAt TEXT NOT NULL,
+    nextStepIndex INTEGER NOT NULL DEFAULT 0,
+    nextSendAt TEXT,
+    finishedAt TEXT,
+    FOREIGN KEY (campaignId) REFERENCES campaigns(id),
+    FOREIGN KEY (leadId) REFERENCES leads(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_campaign_enrollments_nextSendAt ON campaign_enrollments(nextSendAt);
+  CREATE INDEX IF NOT EXISTS idx_campaign_enrollments_leadId ON campaign_enrollments(leadId);
 `);
 
 // Schema migrations for columns added after the table already existed on a

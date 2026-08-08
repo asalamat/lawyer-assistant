@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { recordAuditEvent } from "./auditLog";
+import { enrollLeadIfMatching } from "./campaigns";
 import db, { toPlain } from "./db";
 import { createMatter } from "./matters";
 import type { Lead, LeadStage, Matter } from "./types";
@@ -92,6 +93,7 @@ export async function updateLead(
 
   if (updates.stage && updates.stage !== existing.stage) {
     await recordAuditEvent("lead_stage_changed", null, `Lead "${next.name}" moved to ${updates.stage}`);
+    await enrollLeadIfMatching(id, updates.stage);
   }
 
   return next;
@@ -99,6 +101,7 @@ export async function updateLead(
 
 export async function deleteLead(id: string): Promise<void> {
   const lead = await getLead(id);
+  db.prepare("DELETE FROM campaign_enrollments WHERE leadId = ?").run(id);
   db.prepare("DELETE FROM leads WHERE id = ?").run(id);
   if (lead) {
     await recordAuditEvent("lead_deleted", null, `Deleted lead "${lead.name}"`);

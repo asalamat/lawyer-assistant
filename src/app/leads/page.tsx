@@ -1,10 +1,11 @@
+import { listActiveEnrollmentsByLeadId } from "@/lib/campaigns";
 import { listLeads } from "@/lib/leads";
 import LeadsBoard from "@/components/LeadsBoard";
 
 export const dynamic = "force-dynamic";
 
 export default async function LeadsPage() {
-  const leads = await listLeads();
+  const [leads, enrollmentByLeadId] = await Promise.all([listLeads(), listActiveEnrollmentsByLeadId()]);
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-6 py-10">
@@ -15,7 +16,7 @@ export default async function LeadsPage() {
           become a real matter.
         </p>
       </div>
-      <LeadsBoard initialLeads={leads} />
+      <LeadsBoard initialLeads={leads} enrollmentByLeadId={enrollmentByLeadId} />
     </main>
   );
 }

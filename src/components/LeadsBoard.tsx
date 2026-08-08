@@ -13,7 +13,13 @@ const STAGE_LABELS: Record<LeadStage, string> = {
   lost: "Lost",
 };
 
-export default function LeadsBoard({ initialLeads }: { initialLeads: Lead[] }) {
+export default function LeadsBoard({
+  initialLeads,
+  enrollmentByLeadId = {},
+}: {
+  initialLeads: Lead[];
+  enrollmentByLeadId?: Record<string, string>;
+}) {
   const [leads, setLeads] = useState(initialLeads);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -121,6 +127,11 @@ export default function LeadsBoard({ initialLeads }: { initialLeads: Lead[] }) {
                       {lead.name}
                     </Link>
                     {lead.source && <p className="text-xs text-muted">{lead.source}</p>}
+                    {enrollmentByLeadId[lead.id] && (
+                      <span className="badge-accent self-start">
+                        In campaign: {enrollmentByLeadId[lead.id]}
+                      </span>
+                    )}
                     <select
                       value={lead.stage}
                       onChange={(e) => handleMove(lead.id, e.target.value as LeadStage)}

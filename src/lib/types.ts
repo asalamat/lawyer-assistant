@@ -242,6 +242,33 @@ export interface MatterDeadline {
   createdAt: string;
 }
 
+export interface Campaign {
+  id: string;
+  name: string;
+  triggerStage: LeadStage;
+  active: number;
+  createdAt: string;
+}
+
+export interface CampaignStep {
+  id: string;
+  campaignId: string;
+  stepOrder: number;
+  delayDays: number;
+  subject: string;
+  body: string;
+}
+
+export interface CampaignEnrollment {
+  id: string;
+  campaignId: string;
+  leadId: string;
+  enrolledAt: string;
+  nextStepIndex: number;
+  nextSendAt: string | null;
+  finishedAt: string | null;
+}
+
 // keyHash is never selected outside verifyApiKey() itself.
 export interface ApiKey {
   id: string;

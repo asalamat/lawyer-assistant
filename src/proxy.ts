@@ -27,6 +27,7 @@ const PUBLIC_PATHS = [
   "/api/auth/mfa",
   "/api/legislation-watches/check-all",
   "/api/backup/scheduled",
+  "/api/campaigns/run-due",
 ];
 
 // Client-facing, no-login, token-gated routes (see src/lib/clientAccess.ts).

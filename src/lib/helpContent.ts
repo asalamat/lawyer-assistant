@@ -305,6 +305,12 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Admin-only. \"Generate key\" creates an API key for an external tool to read/write leads and matters directly — sent as a Bearer token (Authorization: Bearer &lt;key&gt;) against /api/v1/leads and /api/v1/matters, entirely separate from the staff login session. The real key is shown exactly once at creation; only a hash is stored afterward, so losing it means generating a new one, not recovering the old one. \"Revoke\" disables a key immediately without deleting its history. Webhooks notify an external URL when a lead or matter is created — pick the event type, paste in a URL (Zapier's generic \"Webhooks\" trigger, n8n, or anything else that can receive a POST), and a signing secret is shown once so the receiving end can verify a delivery actually came from here (an X-Signature header, HMAC-SHA256 of the request body using that secret). Delivery is best-effort: a failure on the receiving end never blocks or retries, and there's no delivery log in this first version.",
       },
       {
+        slug: "campaigns",
+        name: "Marketing campaigns",
+        detail:
+          "Admin-only, requires SMTP configured in Settings > Email. An email sequence (one or more steps, each with its own delay in days and its own subject/body) that auto-enrolls a lead the moment it reaches a chosen stage — e.g. every lead marked \"Contacted\" gets a 3-email drip over two weeks, no manual step needed. A lead already enrolled in a campaign won't be enrolled in the same one twice, and the Leads board shows which campaign (if any) a lead is currently in. {{lead.name}}, {{lead.email}}, {{lead.phone}}, and {{lead.source}} fill in automatically in a step's subject or body. Sending isn't automatic — like backups and legislation watches, there's no built-in scheduler, so this page shows a command to wire into an OS-level cron job (hourly is a reasonable interval) that finds and sends whatever's currently due. A lead with no email address, or a send that fails, is skipped without stopping the rest of that run.",
+      },
+      {
         slug: "security",
         name: "Security",
         detail:
