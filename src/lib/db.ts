@@ -749,6 +749,28 @@ execWithRetry(`
     FOREIGN KEY (matterId) REFERENCES matters(id)
   );
   CREATE INDEX IF NOT EXISTS idx_redline_analyses_matterId ON redline_analyses(matterId);
+
+  -- Only a hash is ever stored — the real key is shown once at creation,
+  -- same one-time-reveal pattern as a new user's temporary password.
+  CREATE TABLE IF NOT EXISTS api_keys (
+    id TEXT PRIMARY KEY,
+    label TEXT NOT NULL,
+    keyHash TEXT NOT NULL UNIQUE,
+    createdByUserId TEXT,
+    createdAt TEXT NOT NULL,
+    lastUsedAt TEXT,
+    revokedAt TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS webhook_subscriptions (
+    id TEXT PRIMARY KEY,
+    eventType TEXT NOT NULL,
+    url TEXT NOT NULL,
+    secret TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1,
+    createdAt TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_webhook_subscriptions_eventType ON webhook_subscriptions(eventType);
 `);
 
 // Schema migrations for columns added after the table already existed on a

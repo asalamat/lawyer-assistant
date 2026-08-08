@@ -34,6 +34,7 @@ const LINKS = [
   { href: "/settings/privacy", label: "Privacy", Icon: PrivacyIcon, adminOnly: true },
   { href: "/settings/email", label: "Email", Icon: MailIcon, adminOnly: true },
   { href: "/settings/integrations", label: "Integrations", Icon: IntegrationIcon, adminOnly: true },
+  { href: "/settings/api-webhooks", label: "API & webhooks", Icon: IntegrationIcon, adminOnly: true },
   { href: "/settings/users", label: "Users", Icon: UsersIcon, adminOnly: true },
   { href: "/settings/backup", label: "Backup", Icon: BackupIcon, adminOnly: true },
   { href: "/settings/security", label: "Security", Icon: SecurityIcon, adminOnly: false },

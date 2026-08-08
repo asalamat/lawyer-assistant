@@ -44,6 +44,12 @@ const PUBLIC_PATH_PREFIXES = [
   // limited per-IP in the route handler itself (see publicLeadForm.ts).
   "/leads/public",
   "/api/leads/public",
+  // The external, versioned API surface — same shape as the cron endpoints
+  // in PUBLIC_PATHS above: no staff session exists for a machine caller,
+  // and the admin/matter-access/mustChangePassword logic below doesn't
+  // apply to an API key at all, so each /api/v1/* route checks its own
+  // Authorization header instead (see requireApiKey in apiV1Auth.ts).
+  "/api/v1/",
 ];
 
 // The persistent client portal (see clientAuth.ts) is a wholly separate

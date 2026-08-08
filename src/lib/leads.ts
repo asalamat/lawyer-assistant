@@ -3,6 +3,7 @@ import { recordAuditEvent } from "./auditLog";
 import db, { toPlain } from "./db";
 import { createMatter } from "./matters";
 import type { Lead, LeadStage, Matter } from "./types";
+import { fireWebhook } from "./webhooks";
 
 export async function listLeads(): Promise<Lead[]> {
   return db
@@ -36,7 +37,7 @@ export async function createLead(input: {
 
   await recordAuditEvent("lead_created", null, `Added lead "${name}"`);
 
-  return {
+  const lead: Lead = {
     id,
     name,
     email: input.email ?? null,
@@ -50,6 +51,8 @@ export async function createLead(input: {
     convertedMatterId: null,
     convertedAt: null,
   };
+  await fireWebhook("lead.created", lead);
+  return lead;
 }
 
 export async function updateLead(

@@ -242,6 +242,28 @@ export interface MatterDeadline {
   createdAt: string;
 }
 
+// keyHash is never selected outside verifyApiKey() itself.
+export interface ApiKey {
+  id: string;
+  label: string;
+  createdByUserId: string | null;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+}
+
+export const WEBHOOK_EVENT_TYPES = ["lead.created", "matter.created"] as const;
+export type WebhookEventType = (typeof WEBHOOK_EVENT_TYPES)[number];
+
+export interface WebhookSubscription {
+  id: string;
+  eventType: WebhookEventType;
+  url: string;
+  secret: string;
+  active: number;
+  createdAt: string;
+}
+
 export interface ClauseLibraryEntry {
   id: string;
   clauseType: string;

@@ -20,6 +20,7 @@ import {
   ensureReferenceDocumentChunks,
   getRelevantChunks,
 } from "./rag";
+import { fireWebhook } from "./webhooks";
 import { isSafeToExtract } from "./textExtraction";
 import { extractDeadlines, suggestMatterClassification, type ExtractedDeadline } from "./claude";
 import type {
@@ -170,6 +171,7 @@ export async function createMatter(input: {
     matter.id,
     `Created matter "${matter.title}" (${matter.fileNumber})`,
   );
+  await fireWebhook("matter.created", matter);
   return matter;
 }
 
