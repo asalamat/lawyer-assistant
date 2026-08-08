@@ -254,6 +254,8 @@ execWithRetry(`
     pagePath TEXT NOT NULL,
     content TEXT NOT NULL,
     color TEXT NOT NULL DEFAULT 'yellow',
+    x REAL,
+    y REAL,
     createdAt TEXT NOT NULL,
     updatedAt TEXT NOT NULL,
     FOREIGN KEY (userId) REFERENCES users(id)
@@ -628,6 +630,12 @@ ensureColumn("documents", "parentDocumentId", "TEXT");
 // flips this on (see clientPortal.ts) — nothing is exposed to a client by
 // default just because their portal account exists.
 ensureColumn("documents", "sharedWithClient", "INTEGER NOT NULL DEFAULT 0");
+
+// Null until the user drags a note for the first time — the client picks a
+// cascaded default position in that case rather than the server guessing a
+// viewport size it has no way to know.
+ensureColumn("sticky_notes", "x", "REAL");
+ensureColumn("sticky_notes", "y", "REAL");
 
 // Splits the reference library's single shelf into the two shared tiers of
 // the vision doc's three-layer knowledge architecture (client-matter

@@ -12,9 +12,11 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await request.json().catch(() => null);
-  const updates: { content?: string; color?: StickyNoteColor } = {};
+  const updates: { content?: string; color?: StickyNoteColor; x?: number; y?: number } = {};
   if (typeof body?.content === "string") updates.content = body.content;
   if (STICKY_NOTE_COLORS.includes(body?.color)) updates.color = body.color;
+  if (typeof body?.x === "number") updates.x = body.x;
+  if (typeof body?.y === "number") updates.y = body.y;
 
   const note = await updateStickyNote(user.id, id, updates);
   if (!note) return NextResponse.json({ error: "Note not found" }, { status: 404 });

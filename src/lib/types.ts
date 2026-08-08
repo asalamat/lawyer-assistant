@@ -355,6 +355,10 @@ export interface StickyNote {
   pagePath: string;
   content: string;
   color: StickyNoteColor;
+  // Pixel position on the page, viewport-relative. Null until the note has
+  // ever been dragged — the client picks a default in that case.
+  x: number | null;
+  y: number | null;
   createdAt: string;
   updatedAt: string;
 }

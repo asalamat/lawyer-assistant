@@ -23,7 +23,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "pagePath is required" }, { status: 400 });
   }
   const color: StickyNoteColor = STICKY_NOTE_COLORS.includes(body?.color) ? body.color : "yellow";
+  const position =
+    typeof body?.x === "number" && typeof body?.y === "number" ? { x: body.x, y: body.y } : null;
 
-  const note = await addStickyNote(user.id, pagePath, color);
+  const note = await addStickyNote(user.id, pagePath, color, position);
   return NextResponse.json(note, { status: 201 });
 }
