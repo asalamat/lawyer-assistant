@@ -528,6 +528,55 @@ For each finding, quote or closely paraphrase both conflicting statements with t
   });
 }
 
+// Same shape as generateContradictionAnalysis — grounded only in this
+// matter's own documents, not the AI's general knowledge of "market"
+// contract terms. Deliberately produces a structured analysis document
+// like every other AI feature here, not an auto-redlined/track-changes
+// Word file (that needs real docx XML manipulation, a much bigger lift for
+// a first version of this feature).
+export async function generateRedlineAnalysis(
+  sections: MatterDocumentSection[],
+  clauseLibrary: { clauseType: string; preferredLanguage: string; fallbackLanguage: string | null; unacceptableLanguage: string | null }[],
+): Promise<string> {
+  if (sections.length === 0) {
+    return "No documents have been uploaded for this matter yet — upload the contract first, then generate this analysis.";
+  }
+  if (clauseLibrary.length === 0) {
+    return "No clause library entries have been set up yet — add some in Settings > Clause library, then generate this analysis.";
+  }
+
+  const playbook = clauseLibrary
+    .map((entry) => {
+      const lines = [`### ${entry.clauseType}`, `Preferred: ${entry.preferredLanguage}`];
+      if (entry.fallbackLanguage) lines.push(`Fallback (acceptable if preferred is rejected): ${entry.fallbackLanguage}`);
+      if (entry.unacceptableLanguage) lines.push(`Unacceptable: ${entry.unacceptableLanguage}`);
+      return lines.join("\n");
+    })
+    .join("\n\n");
+
+  const system = `You are a legal assistant redlining a contract against this firm's own clause playbook. Base every finding only on the provided matter documents — cite the source filename in parentheses after any quoted or paraphrased contract language. For each clause type in the playbook below that the contract addresses, compare what the contract actually says against the playbook's preferred/fallback/unacceptable language and report:
+
+## Matches preferred language
+## Falls back to acceptable language
+## Conflicts with unacceptable language
+## Missing entirely (playbook clause type not addressed anywhere in the contract)
+
+For each finding, quote the contract's actual language (with its source) next to the relevant playbook language, and say plainly whether it's a match, an acceptable fallback, a real problem, or missing — don't soften a genuine conflict with unacceptable language. If the uploaded documents don't look like a contract at all, say so rather than forcing a comparison.
+
+Firm clause playbook:
+
+${playbook}`;
+
+  const context = await buildMatterContext(sections);
+  return complete({
+    system,
+    messages: [
+      { role: "user", content: `Here are the matter documents:\n\n${context}\n\nRedline against the firm's clause playbook.` },
+    ],
+    maxTokens: 4096,
+  });
+}
+
 export async function generateExhibitList(sections: MatterDocumentSection[]): Promise<string> {
   const system = `You are a legal assistant building an exhibit list from a matter's documents — the kind used to organize evidence for a hearing or trial. Base every entry only on the provided matter documents — cite the source filename in parentheses. Structure your answer as a numbered list, each entry with:
 

@@ -45,6 +45,7 @@ export async function POST(
     "disclosure_checklist",
     "crown_position_analysis",
     "privilege_review",
+    "redline_analysis",
   ];
   if (!sourceType || !validSourceTypes.includes(sourceType) || !sourceId || !content) {
     return NextResponse.json(

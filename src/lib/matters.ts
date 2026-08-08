@@ -318,6 +318,7 @@ export async function deleteMatter(matterId: string): Promise<boolean> {
   db.prepare("DELETE FROM matter_team WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM case_noteups WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM tasks WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM redline_analyses WHERE matterId = ?").run(matterId);
   db.prepare(
     "DELETE FROM signatures WHERE signableDocumentId IN (SELECT id FROM signable_documents WHERE matterId = ?)",
   ).run(matterId);
@@ -956,6 +957,19 @@ export async function addPrivilegeReview(matterId: string, content: string): Pro
     content,
     "privilege_review_generated",
     "Generated a privilege & redaction review",
+  );
+}
+
+export async function listRedlineAnalyses(matterId: string): Promise<SimpleGeneratedDoc[]> {
+  return listSimpleGeneratedDocs("redline_analyses", matterId);
+}
+export async function addRedlineAnalysis(matterId: string, content: string): Promise<SimpleGeneratedDoc> {
+  return addSimpleGeneratedDoc(
+    "redline_analyses",
+    matterId,
+    content,
+    "redline_analysis_generated",
+    "Generated a contract redline against the firm's clause library",
   );
 }
 

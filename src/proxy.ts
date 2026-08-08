@@ -78,6 +78,7 @@ const NON_ADMIN_SETTINGS_PAGES = [
   "/settings/security",
   "/settings/translation",
   "/settings/document-templates",
+  "/settings/clause-library",
 ];
 
 // Top-level (non-/settings) pages that are still admin-only — operational/
@@ -98,13 +99,15 @@ function isAdminOnlyPage(pathname: string): boolean {
 function isAdminOnlyApi(pathname: string): boolean {
   // Appearance and Translation settings are personal preferences, not
   // firm-wide resources like API keys — open to all users. Document
-  // templates are just reusable text any staff member might reasonably
-  // author (retainer letters, standard correspondence) — same tier as
-  // drafting a document, not a firm-wide credential/integration.
+  // templates and clause library entries are just reusable text any staff
+  // member might reasonably author (retainer letters, standard
+  // correspondence, preferred contract language) — same tier as drafting a
+  // document, not a firm-wide credential/integration.
   if (
     pathname === "/api/settings/location" ||
     pathname === "/api/settings/translation" ||
-    pathname.startsWith("/api/settings/document-templates")
+    pathname.startsWith("/api/settings/document-templates") ||
+    pathname.startsWith("/api/settings/clause-library")
   ) {
     return false;
   }

@@ -242,6 +242,16 @@ export interface MatterDeadline {
   createdAt: string;
 }
 
+export interface ClauseLibraryEntry {
+  id: string;
+  clauseType: string;
+  preferredLanguage: string;
+  fallbackLanguage: string | null;
+  unacceptableLanguage: string | null;
+  notes: string | null;
+  createdAt: string;
+}
+
 export interface MatterTask {
   id: string;
   matterId: string;
@@ -423,7 +433,8 @@ export interface IndependentReview {
     | "exhibit_list"
     | "disclosure_checklist"
     | "crown_position_analysis"
-    | "privilege_review";
+    | "privilege_review"
+    | "redline_analysis";
   sourceId: string;
   content: string;
   createdAt: string;

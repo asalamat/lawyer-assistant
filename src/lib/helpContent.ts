@@ -192,6 +192,12 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Reviews each of the matter's documents individually (not summarized, so exact wording is preserved) for solicitor-client privileged communications/work product, and sensitive personal information beyond what's already automatically masked (SIN/SSN/credit card numbers, phone, email) — medical/psychiatric details, financial account specifics, information about a minor, immigration status, and similar. Each finding quotes the exact passage as a redaction candidate, tagged [PRIVILEGE] or [SENSITIVE]. This is a review aid, not a final privilege determination — always reviewed by a lawyer before anything is actually redacted or withheld. Citations are checked against the matter's real documents; anything that doesn't match is flagged.",
       },
       {
+        slug: "redline",
+        name: "Redline",
+        detail:
+          "Compares an uploaded contract against the firm's own clause playbook (Settings > Clause library — preferred, fallback, and unacceptable language per clause type, e.g. \"Limitation of liability\"), and reports for each playbook entry whether the contract matches the preferred language, falls back to something acceptable, conflicts with language the firm has flagged as unacceptable, or doesn't address that clause type at all. Needs at least one clause library entry to run against — grounded only in the matter's own uploaded documents, quoting the contract's actual language next to the relevant playbook entry. This produces a structured analysis to review, not an automatically redlined/track-changes Word file — a lawyer still decides what actually gets changed. Citations are checked against the matter's real documents; anything that doesn't match is flagged.",
+      },
+      {
         slug: "drafting",
         name: "Drafting",
         detail:

@@ -726,6 +726,29 @@ execWithRetry(`
   );
   CREATE INDEX IF NOT EXISTS idx_tasks_matterId ON tasks(matterId);
   CREATE INDEX IF NOT EXISTS idx_tasks_assignedToUserId ON tasks(assignedToUserId);
+
+  -- A firm-wide contract playbook, not per-matter — same "author once,
+  -- reuse across every matter" shape as document_templates.
+  CREATE TABLE IF NOT EXISTS clause_library_entries (
+    id TEXT PRIMARY KEY,
+    clauseType TEXT NOT NULL,
+    preferredLanguage TEXT NOT NULL,
+    fallbackLanguage TEXT,
+    unacceptableLanguage TEXT,
+    notes TEXT,
+    createdAt TEXT NOT NULL
+  );
+
+  -- Same shape as contradiction_analyses/exhibit_lists/etc. — see
+  -- listSimpleGeneratedDocs in matters.ts.
+  CREATE TABLE IF NOT EXISTS redline_analyses (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    content TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_redline_analyses_matterId ON redline_analyses(matterId);
 `);
 
 // Schema migrations for columns added after the table already existed on a
