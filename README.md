@@ -98,7 +98,8 @@ irreversible actions.
 **Practice management** — timesheets, invoicing with configurable rates
 and discounts, direct email sending with attachments and AI-assisted
 drafting, connected-inbox browsing (Gmail/Microsoft/Yahoo) with import to
-a matter.
+a matter, and private sticky notes pinned to any page (a matter tab, the
+dashboard, settings) as personal reminders only you ever see.
 
 **Security & governance** — real multi-user accounts and roles;
 two-factor authentication (QR-code enrollment, backup codes); per-matter
@@ -157,6 +158,9 @@ Windows, and Linux.
 
 ## Recent changes
 
+- Private sticky notes on every page — a small floating widget lets each
+  user pin freeform, autosaving notes to whatever page they're on;
+  personal to that user, never shown to anyone else
 - Privacy impact assessment and incident response runbook — real,
   codebase-specific documents (not code), honest about what's covered and
   what isn't
