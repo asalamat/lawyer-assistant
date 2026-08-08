@@ -94,6 +94,9 @@ export const ACTION_LABELS: Record<string, string> = {
   deadline_computed: "Deadline computed from a rule",
   portal_message_sent: "Client portal message sent",
   document_assembled: "Document generated from a template",
+  lead_created: "Lead added",
+  lead_stage_changed: "Lead stage changed",
+  lead_converted: "Lead converted to matter",
 };
 
 export async function recordAuditEvent(

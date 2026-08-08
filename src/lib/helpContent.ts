@@ -14,6 +14,12 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "General",
     items: [
       {
+        slug: "leads",
+        name: "Leads",
+        detail:
+          "A board (nav > Leads) for tracking prospective clients before a matter exists — the intake questionnaire and everything else in this app assumes a matter is already open, this is the layer before that. Add a lead with just a name (email/source optional), then move it through New → Contacted → Consultation scheduled → Proposal sent → Won/Lost using the dropdown on its card or its own detail page. When it's ready, \"Convert to matter\" on the lead's detail page creates a real matter (and client, if one doesn't already exist) the same way the normal new-matter flow does — the lead's own record stays intact afterward with a link to the matter it became, marked Won automatically.",
+      },
+      {
         slug: "sticky-notes",
         name: "Sticky notes",
         detail:

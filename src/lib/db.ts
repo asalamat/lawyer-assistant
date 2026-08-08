@@ -346,6 +346,27 @@ execWithRetry(`
   );
   CREATE INDEX IF NOT EXISTS idx_assembled_documents_matterId ON assembled_documents(matterId);
 
+  -- Pre-matter prospective-client tracking — the intake questionnaire and
+  -- everything else in this app assumes a matter already exists; this is
+  -- the layer before that. convertedMatterId is a soft reference for the
+  -- same reason assembled_documents.templateId is — a lead's own record
+  -- should stay intact even if the matter it became is later deleted.
+  CREATE TABLE IF NOT EXISTS leads (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT,
+    phone TEXT,
+    source TEXT,
+    stage TEXT NOT NULL DEFAULT 'new',
+    notes TEXT,
+    assignedToUserId TEXT,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT NOT NULL,
+    convertedMatterId TEXT,
+    convertedAt TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_leads_stage ON leads(stage);
+
   CREATE TABLE IF NOT EXISTS client_sessions (
     tokenHash TEXT PRIMARY KEY,
     clientUserId TEXT NOT NULL,

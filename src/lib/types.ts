@@ -285,6 +285,31 @@ export interface AssembledDocument {
   createdAt: string;
 }
 
+export const LEAD_STAGES = [
+  "new",
+  "contacted",
+  "consultation_scheduled",
+  "proposal_sent",
+  "won",
+  "lost",
+] as const;
+export type LeadStage = (typeof LEAD_STAGES)[number];
+
+export interface Lead {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  source: string | null;
+  stage: LeadStage;
+  notes: string | null;
+  assignedToUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  convertedMatterId: string | null;
+  convertedAt: string | null;
+}
+
 export const DRAFT_TYPES = [
   "Research memo",
   "Demand letter",

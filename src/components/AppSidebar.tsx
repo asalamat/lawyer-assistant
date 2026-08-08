@@ -11,6 +11,7 @@ import {
   AuditIcon,
   DashboardIcon,
   HelpIcon,
+  LeadsIcon,
   LibraryIcon,
   MattersIcon,
   PanelCollapseIcon,
@@ -24,6 +25,7 @@ import {
 
 const LINKS = [
   { href: "/", label: "Dashboard", Icon: DashboardIcon },
+  { href: "/leads", label: "Leads", Icon: LeadsIcon },
   { href: "/matters", label: "Matters", Icon: MattersIcon },
   { href: "/clients", label: "Clients", Icon: UsersIcon },
   { href: "/trust-accounting", label: "Trust accounting", Icon: TrustIcon },
