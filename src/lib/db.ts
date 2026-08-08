@@ -775,6 +775,18 @@ execWithRetry(`
   );
   CREATE INDEX IF NOT EXISTS idx_redline_analyses_matterId ON redline_analyses(matterId);
 
+  -- Same shape again — rolls up the missing/gap items already flagged
+  -- across the digest/disclosure-checklist/evidence-matrix/crown-position
+  -- analyses into one report. See extractMissingEvidenceItems in claude.ts.
+  CREATE TABLE IF NOT EXISTS missing_evidence_reports (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    content TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_missing_evidence_reports_matterId ON missing_evidence_reports(matterId);
+
   -- Only a hash is ever stored — the real key is shown once at creation,
   -- same one-time-reveal pattern as a new user's temporary password.
   CREATE TABLE IF NOT EXISTS api_keys (

@@ -901,6 +901,59 @@ export async function extractDefenceGraph(memoContent: string): Promise<DefenceG
   });
 }
 
+export interface MissingEvidenceItem {
+  source: string;
+  description: string;
+}
+
+const MISSING_EVIDENCE_SCHEMA = {
+  type: "object",
+  properties: {
+    items: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          source: { type: "string", description: "which analysis this came from, exactly as labeled" },
+          description: { type: "string", description: "the missing/gap item itself, as stated in that analysis" },
+        },
+        required: ["source", "description"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["items"],
+  additionalProperties: false,
+};
+
+// Same "reformat, don't re-analyze" approach as extractEvidenceGraph/
+// extractDefenceGraph — pulls the missing-document/evidentiary-gap items
+// already stated in each already-generated analysis into one structured
+// list, rather than re-reading the matter's raw documents and risking a
+// second, possibly-inconsistent AI opinion on what's missing.
+export async function extractMissingEvidenceItems(
+  sources: { label: string; content: string }[],
+): Promise<{ items: MissingEvidenceItem[] }> {
+  const system = `You extract only the items already flagged as missing, not yet provided, referenced-but-absent, or an evidentiary gap from a set of already-generated legal analyses. Do not invent anything beyond what a source already states — this is an extraction task, not a new analysis. If a source has no such items, simply produce none for it. For each item, set "source" to the exact label of the analysis it came from.`;
+
+  const userContent = sources
+    .map((s) => `--- ${s.label} ---\n${s.content}`)
+    .join("\n\n");
+
+  return completeJSON<{ items: MissingEvidenceItem[] }>({
+    system,
+    messages: [
+      {
+        role: "user",
+        content: `Here are the analyses:\n\n${userContent}\n\nExtract every missing/gap item.`,
+      },
+    ],
+    schema: MISSING_EVIDENCE_SCHEMA,
+    schemaName: "missing_evidence_items",
+    maxTokens: 4096,
+  });
+}
+
 // Generic translation for any AI-generated output in this app (digests,
 // evidence matrices, drafts, chat answers, independent reviews, email
 // drafts) — not matter-specific, so it takes plain text/markdown rather

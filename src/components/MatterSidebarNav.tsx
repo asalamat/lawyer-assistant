@@ -43,6 +43,7 @@ export default function MatterSidebarNav({ matterId }: { matterId: string }) {
     { href: `${base}/exhibit-list`, label: "Exhibit list", Icon: DocumentIcon },
     { href: `${base}/disclosure-checklist`, label: "Disclosure checklist", Icon: AuditIcon },
     { href: `${base}/crown-position`, label: "Crown position", Icon: ScaleIcon },
+    { href: `${base}/missing-evidence`, label: "Missing evidence", Icon: AuditIcon },
     { href: `${base}/privilege-review`, label: "Privilege & redaction", Icon: SecurityIcon },
     { href: `${base}/redline`, label: "Redline", Icon: ScaleIcon },
     { href: `${base}/case-noteup`, label: "Case citations", Icon: ScaleIcon },

@@ -46,6 +46,7 @@ export async function POST(
     "crown_position_analysis",
     "privilege_review",
     "redline_analysis",
+    "missing_evidence_report",
   ];
   if (!sourceType || !validSourceTypes.includes(sourceType) || !sourceId || !content) {
     return NextResponse.json(

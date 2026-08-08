@@ -186,6 +186,12 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Analyzes charges and statutory elements, available evidence for each, weaknesses, possible defences, and aggravating/mitigating factors — then ends with two or three plausible Crown positions, each with its supporting evidence, what's missing, and a confidence level (high/medium/low). Deliberately does not predict which one will happen, give a percentage, or present this as advice — it's a structured starting point for the lawyer's own judgment. Citations are checked against the matter's real documents; anything that doesn't match is flagged.",
       },
       {
+        slug: "missing-evidence",
+        name: "Missing evidence",
+        detail:
+          "Rolls up the missing-document/evidentiary-gap items already flagged by whichever of Digest, Disclosure checklist, Evidence matrix, and Crown position have been generated for this matter — one list instead of checking four tabs separately. Extracts only what those analyses already state as missing or referenced-but-not-provided; doesn't re-read the matter's documents or introduce a new opinion on what's absent. Generate at least one of those four first.",
+      },
+      {
         slug: "privilege-review",
         name: "Privilege & redaction review",
         detail:

@@ -23,7 +23,13 @@ import {
 } from "./rag";
 import { fireWebhook } from "./webhooks";
 import { getImageMimeType, isImageFile, isSafeToExtract, readPlaintextFile } from "./textExtraction";
-import { analyzeImage, extractDeadlines, suggestMatterClassification, type ExtractedDeadline } from "./claude";
+import {
+  analyzeImage,
+  extractDeadlines,
+  extractMissingEvidenceItems,
+  suggestMatterClassification,
+  type ExtractedDeadline,
+} from "./claude";
 import type {
   ChatMessage,
   Document,
@@ -326,6 +332,7 @@ export async function deleteMatter(matterId: string): Promise<boolean> {
   db.prepare("DELETE FROM case_noteups WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM tasks WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM redline_analyses WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM missing_evidence_reports WHERE matterId = ?").run(matterId);
   db.prepare(
     "DELETE FROM signatures WHERE signableDocumentId IN (SELECT id FROM signable_documents WHERE matterId = ?)",
   ).run(matterId);
@@ -1028,6 +1035,66 @@ export async function addRedlineAnalysis(matterId: string, content: string): Pro
     "redline_analysis_generated",
     "Generated a contract redline against the firm's clause library",
   );
+}
+
+export async function listMissingEvidenceReports(matterId: string): Promise<SimpleGeneratedDoc[]> {
+  return listSimpleGeneratedDocs("missing_evidence_reports", matterId);
+}
+export async function addMissingEvidenceReport(matterId: string, content: string): Promise<SimpleGeneratedDoc> {
+  return addSimpleGeneratedDoc(
+    "missing_evidence_reports",
+    matterId,
+    content,
+    "missing_evidence_report_generated",
+    "Generated a missing-evidence rollup",
+  );
+}
+
+// Gathers whichever of digest/disclosure-checklist/evidence-matrix/crown-
+// position have been generated for this matter so far — the route checks
+// emptiness itself (same pattern as evidence-graph/route.ts's "no matrix
+// yet" check) before calling generateMissingEvidenceReport below.
+export async function getMissingEvidenceSources(
+  matterId: string,
+): Promise<{ label: string; content: string }[]> {
+  const [digests, checklists, matrices, crownPositions] = await Promise.all([
+    listDigests(matterId),
+    listDisclosureChecklists(matterId),
+    listEvidenceMatrices(matterId),
+    listCrownPositionAnalyses(matterId),
+  ]);
+
+  return [
+    digests[0] && { label: "Digest", content: digests[0].content },
+    checklists[0] && { label: "Disclosure checklist", content: checklists[0].content },
+    matrices[0] && { label: "Evidence matrix", content: matrices[0].content },
+    crownPositions[0] && { label: "Crown position", content: crownPositions[0].content },
+  ].filter((s): s is { label: string; content: string } => Boolean(s));
+}
+
+// Rolls up the "missing"/"gap" items already flagged across whichever
+// analyses getMissingEvidenceSources found.
+export async function generateMissingEvidenceReport(
+  matterId: string,
+  sources: { label: string; content: string }[],
+): Promise<SimpleGeneratedDoc> {
+  const { items } = await extractMissingEvidenceItems(sources);
+
+  const bySource = new Map<string, string[]>();
+  for (const item of items) {
+    const existing = bySource.get(item.source) ?? [];
+    existing.push(item.description);
+    bySource.set(item.source, existing);
+  }
+
+  const content =
+    bySource.size === 0
+      ? "No missing documents or evidentiary gaps are currently flagged across the generated analyses."
+      : [...bySource.entries()]
+          .map(([source, descriptions]) => `## From ${source}\n${descriptions.map((d) => `- ${d}`).join("\n")}`)
+          .join("\n\n");
+
+  return addMissingEvidenceReport(matterId, content);
 }
 
 export async function listIndependentReviews(matterId: string): Promise<IndependentReview[]> {

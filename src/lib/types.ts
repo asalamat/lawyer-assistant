@@ -492,7 +492,8 @@ export interface IndependentReview {
     | "disclosure_checklist"
     | "crown_position_analysis"
     | "privilege_review"
-    | "redline_analysis";
+    | "redline_analysis"
+    | "missing_evidence_report";
   sourceId: string;
   content: string;
   createdAt: string;
