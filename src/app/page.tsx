@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { formatDateOnly } from "@/lib/formatDate";
 import { filterAccessibleMatterIds } from "@/lib/matterAccess";
 import { listMatters, listUpcomingDeadlines } from "@/lib/matters";
+import { listTasksForUser } from "@/lib/tasks";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,9 @@ export default async function Home() {
   const matters = allMatters.filter((m) => accessibleIds.has(m.id));
   const openCount = matters.filter((m) => m.status === "open").length;
   const upcomingDeadlines = (await listUpcomingDeadlines()).filter((d) => accessibleIds.has(d.matterId));
+  const myTasks = user
+    ? (await listTasksForUser(user.id)).filter((t) => accessibleIds.has(t.matterId))
+    : [];
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-10">
@@ -52,6 +56,28 @@ export default async function Home() {
                 <span className="shrink-0 font-medium text-accent">
                   {formatDateOnly(deadline.dueDate!)}
                 </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="surface-card text-sm">
+        <h2 className="mb-3 font-display text-lg">My tasks</h2>
+        {myTasks.length === 0 ? (
+          <p className="text-muted">No open tasks assigned to you.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {myTasks.map((task) => (
+              <li key={task.id} className="flex items-center justify-between">
+                <Link href={`/matters/${task.matterId}/tasks`} className="hover:text-accent">
+                  {task.matterTitle}: {task.title}
+                </Link>
+                {task.dueDate && (
+                  <span className="shrink-0 font-medium text-accent">
+                    {formatDateOnly(task.dueDate)}
+                  </span>
+                )}
               </li>
             ))}
           </ul>

@@ -233,6 +233,19 @@ export interface MatterDeadline {
   createdAt: string;
 }
 
+export interface MatterTask {
+  id: string;
+  matterId: string;
+  title: string;
+  description: string | null;
+  dueDate: string | null;
+  assignedToUserId: string | null;
+  completed: number;
+  completedAt: string | null;
+  createdByUserId: string | null;
+  createdAt: string;
+}
+
 export const DEADLINE_OFFSET_UNITS = ["calendar", "business"] as const;
 export type DeadlineOffsetUnit = (typeof DEADLINE_OFFSET_UNITS)[number];
 

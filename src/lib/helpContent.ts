@@ -103,6 +103,12 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Log time against a matter, set one default hourly rate per matter, select unbilled entries to generate an invoice with an optional discount, track paid/unpaid status, and email the invoice to the client (once SMTP is configured in Settings) or open it as a draft in your own mail client.",
       },
       {
+        slug: "tasks",
+        name: "Tasks",
+        detail:
+          "A matter's Tasks tab is a plain checklist for free-form to-dos — \"draft motion,\" \"call client\" — separate from Deadlines, which only ever holds actual dates (extracted from documents or computed from a rule). Add a task with just a title, or optionally a due date and an assignee from anyone active at the firm. Checking it off records when it was completed; deleting removes it outright, no undo. Any task assigned to you, across every matter you can see, also rolls up into a \"My tasks\" widget on the Dashboard, the same way upcoming deadlines already do.",
+      },
+      {
         slug: "trust-accounting",
         name: "Trust accounting",
         detail:

@@ -101,6 +101,9 @@ export const ACTION_LABELS: Record<string, string> = {
   feature_request_submitted: "Wish item submitted",
   feature_request_status_changed: "Wish item status changed",
   feature_request_deleted: "Wish item deleted",
+  task_created: "Task added",
+  task_completed: "Task completed",
+  task_deleted: "Task deleted",
   calendar_sync_toggled: "Calendar sync toggled",
   deadline_pushed_to_calendar: "Deadline pushed to calendar",
 };

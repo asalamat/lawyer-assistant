@@ -693,6 +693,26 @@ execWithRetry(`
     FOREIGN KEY (userId) REFERENCES users(id)
   );
   CREATE INDEX IF NOT EXISTS idx_feature_requests_status ON feature_requests(status);
+
+  -- Free-form to-dos ("draft motion," "call client") — deliberately separate
+  -- from matter_deadlines, which are dates extracted from documents or
+  -- computed from a rule. A task has no date-computation logic at all, just
+  -- a title and an optional due date someone typed in.
+  CREATE TABLE IF NOT EXISTS tasks (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    dueDate TEXT,
+    assignedToUserId TEXT,
+    completed INTEGER NOT NULL DEFAULT 0,
+    completedAt TEXT,
+    createdByUserId TEXT,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_tasks_matterId ON tasks(matterId);
+  CREATE INDEX IF NOT EXISTS idx_tasks_assignedToUserId ON tasks(assignedToUserId);
 `);
 
 // Schema migrations for columns added after the table already existed on a

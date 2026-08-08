@@ -53,6 +53,18 @@ export const AuditIcon = (props: IconProps) =>
     props,
   );
 
+export const TaskIcon = (props: IconProps) =>
+  base(
+    <>
+      <rect x="3" y="4" width="6" height="6" rx="1" />
+      <path d="M4.5 7l1 1 2-2" />
+      <path d="M12 6h9" />
+      <rect x="3" y="14" width="6" height="6" rx="1" />
+      <path d="M12 17h9" />
+    </>,
+    props,
+  );
+
 export const SettingsIcon = (props: IconProps) =>
   base(
     <>
