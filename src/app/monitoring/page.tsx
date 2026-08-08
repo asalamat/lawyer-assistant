@@ -118,6 +118,13 @@ export default async function MonitoringPage() {
           <StatRow label="Audit log rows" value={counts.auditLogRows} />
           <StatRow label="Agent runs" value={counts.agentRuns} />
           <StatRow label="Document chunks" value={counts.documentChunks} />
+          <StatRow label="Leads" value={counts.leads} />
+          <StatRow label="Trust accounts" value={counts.trustAccounts} />
+          <StatRow label="Trust transactions" value={counts.trustTransactions} />
+          <StatRow label="Portal messages" value={counts.portalMessages} />
+          <StatRow label="Document templates" value={counts.documentTemplates} />
+          <StatRow label="Assembled documents" value={counts.assembledDocuments} />
+          <StatRow label="Deadline rules" value={counts.deadlineRules} />
         </div>
       </Section>
 

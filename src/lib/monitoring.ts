@@ -36,6 +36,13 @@ interface RowCounts {
   auditLogRows: number;
   agentRuns: number;
   documentChunks: number;
+  leads: number;
+  trustAccounts: number;
+  trustTransactions: number;
+  portalMessages: number;
+  documentTemplates: number;
+  assembledDocuments: number;
+  deadlineRules: number;
 }
 
 function getRowCounts(): RowCounts {
@@ -52,6 +59,13 @@ function getRowCounts(): RowCounts {
     auditLogRows: count("SELECT COUNT(*) as c FROM audit_log"),
     agentRuns: count("SELECT COUNT(*) as c FROM agent_runs"),
     documentChunks: count("SELECT COUNT(*) as c FROM document_chunks"),
+    leads: count("SELECT COUNT(*) as c FROM leads"),
+    trustAccounts: count("SELECT COUNT(*) as c FROM trust_accounts"),
+    trustTransactions: count("SELECT COUNT(*) as c FROM trust_transactions"),
+    portalMessages: count("SELECT COUNT(*) as c FROM portal_messages"),
+    documentTemplates: count("SELECT COUNT(*) as c FROM document_templates"),
+    assembledDocuments: count("SELECT COUNT(*) as c FROM assembled_documents"),
+    deadlineRules: count("SELECT COUNT(*) as c FROM deadline_rules"),
   };
 }
 

@@ -79,8 +79,42 @@ exported as a clean, printable PDF.
 **Client portal** — a real, persistent login for clients (not just a
 single-use signed link), separate from staff accounts. A lawyer grants
 access from the client's own page and chooses exactly which documents are
-visible; the client logs in anytime to see their own matters and download
-whatever's been shared with them, nothing else.
+visible; the client logs in anytime to see their own matters, download
+whatever's been shared with them, and exchange messages directly with
+staff — nothing else.
+
+**Leads / CRM pipeline** — a kanban-style board for tracking prospective
+clients before a matter exists (new → contacted → consultation scheduled →
+proposal sent → won/lost); converting a lead creates a real matter (and
+client, if needed) the same way the normal new-matter flow does, with the
+lead's own record kept intact and linked afterward.
+
+**Trust accounting** — a compliance-first client-funds ledger: deposits,
+withdrawals, and transfers per matter against one or more trust accounts,
+with balances always computed fresh from transaction history (never a
+stored number that could drift), a hard rejection of any transaction that
+would take a matter's balance negative, and permanent reconciliation
+records against a bank statement.
+
+**Rules-based deadline calculator, with one-way calendar push** — a
+firm-editable library of deadline rules (e.g. "21 business days after
+service," correctly skipping weekends and a configurable holiday list)
+that computes a deadline straight into a matter's existing list, alongside
+whatever the AI already extracted. A connected Google or Microsoft account
+can have deadlines push to its calendar automatically or on demand
+(one-way — edits made directly in the calendar never flow back).
+
+**Document assembly templates** — reusable, plain-text templates with
+`{{field}}` placeholders; matter/client/date fields fill in automatically,
+anything else prompts for a value at generation time. A generated document
+can be translated, exported as PDF, or saved into the matter's own document
+list.
+
+**Firm analytics dashboard** — matters opened/closed by month,
+work-in-progress (unbilled time value), billed vs. collected, top matter
+types, and hours logged per attorney — all computed from the same
+matters/time-entries/invoices data shown elsewhere, visible to admins and
+lawyers, not staff.
 
 **Visual evidence & defence graphs** — turns a generated evidence matrix
 or defence strategy memo into an interactive node graph (parties,
@@ -158,6 +192,40 @@ Windows, and Linux.
 
 ## Recent changes
 
+- In-app Help rebuilt as a single, filterable reference guide (`/help`) —
+  every entry numbered and grouped the same way as the app's own
+  navigation, a live filter box, and scroll-aware active-section
+  highlighting, replacing the old one-page-per-topic browsing
+- System status dashboard extended with row counts and integration checks
+  for every subsystem added below (leads, trust accounts/transactions,
+  portal messages, document templates, assembled documents, deadline
+  rules, calendar sync)
+- One-way calendar push (`Settings > Integrations`) — a rule-computed
+  deadline can push automatically to a connected Google or Microsoft
+  calendar, or any deadline can be pushed manually from its matter's
+  Deadlines tab; required adding this app's first OAuth access-token
+  refresh logic, since nothing previously refreshed an expired token
+- Leads / CRM pipeline (`/leads`) — a kanban-style board for prospective
+  clients before a matter exists, converting straight into a real matter
+  (and client) when ready
+- Document assembly templates (`Settings > Document templates`) —
+  plain-text templates with `{{field}}` placeholders, auto-filled matter/
+  client fields, and a per-matter generator with translate/export/save-as-
+  document actions
+- Firm analytics dashboard (`/analytics`, admins and lawyers only) —
+  matters opened/closed, work-in-progress, billed vs. collected, top
+  matter types, and hours per attorney
+- Client portal messaging — a real two-way message thread between staff
+  and a client, visible on both the matter's own tab and the client's
+  portal page
+- Rules-based deadline calculator (`Settings > Deadline rules`) — a
+  firm-editable rule library (business-day-aware, with a holiday list)
+  that computes a deadline straight into a matter's existing list without
+  disturbing anything the AI already extracted
+- Trust accounting (`/trust-accounting`) — a compliance-first client-funds
+  ledger with balances always computed fresh from transaction history, a
+  hard rejection of any transaction that would overdraw a matter, and
+  permanent bank-reconciliation records
 - Private sticky notes on every page — a small floating widget lets each
   user pin freeform, autosaving notes to whatever page they're on;
   personal to that user, never shown to anyone else
@@ -276,6 +344,36 @@ reasoning behind each decision, is in
 
 ## Known bugs found & fixed
 
+- **Re-extracting AI deadlines would have wiped every rule-computed or
+  manually-added deadline on the same matter.** The delete-and-reinsert
+  step behind "Re-extract" had no filter, so it cleared the whole
+  `matter_deadlines` table for that matter, not just the AI-extracted
+  rows. Caught during design review before shipping the deadline
+  calculator, fixed by scoping the delete to `source = 'extracted'` and
+  confirmed live that a rule-computed deadline survives a re-extract.
+- **A lead update could silently wipe every field it wasn't touching.**
+  `updateLead()` spread an `updates` object that always had every key
+  present (unset fields as explicit `undefined`) over the existing
+  record — object spread applies an `undefined` value rather than
+  skipping it, so patching just `{stage: "contacted"}` would have erased
+  email/phone/source/notes. Confirmed live, fixed with explicit per-field
+  fallbacks instead of a blind spread.
+- **Deleting a document template could fail outright if any document had
+  ever been generated from it.** `assembled_documents.templateId` was a
+  hard foreign key with no cascade — confirmed live (`FOREIGN KEY
+  constraint failed`), fixed by making it a soft/informational reference,
+  consistent with every other "snapshot of a parent at generation time"
+  relationship in the app.
+- **A non-admin lawyer couldn't create a document template despite the
+  feature being open to any user.** `proxy.ts`'s blanket admin-only gate
+  on `/api/settings/*` had no exception for the new route. Confirmed live
+  (`403 Admins only`), fixed by adding it to the existing exception list
+  alongside the page-level equivalent.
+- **A failed calendar push showed the raw provider error JSON straight in
+  the UI.** Live-testing the real Google Calendar API surfaced a
+  multi-line technical error blob instead of something a lawyer could act
+  on. Fixed to log the detail server-side and surface a short, actionable
+  message ("reconnect the account in Settings") instead.
 - **Independent review was silently broken for everyone.** `gemini.ts` was
   hardcoded to a Gemini model Google had retired for this account
   ("no longer available to new users") — every digest/evidence-matrix
