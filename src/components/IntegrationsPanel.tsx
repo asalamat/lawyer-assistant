@@ -26,7 +26,7 @@ function AppPasswordConnectForm({
   onChange,
 }: {
   provider: EmailProvider;
-  helpText: string;
+  helpText: React.ReactNode;
   onChange: () => void;
 }) {
   const [emailAddress, setEmailAddress] = useState("");
@@ -161,9 +161,37 @@ function ProviderRow({
   }
 
   const appPasswordHelp =
-    provider === "google"
-      ? "Or skip the OAuth app entirely: enable 2-Step Verification on the Google account, generate an app password at myaccount.google.com/apppasswords, and connect with that instead. Mail only — this path can't do calendar sync."
-      : "Or skip the OAuth app entirely: enable two-step verification on the Microsoft account and generate an app password from its security settings, then connect with that instead. Only works for a personal Outlook.com/Hotmail account — a work or school Microsoft 365 account has no app-password option and needs OAuth above. Mail only either way — this path can't do calendar sync.";
+    provider === "google" ? (
+      <>
+        Or skip the OAuth app entirely: enable 2-Step Verification on the Google account, generate
+        an app password at{" "}
+        <a
+          href="https://myaccount.google.com/apppasswords"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-accent underline"
+        >
+          myaccount.google.com/apppasswords
+        </a>
+        , and connect with that instead. Mail only — this path can&apos;t do calendar sync.
+      </>
+    ) : (
+      <>
+        Or skip the OAuth app entirely: enable two-step verification on the Microsoft account and
+        generate an app password at{" "}
+        <a
+          href="https://account.live.com/proofs/AppPassword"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-accent underline"
+        >
+          account.live.com/proofs/AppPassword
+        </a>
+        , then connect with that instead. Only works for a personal Outlook.com/Hotmail account —
+        a work or school Microsoft 365 account has no app-password option and needs OAuth above.
+        Mail only either way — this path can&apos;t do calendar sync.
+      </>
+    );
 
   return (
     <div className="surface-card">
@@ -309,7 +337,22 @@ function YahooProviderRow({
         <div className="mt-3">
           <AppPasswordConnectForm
             provider="yahoo"
-            helpText="Yahoo doesn't grant mail-read OAuth access to self-registered apps, so this uses an app password over IMAP instead. Enable Two-Step Verification on your Yahoo account, then generate an app password under Account Security > Generate app password, and use it here (not your normal Yahoo password)."
+            helpText={
+              <>
+                Yahoo doesn&apos;t grant mail-read OAuth access to self-registered apps, so this
+                uses an app password over IMAP instead. Enable Two-Step Verification on your
+                Yahoo account, then generate an app password at{" "}
+                <a
+                  href="https://login.yahoo.com/account/security"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent underline"
+                >
+                  Account Security &gt; Generate app password
+                </a>
+                , and use it here (not your normal Yahoo password).
+              </>
+            }
             onChange={onChange}
           />
         </div>
