@@ -794,6 +794,15 @@ ensureColumn("email_accounts", "calendarSyncEnabled", "INTEGER NOT NULL DEFAULT 
 ensureColumn("matter_deadlines", "calendarEventId", "TEXT");
 ensureColumn("matter_deadlines", "calendarProvider", "TEXT");
 
+// Gmail and Microsoft can be connected either via OAuth (real login +
+// consent screen, needed for calendar sync) or via IMAP with a per-app
+// password (no developer app registration, mail-only) — see
+// emailIntegration.ts. Every row that existed before this column was added
+// was necessarily OAuth, except Yahoo, which has never had an OAuth
+// mail-read path at all and was always effectively an app password.
+ensureColumn("email_accounts", "authMethod", "TEXT NOT NULL DEFAULT 'oauth'");
+db.prepare("UPDATE email_accounts SET authMethod = 'app_password' WHERE provider = 'yahoo'").run();
+
 // Splits the reference library's single shelf into the two shared tiers of
 // the vision doc's three-layer knowledge architecture (client-matter
 // documents are already their own tier — the `documents` table above):

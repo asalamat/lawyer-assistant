@@ -15,6 +15,78 @@ interface IntegrationsState {
   credentialStatus: Record<EmailProvider, boolean>;
 }
 
+// Shared by every provider's "connect without OAuth" path — a per-app
+// password generated from the account's own security settings, used over
+// plain IMAP. No developer app registration needed, but mail-only: an
+// app-password connection carries no Calendar API scope, so it can't do
+// calendar sync (see the authMethod branch in ProviderRow below).
+function AppPasswordConnectForm({
+  provider,
+  helpText,
+  onChange,
+}: {
+  provider: EmailProvider;
+  helpText: string;
+  onChange: () => void;
+}) {
+  const [emailAddress, setEmailAddress] = useState("");
+  const [appPassword, setAppPassword] = useState("");
+  const [connecting, setConnecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleConnect(e: React.FormEvent) {
+    e.preventDefault();
+    setConnecting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/integrations/${provider}/imap-connect`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailAddress, appPassword }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Failed to connect");
+      setEmailAddress("");
+      setAppPassword("");
+      onChange();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-xs text-muted">{helpText}</p>
+      <form onSubmit={handleConnect} className="flex flex-col gap-2 sm:flex-row">
+        <input
+          type="email"
+          value={emailAddress}
+          onChange={(e) => setEmailAddress(e.target.value)}
+          placeholder="you@example.com"
+          className="surface-input flex-1"
+        />
+        <input
+          type="password"
+          value={appPassword}
+          onChange={(e) => setAppPassword(e.target.value)}
+          placeholder="App password"
+          className="surface-input flex-1"
+        />
+        <button
+          type="submit"
+          disabled={connecting || !emailAddress.trim() || !appPassword.trim()}
+          className="btn-primary px-3 py-2"
+        >
+          {connecting ? "Connecting…" : "Connect"}
+        </button>
+      </form>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+    </div>
+  );
+}
+
 function ProviderRow({
   provider,
   account,
@@ -33,16 +105,22 @@ function ProviderRow({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [togglingCalendarSync, setTogglingCalendarSync] = useState(false);
+  const [calendarSyncError, setCalendarSyncError] = useState<string | null>(null);
 
   async function handleToggleCalendarSync(enabled: boolean) {
     setTogglingCalendarSync(true);
+    setCalendarSyncError(null);
     try {
-      await fetch(`/api/integrations/${provider}/calendar-sync`, {
+      const res = await fetch(`/api/integrations/${provider}/calendar-sync`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled }),
       });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Failed to update calendar sync");
       onChange();
+    } catch (err) {
+      setCalendarSyncError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setTogglingCalendarSync(false);
     }
@@ -82,6 +160,11 @@ function ProviderRow({
     }
   }
 
+  const appPasswordHelp =
+    provider === "google"
+      ? "Or skip the OAuth app entirely: enable 2-Step Verification on the Google account, generate an app password at myaccount.google.com/apppasswords, and connect with that instead. Mail only — this path can't do calendar sync."
+      : "Or skip the OAuth app entirely: enable two-step verification on the Microsoft account and generate an app password from its security settings, then connect with that instead. Only works for a personal Outlook.com/Hotmail account — a work or school Microsoft 365 account has no app-password option and needs OAuth above. Mail only either way — this path can't do calendar sync.";
+
   return (
     <div className="surface-card">
       <div className="flex items-center justify-between">
@@ -95,20 +178,31 @@ function ProviderRow({
 
       {account ? (
         <div className="mt-3 flex flex-col gap-2">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={Boolean(account.calendarSyncEnabled)}
-              disabled={togglingCalendarSync}
-              onChange={(e) => handleToggleCalendarSync(e.target.checked)}
-            />
-            Sync deadlines to calendar
-          </label>
-          <p className="text-xs text-muted">
-            New deadlines computed from a rule push automatically; any deadline can also be pushed
-            manually from its matter&apos;s Deadlines tab. One-way only — edits made directly in{" "}
-            {PROVIDER_LABELS[provider]} never flow back here.
-          </p>
+          {account.authMethod === "oauth" ? (
+            <>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={Boolean(account.calendarSyncEnabled)}
+                  disabled={togglingCalendarSync}
+                  onChange={(e) => handleToggleCalendarSync(e.target.checked)}
+                />
+                Sync deadlines to calendar
+              </label>
+              <p className="text-xs text-muted">
+                New deadlines computed from a rule push automatically; any deadline can also be
+                pushed manually from its matter&apos;s Deadlines tab. One-way only — edits made
+                directly in {PROVIDER_LABELS[provider]} never flow back here.
+              </p>
+              {calendarSyncError && <p className="text-xs text-red-600">{calendarSyncError}</p>}
+            </>
+          ) : (
+            <p className="text-xs text-muted">
+              Connected via app password — mail reading works, but calendar sync isn&apos;t
+              available on this path (an app password carries no Calendar API access). Disconnect
+              and reconnect via OAuth below if you need calendar sync.
+            </p>
+          )}
           <button
             onClick={handleDisconnect}
             disabled={disconnecting}
@@ -118,40 +212,51 @@ function ProviderRow({
           </button>
         </div>
       ) : (
-        <div className="mt-3 flex flex-col gap-2">
-          <p className="text-xs text-muted">
-            Requires an OAuth app registered with this provider (Client ID + Secret), with
-            redirect URI <code>{`{this app's URL}/api/integrations/${provider}/callback`}</code>.
-          </p>
-          <form onSubmit={handleSaveCredentials} className="flex flex-col gap-2 sm:flex-row">
-            <input
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-              placeholder="Client ID"
-              className="surface-input flex-1"
-            />
-            <input
-              type="password"
-              value={clientSecret}
-              onChange={(e) => setClientSecret(e.target.value)}
-              placeholder="Client Secret"
-              className="surface-input flex-1"
-            />
-            <button
-              type="submit"
-              disabled={saving || !clientId.trim() || !clientSecret.trim()}
-              className="btn-primary px-3 py-2"
-            >
-              {saving ? "Saving…" : "Save"}
-            </button>
-          </form>
-          {error && <p className="text-xs text-red-600">{error}</p>}
-          {saved && <p className="text-xs text-green-600">Credentials saved.</p>}
-          {hasCredentials && (
-            <a href={`/api/integrations/${provider}/connect`} className="btn-primary self-start">
-              Connect {PROVIDER_LABELS[provider]}
-            </a>
-          )}
+        <div className="mt-3 flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-muted">
+              Requires an OAuth app registered with this provider (Client ID + Secret), with
+              redirect URI <code>{`{this app's URL}/api/integrations/${provider}/callback`}</code>.
+              Needed for calendar sync.
+            </p>
+            <form onSubmit={handleSaveCredentials} className="flex flex-col gap-2 sm:flex-row">
+              <input
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                placeholder="Client ID"
+                className="surface-input flex-1"
+              />
+              <input
+                type="password"
+                value={clientSecret}
+                onChange={(e) => setClientSecret(e.target.value)}
+                placeholder="Client Secret"
+                className="surface-input flex-1"
+              />
+              <button
+                type="submit"
+                disabled={saving || !clientId.trim() || !clientSecret.trim()}
+                className="btn-primary px-3 py-2"
+              >
+                {saving ? "Saving…" : "Save"}
+              </button>
+            </form>
+            {error && <p className="text-xs text-red-600">{error}</p>}
+            {saved && <p className="text-xs text-green-600">Credentials saved.</p>}
+            {hasCredentials && (
+              <a href={`/api/integrations/${provider}/connect`} className="btn-primary self-start">
+                Connect {PROVIDER_LABELS[provider]}
+              </a>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 text-xs text-muted">
+            <span className="h-px flex-1 bg-border" />
+            or
+            <span className="h-px flex-1 bg-border" />
+          </div>
+
+          <AppPasswordConnectForm provider={provider} helpText={appPasswordHelp} onChange={onChange} />
         </div>
       )}
     </div>
@@ -160,8 +265,8 @@ function ProviderRow({
 
 // Yahoo has no viable OAuth mail-read path for a self-registered app (Yahoo's
 // own docs: mail scopes require a separate commercial approval, not
-// available via self-serve app creation). App passwords over IMAP are still
-// supported and are the only realistic way to read Yahoo mail here.
+// available via self-serve app creation) — the app-password form is its
+// only connect option, not an alternative to one.
 function YahooProviderRow({
   account,
   onChange,
@@ -169,33 +274,7 @@ function YahooProviderRow({
   account: EmailAccount | undefined;
   onChange: () => void;
 }) {
-  const [emailAddress, setEmailAddress] = useState("");
-  const [appPassword, setAppPassword] = useState("");
-  const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleConnect(e: React.FormEvent) {
-    e.preventDefault();
-    setConnecting(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/integrations/yahoo/imap-connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emailAddress, appPassword }),
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? "Failed to connect Yahoo Mail");
-      setEmailAddress("");
-      setAppPassword("");
-      onChange();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setConnecting(false);
-    }
-  }
 
   async function handleDisconnect() {
     setDisconnecting(true);
@@ -218,13 +297,6 @@ function YahooProviderRow({
         )}
       </div>
 
-      <p className="mt-2 text-xs text-muted">
-        Yahoo doesn&apos;t grant mail-read OAuth access to self-registered apps, so this uses an{" "}
-        <strong>app password</strong> over IMAP instead. Enable Two-Step Verification on your
-        Yahoo account, then generate an app password under Account Security &gt; Generate app
-        password, and use it here (not your normal Yahoo password).
-      </p>
-
       {account ? (
         <button
           onClick={handleDisconnect}
@@ -234,31 +306,14 @@ function YahooProviderRow({
           {disconnecting ? "Disconnecting…" : "Disconnect"}
         </button>
       ) : (
-        <form onSubmit={handleConnect} className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <input
-            type="email"
-            value={emailAddress}
-            onChange={(e) => setEmailAddress(e.target.value)}
-            placeholder="you@yahoo.com"
-            className="surface-input flex-1"
+        <div className="mt-3">
+          <AppPasswordConnectForm
+            provider="yahoo"
+            helpText="Yahoo doesn't grant mail-read OAuth access to self-registered apps, so this uses an app password over IMAP instead. Enable Two-Step Verification on your Yahoo account, then generate an app password under Account Security > Generate app password, and use it here (not your normal Yahoo password)."
+            onChange={onChange}
           />
-          <input
-            type="password"
-            value={appPassword}
-            onChange={(e) => setAppPassword(e.target.value)}
-            placeholder="App password"
-            className="surface-input flex-1"
-          />
-          <button
-            type="submit"
-            disabled={connecting || !emailAddress.trim() || !appPassword.trim()}
-            className="btn-primary px-3 py-2"
-          >
-            {connecting ? "Connecting…" : "Connect"}
-          </button>
-        </form>
+        </div>
       )}
-      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
     </div>
   );
 }
@@ -290,8 +345,10 @@ export default function IntegrationsPanel() {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-muted">
-        Connect a mailbox so matter-related email and attachments can be ingested.
-        Each provider needs its own OAuth app — see Help for setup notes.
+        Connect a mailbox so matter-related email and attachments can be ingested. Each provider
+        can be connected either via OAuth (its own login + consent screen, needed for calendar
+        sync) or, for Google and Microsoft, with a simpler app password instead — see Help for
+        setup notes.
       </p>
       {connected && (
         <p className="text-sm text-green-600">

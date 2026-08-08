@@ -1,6 +1,6 @@
 import db from "./db";
-import { getYahooMessageBody, listRecentYahooMessages, listYahooMailboxes } from "./yahooImap";
-import type { EmailFolder, EmailProvider } from "./types";
+import { getImapMessageBody, listImapMailboxes, listRecentImapMessages } from "./imapMail";
+import type { EmailAuthMethod, EmailFolder, EmailProvider } from "./types";
 
 export interface EmailMessageSummary {
   id: string;
@@ -28,11 +28,13 @@ export interface EmailMessageBody {
 // The token must never be sent to the client.
 export async function getEmailAccountWithToken(
   provider: EmailProvider,
-): Promise<{ accessToken: string; emailAddress: string } | null> {
+): Promise<{ accessToken: string; emailAddress: string; authMethod: EmailAuthMethod } | null> {
   const row = db
-    .prepare("SELECT accessToken, emailAddress FROM email_accounts WHERE provider = ?")
-    .get(provider) as { accessToken: string; emailAddress: string } | undefined;
-  return row ? { accessToken: row.accessToken, emailAddress: row.emailAddress } : null;
+    .prepare("SELECT accessToken, emailAddress, authMethod FROM email_accounts WHERE provider = ?")
+    .get(provider) as { accessToken: string; emailAddress: string; authMethod: EmailAuthMethod } | undefined;
+  return row
+    ? { accessToken: row.accessToken, emailAddress: row.emailAddress, authMethod: row.authMethod }
+    : null;
 }
 
 function notConnectedError(provider: EmailProvider): Error {
@@ -254,8 +256,8 @@ export async function listFolders(provider: EmailProvider): Promise<EmailFolder[
   const account = await getEmailAccountWithToken(provider);
   if (!account) throw notConnectedError(provider);
 
-  if (provider === "yahoo") {
-    return listYahooMailboxes(account.emailAddress, account.accessToken);
+  if (account.authMethod === "app_password") {
+    return listImapMailboxes(provider, account.emailAddress, account.accessToken);
   }
   if (provider === "google") {
     return listGmailLabels(account.accessToken);
@@ -273,10 +275,10 @@ export async function listRecentMessages(
   const account = await getEmailAccountWithToken(provider);
   if (!account) throw notConnectedError(provider);
 
-  if (provider === "yahoo") {
-    // Yahoo account rows store an app password in the accessToken column,
-    // not an OAuth token — see src/lib/yahooImap.ts for why.
-    return listRecentYahooMessages(account.emailAddress, account.accessToken, maxResults, folderId);
+  if (account.authMethod === "app_password") {
+    // An app-password account's row stores the app password in the
+    // accessToken column, not an OAuth token — see src/lib/imapMail.ts.
+    return listRecentImapMessages(provider, account.emailAddress, account.accessToken, maxResults, folderId);
   }
 
   if (provider === "google") {
@@ -329,10 +331,10 @@ export async function getMessageBody(
   const account = await getEmailAccountWithToken(provider);
   if (!account) throw notConnectedError(provider);
 
-  if (provider === "yahoo") {
-    // Yahoo UIDs are only unique within their own mailbox — must use the
-    // same folder the message was listed from, not a hardcoded default.
-    return getYahooMessageBody(account.emailAddress, account.accessToken, messageId, folderId);
+  if (account.authMethod === "app_password") {
+    // A UID is only unique within its own mailbox — must use the same
+    // folder the message was listed from, not a hardcoded default.
+    return getImapMessageBody(provider, account.emailAddress, account.accessToken, messageId, folderId);
   }
 
   if (provider === "google") {

@@ -15,6 +15,13 @@ export async function POST(
     return NextResponse.json({ error: "enabled (boolean) is required" }, { status: 400 });
   }
 
-  await setCalendarSyncEnabled(provider as EmailProvider, body.enabled);
+  try {
+    await setCalendarSyncEnabled(provider as EmailProvider, body.enabled);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Failed to update calendar sync" },
+      { status: 400 },
+    );
+  }
   return NextResponse.json({ success: true });
 }

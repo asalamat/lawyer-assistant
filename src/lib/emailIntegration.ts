@@ -2,7 +2,7 @@ import { randomBytes } from "crypto";
 import { recordAuditEvent } from "./auditLog";
 import db, { toPlain } from "./db";
 import { readSecureJson, writeSecureJson } from "./secureStore";
-import type { EmailAccount, EmailProvider } from "./types";
+import type { EmailAccount, EmailAuthMethod, EmailProvider } from "./types";
 
 const OAUTH_CREDENTIALS_FILE = "oauth.json";
 
@@ -117,12 +117,25 @@ interface StoredEmailAccount extends EmailAccount {
 
 export async function listEmailAccounts(): Promise<EmailAccount[]> {
   return db
-    .prepare("SELECT id, provider, emailAddress, connectedAt, calendarSyncEnabled FROM email_accounts")
+    .prepare("SELECT id, provider, emailAddress, connectedAt, calendarSyncEnabled, authMethod FROM email_accounts")
     .all()
     .map((row) => toPlain<EmailAccount>(row));
 }
 
 export async function setCalendarSyncEnabled(provider: EmailProvider, enabled: boolean): Promise<void> {
+  // An app-password connection has no Calendar API scope at all — only an
+  // OAuth-connected account can ever have this turned on.
+  if (enabled) {
+    const row = db.prepare("SELECT authMethod FROM email_accounts WHERE provider = ?").get(provider) as
+      | { authMethod: EmailAuthMethod }
+      | undefined;
+    if (!row) throw new Error(`No connected ${provider} account`);
+    if (row.authMethod !== "oauth") {
+      throw new Error(
+        "Calendar sync needs the OAuth connection, not an app password — reconnect via OAuth to enable it.",
+      );
+    }
+  }
   db.prepare("UPDATE email_accounts SET calendarSyncEnabled = ? WHERE provider = ?").run(
     enabled ? 1 : 0,
     provider,
@@ -188,6 +201,7 @@ export async function saveEmailAccount(params: {
   accessToken: string;
   refreshToken: string | null;
   tokenExpiresAt: string | null;
+  authMethod: EmailAuthMethod;
 }): Promise<EmailAccount> {
   const account: StoredEmailAccount = {
     id: crypto.randomUUID(),
@@ -197,20 +211,22 @@ export async function saveEmailAccount(params: {
     refreshToken: params.refreshToken,
     tokenExpiresAt: params.tokenExpiresAt,
     connectedAt: new Date().toISOString(),
+    authMethod: params.authMethod,
     // Not part of the INSERT/UPDATE below — a fresh connection defaults to
     // 0 via the column's own DEFAULT, and reconnecting an existing account
     // deliberately leaves whatever preference was already set untouched.
     calendarSyncEnabled: 0,
   };
   db.prepare(
-    `INSERT INTO email_accounts (id, provider, emailAddress, accessToken, refreshToken, tokenExpiresAt, connectedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO email_accounts (id, provider, emailAddress, accessToken, refreshToken, tokenExpiresAt, connectedAt, authMethod)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(provider) DO UPDATE SET
        emailAddress = excluded.emailAddress,
        accessToken = excluded.accessToken,
        refreshToken = excluded.refreshToken,
        tokenExpiresAt = excluded.tokenExpiresAt,
-       connectedAt = excluded.connectedAt`,
+       connectedAt = excluded.connectedAt,
+       authMethod = excluded.authMethod`,
   ).run(
     account.id,
     account.provider,
@@ -219,18 +235,21 @@ export async function saveEmailAccount(params: {
     account.refreshToken,
     account.tokenExpiresAt,
     account.connectedAt,
+    account.authMethod,
   );
   await recordAuditEvent(
     "email_account_connected",
     null,
-    `Connected ${params.provider} account (${params.emailAddress})`,
+    `Connected ${params.provider} account (${params.emailAddress}) via ${params.authMethod === "oauth" ? "OAuth" : "app password"}`,
   );
   // Re-read rather than trust the in-memory `account` object — a
   // reconnect leaves calendarSyncEnabled untouched by the upsert above,
   // so the real persisted value (not the placeholder used to satisfy the
   // insert) is whatever was already there.
   const stored = db
-    .prepare("SELECT id, provider, emailAddress, connectedAt, calendarSyncEnabled FROM email_accounts WHERE provider = ?")
+    .prepare(
+      "SELECT id, provider, emailAddress, connectedAt, calendarSyncEnabled, authMethod FROM email_accounts WHERE provider = ?",
+    )
     .get(params.provider);
   return toPlain<EmailAccount>(stored);
 }

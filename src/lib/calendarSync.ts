@@ -23,8 +23,9 @@ const CALENDAR_PROVIDERS: EmailProvider[] = ["google", "microsoft"];
 export async function getCalendarSyncAccount(): Promise<EmailAccount | null> {
   const row = db
     .prepare(
-      `SELECT id, provider, emailAddress, connectedAt, calendarSyncEnabled FROM email_accounts
-       WHERE calendarSyncEnabled = 1 AND provider IN (${CALENDAR_PROVIDERS.map(() => "?").join(",")})
+      `SELECT id, provider, emailAddress, connectedAt, calendarSyncEnabled, authMethod FROM email_accounts
+       WHERE calendarSyncEnabled = 1 AND authMethod = 'oauth'
+         AND provider IN (${CALENDAR_PROVIDERS.map(() => "?").join(",")})
        LIMIT 1`,
     )
     .get(...CALENDAR_PROVIDERS) as EmailAccount | undefined;

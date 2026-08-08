@@ -1,49 +1,74 @@
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 import type { EmailMessageBody, EmailMessageSummary } from "./emailRead";
-import type { EmailFolder } from "./types";
+import type { EmailFolder, EmailProvider } from "./types";
 
-// Yahoo discontinued third-party OAuth mail scopes for self-registered apps
-// (confirmed via Yahoo's own developer docs — "mail scopes are not available
-// for self-served setup in the developer console") and separately
-// discontinued *regular password* IMAP login in May 2024. App passwords are
-// a distinct, still-supported mechanism: a per-app credential generated
-// under Yahoo Account Security > Generate app password, usable with plain
-// IMAP auth. This is the only realistic way to read Yahoo mail from a
-// self-hosted app today.
-const YAHOO_IMAP_HOST = "imap.mail.yahoo.com";
-const YAHOO_IMAP_PORT = 993;
+// App passwords are a real, currently-supported alternative to OAuth for
+// IMAP mail access — no developer app registration needed, just a per-app
+// credential generated from the account's own security settings. The
+// tradeoff: an app password carries no Calendar API scope, so accounts
+// connected this way can read mail but can't do calendar sync (see
+// calendarSync.ts, which filters these out).
+//
+// Coverage differs by provider:
+// - Yahoo: the only mail-read option at all (no OAuth mail scope exists
+//   for self-registered apps — see the comment in emailIntegration.ts).
+// - Gmail: fully supported for any account with 2-Step Verification on.
+// - Microsoft: only for personal Outlook.com/Hotmail accounts with
+//   two-step verification on. Microsoft disabled Basic Auth (including
+//   app passwords) for Exchange Online / Microsoft 365 work-or-school
+//   tenants in October 2022 with no opt-back-in — those accounts have no
+//   IMAP path at all and must use the OAuth connection instead.
+interface ImapProviderConfig {
+  host: string;
+  port: number;
+  displayName: string;
+}
 
-function createClient(emailAddress: string, appPassword: string): ImapFlow {
+export const IMAP_PROVIDERS: Record<EmailProvider, ImapProviderConfig> = {
+  yahoo: { host: "imap.mail.yahoo.com", port: 993, displayName: "Yahoo Mail" },
+  google: { host: "imap.gmail.com", port: 993, displayName: "Gmail" },
+  microsoft: { host: "outlook.office365.com", port: 993, displayName: "Outlook/Hotmail" },
+};
+
+function createClient(provider: EmailProvider, emailAddress: string, appPassword: string): ImapFlow {
+  const config = IMAP_PROVIDERS[provider];
   return new ImapFlow({
-    host: YAHOO_IMAP_HOST,
-    port: YAHOO_IMAP_PORT,
+    host: config.host,
+    port: config.port,
     secure: true,
     auth: { user: emailAddress, pass: appPassword },
     logger: false,
   });
 }
 
-function wrapLoginError(err: unknown): Error {
+function wrapLoginError(provider: EmailProvider, err: unknown): Error {
   // imapflow's Error.message for a rejected command is a generic "Command
-  // failed" — the server's actual reason (e.g. "[AUTHENTICATIONFAILED]
-  // ...") is on responseText instead. Prefer that when present.
+  // failed" — the server's actual reason (e.g. "[AUTHENTICATIONFAILED] ...")
+  // is on responseText instead. Prefer that when present.
   const responseText =
     err && typeof err === "object" && "responseText" in err
       ? String((err as { responseText?: unknown }).responseText)
       : null;
   const message = responseText || (err instanceof Error ? err.message : "Unknown IMAP error");
-  return new Error(
-    `Could not sign in to Yahoo Mail: ${message}. Check the email address and app password — Yahoo requires Two-Step Verification enabled on the account before it will issue an app password.`,
-  );
+  const config = IMAP_PROVIDERS[provider];
+  const hint =
+    provider === "microsoft"
+      ? " Microsoft only supports app passwords for personal Outlook.com/Hotmail accounts with two-step verification on — a work or school Microsoft 365 account has no app-password option at all and needs the OAuth connection above instead."
+      : ` Check the email address and app password — ${config.displayName} requires two-step verification enabled on the account before it will issue an app password.`;
+  return new Error(`Could not sign in to ${config.displayName}: ${message}.${hint}`);
 }
 
-export async function testYahooImapLogin(emailAddress: string, appPassword: string): Promise<void> {
-  const client = createClient(emailAddress, appPassword);
+export async function testImapLogin(
+  provider: EmailProvider,
+  emailAddress: string,
+  appPassword: string,
+): Promise<void> {
+  const client = createClient(provider, emailAddress, appPassword);
   try {
     await client.connect();
   } catch (err) {
-    throw wrapLoginError(err);
+    throw wrapLoginError(provider, err);
   } finally {
     await client.logout().catch(() => {});
   }
@@ -53,15 +78,16 @@ export async function testYahooImapLogin(emailAddress: string, appPassword: stri
 // account usually has others (Sent, Archive, client-specific folders a
 // lawyer set up manually). Excludes \Noselect mailboxes (pure containers
 // with no messages of their own, e.g. some servers' top-level "[Gmail]").
-export async function listYahooMailboxes(
+export async function listImapMailboxes(
+  provider: EmailProvider,
   emailAddress: string,
   appPassword: string,
 ): Promise<EmailFolder[]> {
-  const client = createClient(emailAddress, appPassword);
+  const client = createClient(provider, emailAddress, appPassword);
   try {
     await client.connect();
   } catch (err) {
-    throw wrapLoginError(err);
+    throw wrapLoginError(provider, err);
   }
   try {
     const mailboxes = await client.list();
@@ -73,17 +99,18 @@ export async function listYahooMailboxes(
   }
 }
 
-export async function listRecentYahooMessages(
+export async function listRecentImapMessages(
+  provider: EmailProvider,
   emailAddress: string,
   appPassword: string,
   maxResults = 25,
   mailbox = "INBOX",
 ): Promise<EmailMessageSummary[]> {
-  const client = createClient(emailAddress, appPassword);
+  const client = createClient(provider, emailAddress, appPassword);
   try {
     await client.connect();
   } catch (err) {
-    throw wrapLoginError(err);
+    throw wrapLoginError(provider, err);
   }
 
   try {
@@ -122,24 +149,25 @@ export async function listRecentYahooMessages(
   }
 }
 
-export async function getYahooMessageBody(
+export async function getImapMessageBody(
+  provider: EmailProvider,
   emailAddress: string,
   appPassword: string,
   uid: string,
   mailbox = "INBOX",
 ): Promise<EmailMessageBody> {
-  const client = createClient(emailAddress, appPassword);
+  const client = createClient(provider, emailAddress, appPassword);
   try {
     await client.connect();
   } catch (err) {
-    throw wrapLoginError(err);
+    throw wrapLoginError(provider, err);
   }
 
   try {
-    // A UID is only unique within its own mailbox — fetching by UID
-    // against the wrong mailbox silently returns the wrong message (or
-    // nothing), not an error, so the mailbox this UID was listed from
-    // must be threaded through here, not assumed to be INBOX.
+    // A UID is only unique within its own mailbox — fetching by UID against
+    // the wrong mailbox silently returns the wrong message (or nothing),
+    // not an error, so the mailbox this UID was listed from must be
+    // threaded through here, not assumed to be INBOX.
     const lock = await client.getMailboxLock(mailbox);
     let source: Buffer | undefined;
     try {

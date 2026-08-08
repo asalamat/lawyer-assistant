@@ -87,6 +87,7 @@ export async function GET(
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token ?? null,
       tokenExpiresAt,
+      authMethod: "oauth",
     });
 
     settingsUrl.searchParams.set("connected", typedProvider);
