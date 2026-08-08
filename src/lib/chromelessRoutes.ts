@@ -10,6 +10,7 @@ export function isChromelessRoute(pathname: string): boolean {
     pathname === "/login" ||
     pathname.startsWith("/sign/") ||
     pathname.startsWith("/intake/") ||
+    pathname.startsWith("/leads/public") ||
     pathname.startsWith("/graph-view/") ||
     pathname.startsWith("/export/pdf") ||
     pathname.startsWith("/portal")

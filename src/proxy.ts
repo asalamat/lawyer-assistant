@@ -33,7 +33,18 @@ const PUBLIC_PATHS = [
 // Each one is scoped to a single expiring resource token, not a session —
 // deliberately not a client portal. Auth for these lives in the route
 // handler itself (validating the token), not here.
-const PUBLIC_PATH_PREFIXES = ["/sign/", "/api/sign/", "/intake/", "/api/intake/"];
+const PUBLIC_PATH_PREFIXES = [
+  "/sign/",
+  "/api/sign/",
+  "/intake/",
+  "/api/intake/",
+  // The embeddable public lead-intake form — meant to be <iframe>-embedded
+  // on the firm's own website by an anonymous visitor, so unlike /sign and
+  // /intake it isn't scoped to an expiring resource token at all. Rate
+  // limited per-IP in the route handler itself (see publicLeadForm.ts).
+  "/leads/public",
+  "/api/leads/public",
+];
 
 // The persistent client portal (see clientAuth.ts) is a wholly separate
 // identity realm from staff — its own login, its own "client_session"

@@ -20,6 +20,9 @@ export default function LeadsBoard({ initialLeads }: { initialLeads: Lead[] }) {
   const [source, setSource] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showEmbedCode, setShowEmbedCode] = useState(false);
+  const embedUrl = typeof window !== "undefined" ? `${window.location.origin}/leads/public` : "/leads/public";
+  const embedSnippet = `<iframe src="${embedUrl}" style="width:100%;max-width:480px;height:520px;border:none;"></iframe>`;
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -55,6 +58,27 @@ export default function LeadsBoard({ initialLeads }: { initialLeads: Lead[] }) {
 
   return (
     <div className="flex flex-col gap-6">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setShowEmbedCode((v) => !v)}
+          className="btn-secondary px-3 py-1.5 text-sm"
+        >
+          {showEmbedCode ? "Hide embed code" : "Get embed code"}
+        </button>
+      </div>
+      {showEmbedCode && (
+        <div className="surface-card flex flex-col gap-2 text-sm">
+          <p className="text-muted">
+            Paste this into your firm&apos;s website to collect leads directly from visitors —
+            each submission lands here as a new lead, tagged &quot;website.&quot;
+          </p>
+          <code className="block overflow-x-auto rounded bg-black/[0.04] p-2 text-xs dark:bg-white/[0.06]">
+            {embedSnippet}
+          </code>
+        </div>
+      )}
+
       <form onSubmit={handleCreate} className="surface-card flex flex-wrap items-end gap-2">
         <input
           required
