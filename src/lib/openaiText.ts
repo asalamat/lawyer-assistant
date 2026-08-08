@@ -17,6 +17,31 @@ async function getClient(): Promise<OpenAI> {
   return cachedClient;
 }
 
+export async function analyzeImageWithOpenAI(
+  buffer: Buffer,
+  mimeType: string,
+  prompt: string,
+): Promise<string> {
+  const client = await getClient();
+  const response = await client.responses.create({
+    model: MODEL_IDS.openai.capable,
+    input: [
+      {
+        role: "user",
+        content: [
+          { type: "input_image", image_url: `data:${mimeType};base64,${buffer.toString("base64")}`, detail: "auto" },
+          { type: "input_text", text: prompt },
+        ],
+      },
+    ],
+    max_output_tokens: 1024,
+  });
+  if (!response.output_text) {
+    throw new Error("OpenAI returned an empty response.");
+  }
+  return response.output_text;
+}
+
 export async function completeWithOpenAI(params: {
   system: string;
   messages: { role: "user" | "assistant"; content: string }[];

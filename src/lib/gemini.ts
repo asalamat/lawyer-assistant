@@ -25,6 +25,24 @@ function flattenMessages(messages: { role: "user" | "assistant"; content: string
   return messages.map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`).join("\n\n");
 }
 
+export async function analyzeImageGemini(buffer: Buffer, mimeType: string, prompt: string): Promise<string> {
+  const client = await getClient();
+  const response = await client.models.generateContent({
+    model: MODEL_IDS.gemini.capable,
+    contents: [
+      {
+        role: "user",
+        parts: [{ inlineData: { mimeType, data: buffer.toString("base64") } }, { text: prompt }],
+      },
+    ],
+    config: { maxOutputTokens: 1024 },
+  });
+  if (!response.text) {
+    throw new Error("Gemini returned an empty response.");
+  }
+  return response.text;
+}
+
 export async function completeGemini(params: {
   system: string;
   messages: { role: "user" | "assistant"; content: string }[];

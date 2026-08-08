@@ -96,6 +96,11 @@ export interface SavedReport {
 // see extractionError), or "unsupported" (not a type this app tries to read).
 export type ExtractionStatus = "ok" | "failed" | "unsupported";
 
+// Vision-model description of an image document's actual visual content —
+// distinct from extractionStatus, which only covers OCR'd text. "pending"
+// while a vision call is in flight (see analyzeDocumentPhoto in matters.ts).
+export type PhotoAnalysisStatus = "pending" | "ok" | "failed";
+
 export interface Document {
   id: string;
   matterId: string;
@@ -118,6 +123,10 @@ export interface Document {
   // Whether this document is visible in the client portal (see
   // clientPortal.ts) — off by default, a lawyer has to opt each document in.
   sharedWithClient: number;
+  photoAnalysisStatus: PhotoAnalysisStatus | null;
+  photoAnalysisResult: string | null;
+  photoAnalysisError: string | null;
+  photoAnalyzedAt: string | null;
 }
 
 // A persistent client-portal login, distinct from staff users (see

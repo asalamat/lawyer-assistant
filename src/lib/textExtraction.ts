@@ -113,6 +113,23 @@ export function isSafeToExtract(doc: { fileName: string; malwareScanStatus?: str
   return isExtractableDocument(doc.fileName) && doc.malwareScanStatus !== "infected";
 }
 
+export function isImageFile(fileName: string): boolean {
+  return hasExtension(fileName, IMAGE_EXTENSIONS);
+}
+
+const IMAGE_MIME_TYPES: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+};
+
+export function getImageMimeType(fileName: string): string {
+  const lower = fileName.toLowerCase();
+  const ext = Object.keys(IMAGE_MIME_TYPES).find((e) => lower.endsWith(e));
+  return ext ? IMAGE_MIME_TYPES[ext] : "application/octet-stream";
+}
+
 // Documents on disk are encrypted at rest. Files uploaded before that
 // shipped are still plaintext there — detect and migrate those in place the
 // first time they're read, rather than requiring a separate migration step.

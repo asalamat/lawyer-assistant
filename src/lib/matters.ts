@@ -22,8 +22,8 @@ import {
   getRelevantChunks,
 } from "./rag";
 import { fireWebhook } from "./webhooks";
-import { isSafeToExtract } from "./textExtraction";
-import { extractDeadlines, suggestMatterClassification, type ExtractedDeadline } from "./claude";
+import { getImageMimeType, isImageFile, isSafeToExtract, readPlaintextFile } from "./textExtraction";
+import { analyzeImage, extractDeadlines, suggestMatterClassification, type ExtractedDeadline } from "./claude";
 import type {
   ChatMessage,
   Document,
@@ -437,6 +437,52 @@ export async function retryDocumentExtraction(
   return getDocument(matterId, documentId);
 }
 
+// Vision-model equivalent of retryDocumentExtraction — describes what's
+// actually visible in a photo (an OCR pass alone finds no text in most
+// photos), rather than just re-attempting OCR. Never throws past the
+// caller: failure is recorded on the row so the UI can offer another
+// retry, matching extractTextTracked's own never-fail contract.
+const MAX_PHOTO_ANALYSIS_BYTES = 20 * 1024 * 1024;
+
+export async function analyzeDocumentPhoto(
+  matterId: string,
+  documentId: string,
+): Promise<Document | null> {
+  const document = await getDocument(matterId, documentId);
+  if (!document) return null;
+  if (document.malwareScanStatus === "infected") {
+    throw new Error("This document was quarantined as malware and can't be analyzed.");
+  }
+  if (!isImageFile(document.fileName)) {
+    throw new Error("Photo analysis only applies to image files.");
+  }
+
+  db.prepare("UPDATE documents SET photoAnalysisStatus = 'pending' WHERE id = ?").run(documentId);
+
+  try {
+    const bytes = await readPlaintextFile(document.storagePath);
+    if (bytes.length > MAX_PHOTO_ANALYSIS_BYTES) {
+      throw new Error("This image is too large to analyze (20MB limit).");
+    }
+    const result = await analyzeImage(bytes, getImageMimeType(document.fileName));
+    db.prepare(
+      "UPDATE documents SET photoAnalysisStatus = 'ok', photoAnalysisResult = ?, photoAnalysisError = NULL, photoAnalyzedAt = ? WHERE id = ?",
+    ).run(result, new Date().toISOString(), documentId);
+    await recordAuditEvent(
+      "photo_analysis_completed",
+      matterId,
+      `Analyzed the photo "${document.fileName}"`,
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    db.prepare(
+      "UPDATE documents SET photoAnalysisStatus = 'failed', photoAnalysisError = ?, photoAnalyzedAt = ? WHERE id = ?",
+    ).run(message, new Date().toISOString(), documentId);
+  }
+
+  return getDocument(matterId, documentId);
+}
+
 export async function addDocument(
   matterId: string,
   file: File,
@@ -477,6 +523,10 @@ export async function addDocument(
     malwareScanDetail: scanResult.signature,
     parentDocumentId,
     sharedWithClient: 0,
+    photoAnalysisStatus: null,
+    photoAnalysisResult: null,
+    photoAnalysisError: null,
+    photoAnalyzedAt: null,
   };
   db.prepare(
     `INSERT INTO documents

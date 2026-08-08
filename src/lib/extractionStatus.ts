@@ -63,16 +63,36 @@ export async function extractTextTracked(
 
   try {
     const result = await extractDocumentText(fileName, storagePath);
-    if (!result || !result.text.trim()) {
+    // A photo often has no legible text at all — its AI-generated visual
+    // description (see analyzeDocumentPhoto in matters.ts) is merged in
+    // here, the one place every caller (full-context generators via
+    // getMatterDocumentSections, and chat retrieval via
+    // ensureChunksForSource) gets a document's text from. Without this, a
+    // photo with a real description but no OCR text would still count as
+    // "failed to extract" below.
+    const photoAnalysis =
+      table === "documents"
+        ? (db.prepare("SELECT photoAnalysisResult FROM documents WHERE id = ?").get(id) as
+            | { photoAnalysisResult: string | null }
+            | undefined)
+        : undefined;
+    const combinedText = [
+      result?.text?.trim(),
+      photoAnalysis?.photoAnalysisResult ? `[AI visual description]\n${photoAnalysis.photoAnalysisResult}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+    if (!combinedText) {
       recordExtractionStatus(table, id, "failed", "Extraction produced no text");
       return null;
     }
     recordExtractionStatus(table, id, "ok", null, {
-      detectedLanguage: detectLanguage(result.text),
-      ocrConfidence: result.ocrConfidence ?? null,
-      qualityScore: computeQualityScore(result.text, result.ocrConfidence),
+      detectedLanguage: detectLanguage(combinedText),
+      ocrConfidence: result?.ocrConfidence ?? null,
+      qualityScore: computeQualityScore(combinedText, result?.ocrConfidence),
     });
-    return result.text;
+    return combinedText;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     recordExtractionStatus(table, id, "failed", message);

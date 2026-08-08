@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import {
   addDocument,
+  analyzeDocumentPhoto,
   checkForNewDeadlines,
   checkMatterClassification,
   checkNearDuplicateOnUpload,
+  getDocument,
   getMatter,
   listDocuments,
 } from "@/lib/matters";
-import { isSafeToExtract } from "@/lib/textExtraction";
+import { isImageFile, isSafeToExtract } from "@/lib/textExtraction";
 
 export async function GET(
   _request: Request,
@@ -53,6 +55,18 @@ export async function POST(
   let classificationSuggestion = null;
   let nearDuplicate = null;
   if (isSafeToExtract(document)) {
+    // Runs before the checks below on purpose: near-duplicate detection and
+    // deadline extraction can both trigger this document's first (and only,
+    // since it's idempotent) chunking pass — the photo description needs to
+    // already be on the row before that happens, or it never makes it into
+    // chat retrieval (see the merge in extractionStatus.ts).
+    if (isImageFile(document.fileName)) {
+      try {
+        await analyzeDocumentPhoto(id, document.id);
+      } catch {
+        // analyzeDocumentPhoto already records failure on the row itself.
+      }
+    }
     try {
       newDeadlines = (await checkForNewDeadlines(id)).newCount;
     } catch {
@@ -74,8 +88,13 @@ export async function POST(
     }
   }
 
+  // Re-fetch rather than returning the pre-checks `document` object — photo
+  // analysis (and extraction) mutate the row in between, so the response
+  // would otherwise report stale nulls for fields that were, in fact, set.
+  const finalDocument = (await getDocument(id, document.id)) ?? document;
+
   return NextResponse.json(
-    { ...document, newDeadlines, classificationSuggestion, nearDuplicate },
+    { ...finalDocument, newDeadlines, classificationSuggestion, nearDuplicate },
     { status: 201 },
   );
 }

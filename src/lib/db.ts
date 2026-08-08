@@ -919,6 +919,14 @@ ensureColumn("documents", "parentDocumentId", "TEXT");
 // default just because their portal account exists.
 ensureColumn("documents", "sharedWithClient", "INTEGER NOT NULL DEFAULT 0");
 
+// Vision-model description of an image document's visual content —
+// separate from extraction (which only covers OCR'd text) and only ever
+// set for image files (see analyzeDocumentPhoto in matters.ts).
+ensureColumn("documents", "photoAnalysisStatus", "TEXT");
+ensureColumn("documents", "photoAnalysisResult", "TEXT");
+ensureColumn("documents", "photoAnalysisError", "TEXT");
+ensureColumn("documents", "photoAnalyzedAt", "TEXT");
+
 // Null until the user drags a note for the first time — the client picks a
 // cascaded default position in that case rather than the server guessing a
 // viewport size it has no way to know.

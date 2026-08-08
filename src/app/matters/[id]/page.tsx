@@ -2,7 +2,8 @@ import { getLanguageName } from "@/lib/languageDetection";
 import { annotateAttachments, annotateDuplicates, annotateNearDuplicates, getMatter, listDocuments } from "@/lib/matters";
 import { listTeam } from "@/lib/matterTeam";
 import { listAttachedReferenceDocuments, listReferenceDocuments } from "@/lib/referenceLibrary";
-import { isExtractableDocument } from "@/lib/textExtraction";
+import { isExtractableDocument, isImageFile } from "@/lib/textExtraction";
+import AnalyzePhotoButton from "@/components/AnalyzePhotoButton";
 import DeleteMatterButton from "@/components/DeleteMatterButton";
 import MatterComplianceControls from "@/components/MatterComplianceControls";
 import MatterTeamPanel from "@/components/MatterTeamPanel";
@@ -108,6 +109,27 @@ export default async function MatterOverviewPage({
                     )
                   ) : (
                     <span className="badge">not used in chat</span>
+                  )}
+                  {isImageFile(doc.fileName) && doc.malwareScanStatus !== "infected" && (
+                    doc.photoAnalysisStatus === "ok" ? (
+                      <span className="badge" title={doc.photoAnalysisResult ?? undefined}>
+                        photo analyzed
+                      </span>
+                    ) : doc.photoAnalysisStatus === "pending" ? (
+                      <span className="badge">analyzing photo…</span>
+                    ) : doc.photoAnalysisStatus === "failed" ? (
+                      <>
+                        <span
+                          className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs text-red-700 dark:text-red-400"
+                          title={doc.photoAnalysisError ?? undefined}
+                        >
+                          photo analysis failed
+                        </span>
+                        <AnalyzePhotoButton matterId={id} documentId={doc.id} label="Retry" />
+                      </>
+                    ) : (
+                      <AnalyzePhotoButton matterId={id} documentId={doc.id} />
+                    )
                   )}
                   {(doc.sizeBytes / 1024).toFixed(1)} KB
                   {matter?.clientId && (

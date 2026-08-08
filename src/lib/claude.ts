@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { completeJSONWithOpenAI, completeWithOpenAI } from "./openaiText";
-import { completeGemini, completeJSONGemini } from "./gemini";
+import { analyzeImageWithOpenAI, completeJSONWithOpenAI, completeWithOpenAI } from "./openaiText";
+import { analyzeImageGemini, completeGemini, completeJSONGemini } from "./gemini";
 import { completeJSONOllama, completeOllama } from "./ollama";
 import { MODEL_IDS, type ModelTier } from "./modelTiers";
 import {
@@ -50,6 +50,36 @@ async function completeAnthropic(params: {
     // treats this as a completed success and never tries the next provider
     // — the caller ends up silently persisting an empty result instead of
     // getting an error or a real fallback attempt.
+    throw new Error("The AI returned an empty response. Try regenerating.");
+  }
+  return textBlock.text;
+}
+
+async function analyzeImageAnthropic(buffer: Buffer, mimeType: string, prompt: string): Promise<string> {
+  const client = await getClient();
+  const response = await client.messages.create({
+    model: MODEL_IDS.anthropic.capable,
+    max_tokens: 1024,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: mimeType as "image/jpeg" | "image/png" | "image/webp" | "image/gif",
+              data: buffer.toString("base64"),
+            },
+          },
+          { type: "text", text: prompt },
+        ],
+      },
+    ],
+  });
+
+  const textBlock = response.content.find((block) => block.type === "text");
+  if (!textBlock?.text) {
     throw new Error("The AI returned an empty response. Try regenerating.");
   }
   return textBlock.text;
@@ -110,8 +140,11 @@ async function isProviderConfigured(provider: AiProvider): Promise<boolean> {
 // up yet).
 async function forEachConfiguredProvider<T>(
   attempt: (provider: AiProvider) => Promise<T>,
+  options?: { excludeProviders?: AiProvider[] },
 ): Promise<T> {
-  const order = await getAiProviderOrder();
+  const order = (await getAiProviderOrder()).filter(
+    (provider) => !options?.excludeProviders?.includes(provider),
+  );
   const configured: AiProvider[] = [];
   for (const provider of order) {
     if (await isProviderConfigured(provider)) configured.push(provider);
@@ -172,6 +205,23 @@ async function completeJSON<T>(params: {
     if (provider === "gemini") return completeJSONGemini<T>(params);
     return completeJSONOllama<T>(params);
   });
+}
+
+const PHOTO_ANALYSIS_PROMPT = `Objectively describe what's visible in this photo for a lawyer's case file — people, setting, visible injuries or damage, objects, and any legible text. Be factual and specific. Do not infer fault, intent, or draw legal conclusions — describe only what can be seen. If nothing case-relevant is visible, say so plainly.`;
+
+// Ollama has no vision-capable local model path today (ollama.ts never
+// sends image content), so it's excluded up front rather than attempted
+// and left to fail — that would add noise to the combined error message
+// on every call if it happens to be the user's preferred provider.
+export async function analyzeImage(buffer: Buffer, mimeType: string): Promise<string> {
+  return forEachConfiguredProvider(
+    (provider) => {
+      if (provider === "anthropic") return analyzeImageAnthropic(buffer, mimeType, PHOTO_ANALYSIS_PROMPT);
+      if (provider === "openai") return analyzeImageWithOpenAI(buffer, mimeType, PHOTO_ANALYSIS_PROMPT);
+      return analyzeImageGemini(buffer, mimeType, PHOTO_ANALYSIS_PROMPT);
+    },
+    { excludeProviders: ["ollama"] },
+  );
 }
 
 export async function askClaude(params: {
