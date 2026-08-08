@@ -1307,6 +1307,18 @@ server, not just build/lint.
       chunking path) of silently swallowing the error into a generic
       placeholder string. A failed document shows a badge with the real
       error on hover and a "Retry" button on the matter Overview page.
+- [x] **Privacy Impact Assessment and Incident Response Runbook**
+      ([`docs/PRIVACY_IMPACT_ASSESSMENT.md`](./PRIVACY_IMPACT_ASSESSMENT.md),
+      [`docs/INCIDENT_RESPONSE_RUNBOOK.md`](./INCIDENT_RESPONSE_RUNBOOK.md)) —
+      real documents, not code: what personal information this system collects
+      and where it goes (including the honest gaps — no penetration test, no
+      vendor security assessments, no enforced data residency, matter
+      classification doesn't yet gate AI provider choice), and concrete,
+      codebase-specific steps for account compromise, malware, unauthorized
+      data exposure, and backup/audit-log recovery. Not a substitute for a
+      real penetration test, vendor security assessments, or a formal data
+      residency attestation — those need an external party or a contractual
+      answer this codebase can't produce on its own.
 
 ## Decisions that need the account owner, not a default
 
