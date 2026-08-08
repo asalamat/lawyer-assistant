@@ -85,6 +85,8 @@ export const ACTION_LABELS: Record<string, string> = {
   document_shared_with_client: "Document shared with client portal",
   document_unshared_from_client: "Document unshared from client portal",
   client_portal_document_downloaded: "Document downloaded from client portal",
+  dlp_bulk_export_alert: "Unusual bulk export/download activity flagged",
+  backup_downloaded: "Backup downloaded",
 };
 
 export async function recordAuditEvent(

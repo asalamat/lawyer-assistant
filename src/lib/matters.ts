@@ -1147,8 +1147,13 @@ export async function recordMatterEmailSent(
   matterId: string,
   to: string,
   subject: string,
+  attachedFileNames: string[] = [],
 ): Promise<void> {
-  await recordAuditEvent("matter_email_sent", matterId, `Emailed ${to}: "${subject}"`);
+  const attachmentDetail =
+    attachedFileNames.length > 0
+      ? ` with ${attachedFileNames.length} attachment${attachedFileNames.length === 1 ? "" : "s"} (${attachedFileNames.join(", ")})`
+      : "";
+  await recordAuditEvent("matter_email_sent", matterId, `Emailed ${to}: "${subject}"${attachmentDetail}`);
 }
 
 export async function updateInvoiceStatus(

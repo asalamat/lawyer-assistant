@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
+import { checkExportGuard } from "@/lib/exportGuard";
 import { getMatter, listDocuments, recordMatterEmailSent } from "@/lib/matters";
 import { readPlaintextFile } from "@/lib/textExtraction";
+
+// Keyed on emails that actually carry attachments — a subject-only email
+// isn't a bulk-export concern, one with a firm's documents attached is.
+const EMAIL_ATTACHMENT_GUARD = { action: "email_with_attachments", alertThreshold: 10, hardLimit: 50 };
 
 export async function POST(
   request: Request,
@@ -27,6 +33,7 @@ export async function POST(
   }
 
   let attachments;
+  let selectedFileNames: string[] = [];
   if (Array.isArray(documentIds) && documentIds.length > 0) {
     const matterDocuments = await listDocuments(id);
     const selected = matterDocuments.filter((doc) => documentIds.includes(doc.id));
@@ -36,6 +43,19 @@ export async function POST(
         { status: 400 },
       );
     }
+    selectedFileNames = selected.map((doc) => doc.fileName);
+
+    const user = await getCurrentUser();
+    if (user) {
+      const guard = await checkExportGuard(EMAIL_ATTACHMENT_GUARD, user.id, user.name, id);
+      if (!guard.allowed) {
+        return NextResponse.json(
+          { error: "Too many emails with attachments sent this hour. Try again later." },
+          { status: 429, headers: { "Retry-After": String(guard.retryAfterSeconds) } },
+        );
+      }
+    }
+
     attachments = await Promise.all(
       selected.map(async (doc) => ({
         filename: doc.fileName,
@@ -46,7 +66,7 @@ export async function POST(
 
   try {
     await sendEmail({ to, subject, text: message, attachments });
-    await recordMatterEmailSent(id, to, subject);
+    await recordMatterEmailSent(id, to, subject, selectedFileNames);
     return NextResponse.json({ ok: true, to });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Failed to send email";
