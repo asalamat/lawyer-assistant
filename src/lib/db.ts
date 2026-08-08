@@ -785,6 +785,15 @@ ensureColumn("matter_deadlines", "triggerDate", "TEXT");
 // forward. Historical entries stay NULL and simply don't count toward it.
 ensureColumn("time_entries", "userId", "TEXT");
 
+// One-way calendar push (deadlines -> Google/Outlook), off by default even
+// once a mail account is connected — nothing gets pushed to a calendar
+// just because email reading works. calendarEventId/calendarProvider let
+// a later edit to the same deadline update the event that was already
+// pushed, instead of creating a duplicate.
+ensureColumn("email_accounts", "calendarSyncEnabled", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("matter_deadlines", "calendarEventId", "TEXT");
+ensureColumn("matter_deadlines", "calendarProvider", "TEXT");
+
 // Splits the reference library's single shelf into the two shared tiers of
 // the vision doc's three-layer knowledge architecture (client-matter
 // documents are already their own tier — the `documents` table above):

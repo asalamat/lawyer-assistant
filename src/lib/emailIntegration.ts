@@ -25,7 +25,12 @@ export const PROVIDER_CONFIG: Record<EmailProvider, ProviderConfig> = {
     authUrl: "https://accounts.google.com/o/oauth2/v2/auth",
     tokenUrl: "https://oauth2.googleapis.com/token",
     userInfoUrl: "https://www.googleapis.com/oauth2/v2/userinfo",
-    scope: "https://www.googleapis.com/auth/gmail.readonly openid email",
+    // calendar.events is requested upfront alongside mail-read, not
+    // incrementally when calendar sync is later turned on — Google's
+    // consent flow doesn't support silently widening an already-granted
+    // scope without another full consent screen, so an account connected
+    // before this scope was added has to be reconnected once.
+    scope: "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/calendar.events openid email",
     extraAuthParams: { access_type: "offline", prompt: "consent" },
   },
   microsoft: {
@@ -33,7 +38,7 @@ export const PROVIDER_CONFIG: Record<EmailProvider, ProviderConfig> = {
     authUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
     tokenUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
     userInfoUrl: "https://graph.microsoft.com/v1.0/me",
-    scope: "offline_access Mail.Read User.Read",
+    scope: "offline_access Mail.Read Calendars.ReadWrite User.Read",
   },
   // Yahoo's own developer docs state mail scopes are "not available for
   // self-served setup in the developer console" — third-party mail read
@@ -112,9 +117,69 @@ interface StoredEmailAccount extends EmailAccount {
 
 export async function listEmailAccounts(): Promise<EmailAccount[]> {
   return db
-    .prepare("SELECT id, provider, emailAddress, connectedAt FROM email_accounts")
+    .prepare("SELECT id, provider, emailAddress, connectedAt, calendarSyncEnabled FROM email_accounts")
     .all()
     .map((row) => toPlain<EmailAccount>(row));
+}
+
+export async function setCalendarSyncEnabled(provider: EmailProvider, enabled: boolean): Promise<void> {
+  db.prepare("UPDATE email_accounts SET calendarSyncEnabled = ? WHERE provider = ?").run(
+    enabled ? 1 : 0,
+    provider,
+  );
+  await recordAuditEvent(
+    "calendar_sync_toggled",
+    null,
+    `${enabled ? "Enabled" : "Disabled"} deadline calendar sync for ${provider}`,
+  );
+}
+
+// Nothing in this codebase refreshed an expired OAuth access token before
+// this — every existing email-read call just used whatever token was
+// stored at connect time. That's fine for reading email shortly after
+// connecting, but calendar pushes can happen anytime after a deadline is
+// created, well past a typical ~1 hour token lifetime. Refreshes and
+// persists a new access token when the stored one is expired (or about to
+// be); returns the existing token unchanged otherwise, and best-effort
+// falls back to the existing token if a refresh attempt itself fails (the
+// caller's actual API call will then surface the real error).
+export async function getFreshAccessToken(provider: EmailProvider): Promise<string | null> {
+  const row = db
+    .prepare("SELECT accessToken, refreshToken, tokenExpiresAt FROM email_accounts WHERE provider = ?")
+    .get(provider) as { accessToken: string; refreshToken: string | null; tokenExpiresAt: string | null } | undefined;
+  if (!row) return null;
+
+  const expiresAtMs = row.tokenExpiresAt ? new Date(row.tokenExpiresAt).getTime() : null;
+  const stillValid = expiresAtMs === null || expiresAtMs - Date.now() > 60_000;
+  if (stillValid || !row.refreshToken) return row.accessToken;
+
+  const credentials = await getOAuthCredentials(provider);
+  if (!credentials) return row.accessToken;
+
+  try {
+    const config = PROVIDER_CONFIG[provider];
+    const response = await fetch(config.tokenUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: credentials.clientId!,
+        client_secret: credentials.clientSecret!,
+        refresh_token: row.refreshToken,
+        grant_type: "refresh_token",
+      }),
+    });
+    if (!response.ok) return row.accessToken;
+    const tokens = await response.json();
+    const newExpiresAt = tokens.expires_in ? new Date(Date.now() + tokens.expires_in * 1000).toISOString() : null;
+    db.prepare("UPDATE email_accounts SET accessToken = ?, tokenExpiresAt = ? WHERE provider = ?").run(
+      tokens.access_token,
+      newExpiresAt,
+      provider,
+    );
+    return tokens.access_token;
+  } catch {
+    return row.accessToken;
+  }
 }
 
 export async function saveEmailAccount(params: {
@@ -132,6 +197,10 @@ export async function saveEmailAccount(params: {
     refreshToken: params.refreshToken,
     tokenExpiresAt: params.tokenExpiresAt,
     connectedAt: new Date().toISOString(),
+    // Not part of the INSERT/UPDATE below — a fresh connection defaults to
+    // 0 via the column's own DEFAULT, and reconnecting an existing account
+    // deliberately leaves whatever preference was already set untouched.
+    calendarSyncEnabled: 0,
   };
   db.prepare(
     `INSERT INTO email_accounts (id, provider, emailAddress, accessToken, refreshToken, tokenExpiresAt, connectedAt)
@@ -156,7 +225,14 @@ export async function saveEmailAccount(params: {
     null,
     `Connected ${params.provider} account (${params.emailAddress})`,
   );
-  return { id: account.id, provider: account.provider, emailAddress: account.emailAddress, connectedAt: account.connectedAt };
+  // Re-read rather than trust the in-memory `account` object — a
+  // reconnect leaves calendarSyncEnabled untouched by the upsert above,
+  // so the real persisted value (not the placeholder used to satisfy the
+  // insert) is whatever was already there.
+  const stored = db
+    .prepare("SELECT id, provider, emailAddress, connectedAt, calendarSyncEnabled FROM email_accounts WHERE provider = ?")
+    .get(params.provider);
+  return toPlain<EmailAccount>(stored);
 }
 
 export async function disconnectEmailAccount(provider: EmailProvider): Promise<void> {

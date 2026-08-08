@@ -228,6 +228,8 @@ export interface MatterDeadline {
   source: DeadlineSource;
   ruleId: string | null;
   triggerDate: string | null;
+  calendarEventId: string | null;
+  calendarProvider: string | null;
   createdAt: string;
 }
 
@@ -426,6 +428,7 @@ export interface EmailAccount {
   provider: EmailProvider;
   emailAddress: string;
   connectedAt: string;
+  calendarSyncEnabled: number;
 }
 
 export interface EmailFolder {

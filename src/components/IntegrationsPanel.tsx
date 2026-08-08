@@ -32,6 +32,21 @@ function ProviderRow({
   const [disconnecting, setDisconnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [togglingCalendarSync, setTogglingCalendarSync] = useState(false);
+
+  async function handleToggleCalendarSync(enabled: boolean) {
+    setTogglingCalendarSync(true);
+    try {
+      await fetch(`/api/integrations/${provider}/calendar-sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      onChange();
+    } finally {
+      setTogglingCalendarSync(false);
+    }
+  }
 
   async function handleSaveCredentials(e: React.FormEvent) {
     e.preventDefault();
@@ -79,13 +94,29 @@ function ProviderRow({
       </div>
 
       {account ? (
-        <button
-          onClick={handleDisconnect}
-          disabled={disconnecting}
-          className="mt-3 text-sm text-red-600 underline disabled:opacity-50"
-        >
-          {disconnecting ? "Disconnecting…" : "Disconnect"}
-        </button>
+        <div className="mt-3 flex flex-col gap-2">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={Boolean(account.calendarSyncEnabled)}
+              disabled={togglingCalendarSync}
+              onChange={(e) => handleToggleCalendarSync(e.target.checked)}
+            />
+            Sync deadlines to calendar
+          </label>
+          <p className="text-xs text-muted">
+            New deadlines computed from a rule push automatically; any deadline can also be pushed
+            manually from its matter&apos;s Deadlines tab. One-way only — edits made directly in{" "}
+            {PROVIDER_LABELS[provider]} never flow back here.
+          </p>
+          <button
+            onClick={handleDisconnect}
+            disabled={disconnecting}
+            className="self-start text-sm text-red-600 underline disabled:opacity-50"
+          >
+            {disconnecting ? "Disconnecting…" : "Disconnect"}
+          </button>
+        </div>
       ) : (
         <div className="mt-3 flex flex-col gap-2">
           <p className="text-xs text-muted">
