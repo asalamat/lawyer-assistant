@@ -361,3 +361,40 @@ export const StickyNoteIcon = (props: IconProps) =>
     </>,
     props,
   );
+
+export const TrustIcon = (props: IconProps) =>
+  base(
+    <>
+      <path d="M3 10l9-6 9 6" />
+      <path d="M5 10v9M9 10v9M15 10v9M19 10v9" />
+      <path d="M3 19h18" />
+    </>,
+    props,
+  );
+
+export const LeadsIcon = (props: IconProps) =>
+  base(
+    <>
+      <rect x="3" y="4" width="6" height="16" rx="1" />
+      <rect x="10.5" y="8" width="6" height="12" rx="1" />
+      <rect x="18" y="12" width="3" height="8" rx="1" />
+    </>,
+    props,
+  );
+
+export const AnalyticsIcon = (props: IconProps) =>
+  base(
+    <>
+      <path d="M4 19V9M10 19V5M16 19v-7M22 19H2" />
+    </>,
+    props,
+  );
+
+export const TemplateIcon = (props: IconProps) =>
+  base(
+    <>
+      <rect x="4" y="3" width="16" height="18" rx="2" />
+      <path d="M8 8h8M8 12h8M8 16h5" />
+    </>,
+    props,
+  );

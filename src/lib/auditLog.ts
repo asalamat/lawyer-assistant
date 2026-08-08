@@ -87,6 +87,10 @@ export const ACTION_LABELS: Record<string, string> = {
   client_portal_document_downloaded: "Document downloaded from client portal",
   dlp_bulk_export_alert: "Unusual bulk export/download activity flagged",
   backup_downloaded: "Backup downloaded",
+  trust_deposit_recorded: "Trust deposit recorded",
+  trust_withdrawal_recorded: "Trust withdrawal recorded",
+  trust_transfer_recorded: "Trust transfer to operating recorded",
+  trust_account_reconciled: "Trust account reconciled",
 };
 
 export async function recordAuditEvent(

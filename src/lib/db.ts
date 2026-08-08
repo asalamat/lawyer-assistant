@@ -161,6 +161,50 @@ execWithRetry(`
     FOREIGN KEY (matterId) REFERENCES matters(id)
   );
 
+  -- Trust (IOLTA-style) accounting. Matter and account balances are never
+  -- stored denormalized — always SUM'd from trust_transactions in the lib
+  -- layer, so a balance can't drift out of sync with its own ledger.
+  CREATE TABLE IF NOT EXISTS trust_accounts (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    bankName TEXT,
+    accountLast4 TEXT,
+    createdAt TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS trust_transactions (
+    id TEXT PRIMARY KEY,
+    trustAccountId TEXT NOT NULL,
+    matterId TEXT NOT NULL,
+    type TEXT NOT NULL,
+    amount REAL NOT NULL,
+    description TEXT NOT NULL,
+    transactionDate TEXT NOT NULL,
+    createdByUserId TEXT,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (trustAccountId) REFERENCES trust_accounts(id),
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_trust_transactions_matterId ON trust_transactions(matterId);
+  CREATE INDEX IF NOT EXISTS idx_trust_transactions_trustAccountId ON trust_transactions(trustAccountId);
+
+  -- A permanent record every time someone reconciles an account against a
+  -- bank statement — kept even after the fact, since "we reconciled on this
+  -- date and it matched" is itself the bar-audit evidence, not just a
+  -- transient UI state.
+  CREATE TABLE IF NOT EXISTS trust_reconciliations (
+    id TEXT PRIMARY KEY,
+    trustAccountId TEXT NOT NULL,
+    statementDate TEXT NOT NULL,
+    bankBalance REAL NOT NULL,
+    ledgerBalance REAL NOT NULL,
+    variance REAL NOT NULL,
+    reconciledByUserId TEXT,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (trustAccountId) REFERENCES trust_accounts(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_trust_reconciliations_trustAccountId ON trust_reconciliations(trustAccountId);
+
   CREATE TABLE IF NOT EXISTS matter_notes (
     id TEXT PRIMARY KEY,
     matterId TEXT NOT NULL,

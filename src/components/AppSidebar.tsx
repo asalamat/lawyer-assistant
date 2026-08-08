@@ -17,6 +17,7 @@ import {
   ScaleIcon,
   SearchIcon,
   SettingsIcon,
+  TrustIcon,
   UsersIcon,
 } from "./icons";
 
@@ -24,6 +25,7 @@ const LINKS = [
   { href: "/", label: "Dashboard", Icon: DashboardIcon },
   { href: "/matters", label: "Matters", Icon: MattersIcon },
   { href: "/clients", label: "Clients", Icon: UsersIcon },
+  { href: "/trust-accounting", label: "Trust accounting", Icon: TrustIcon },
   { href: "/reference-library", label: "Reference library", Icon: LibraryIcon },
   { href: "/audit", label: "Audit log", Icon: AuditIcon },
   { href: "/settings", label: "Settings", Icon: SettingsIcon },

@@ -97,6 +97,12 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Log time against a matter, set one default hourly rate per matter, select unbilled entries to generate an invoice with an optional discount, track paid/unpaid status, and email the invoice to the client (once SMTP is configured in Settings) or open it as a draft in your own mail client.",
       },
       {
+        slug: "trust-accounting",
+        name: "Trust accounting",
+        detail:
+          "Bookkeeping support for client trust funds (nav > Trust accounting) — not accounting or tax advice; verify against your bar's own trust-accounting rules. Admins/lawyers create one or more trust accounts there. A matter's own Trust tab records deposits, withdrawals, and transfers to your operating account against whichever trust account holds its funds, and shows a running balance computed fresh from that history every time, never a stored number that could drift. A withdrawal or transfer that would take a matter's balance negative is rejected outright — trust rules exist specifically so one client's funds are never used to cover another's shortfall. From the main Trust accounting page, \"Reconcile\" compares an account's ledger total against a bank statement balance you enter, recording the comparison (and any variance) permanently, whether or not it matches — that record is itself the audit evidence. Every deposit, withdrawal, transfer, and reconciliation is in the audit log.",
+      },
+      {
         slug: "email",
         name: "Email",
         detail:

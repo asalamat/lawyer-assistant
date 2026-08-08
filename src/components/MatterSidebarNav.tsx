@@ -19,6 +19,7 @@ import {
   SecurityIcon,
   SignatureIcon,
   TimesheetIcon,
+  TrustIcon,
   UsersIcon,
 } from "./icons";
 
@@ -43,6 +44,7 @@ export default function MatterSidebarNav({ matterId }: { matterId: string }) {
     { href: `${base}/case-noteup`, label: "Case citations", Icon: ScaleIcon },
     { href: `${base}/drafts`, label: "Drafts", Icon: DraftIcon },
     { href: `${base}/timesheet`, label: "Timesheet", Icon: TimesheetIcon },
+    { href: `${base}/trust`, label: "Trust", Icon: TrustIcon },
     { href: `${base}/email`, label: "Email", Icon: MailIcon },
     { href: `${base}/activity`, label: "Activity", Icon: ActivityIcon },
     { href: `${base}/chat`, label: "Chat", Icon: ChatIcon },

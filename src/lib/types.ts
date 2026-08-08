@@ -362,3 +362,37 @@ export interface StickyNote {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface TrustAccount {
+  id: string;
+  name: string;
+  bankName: string | null;
+  accountLast4: string | null;
+  createdAt: string;
+}
+
+export const TRUST_TRANSACTION_TYPES = ["deposit", "withdrawal", "transfer_to_operating"] as const;
+export type TrustTransactionType = (typeof TRUST_TRANSACTION_TYPES)[number];
+
+export interface TrustTransaction {
+  id: string;
+  trustAccountId: string;
+  matterId: string;
+  type: TrustTransactionType;
+  amount: number;
+  description: string;
+  transactionDate: string;
+  createdByUserId: string | null;
+  createdAt: string;
+}
+
+export interface TrustReconciliation {
+  id: string;
+  trustAccountId: string;
+  statementDate: string;
+  bankBalance: number;
+  ledgerBalance: number;
+  variance: number;
+  reconciledByUserId: string | null;
+  createdAt: string;
+}
