@@ -268,6 +268,23 @@ export interface PortalMessage {
   readAt: string | null;
 }
 
+export interface DocumentTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  content: string;
+  createdAt: string;
+  createdByUserId: string | null;
+}
+
+export interface AssembledDocument {
+  id: string;
+  matterId: string;
+  templateId: string;
+  content: string;
+  createdAt: string;
+}
+
 export const DRAFT_TYPES = [
   "Research memo",
   "Demand letter",

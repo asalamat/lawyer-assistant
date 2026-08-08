@@ -93,6 +93,7 @@ export const ACTION_LABELS: Record<string, string> = {
   trust_account_reconciled: "Trust account reconciled",
   deadline_computed: "Deadline computed from a rule",
   portal_message_sent: "Client portal message sent",
+  document_assembled: "Document generated from a template",
 };
 
 export async function recordAuditEvent(

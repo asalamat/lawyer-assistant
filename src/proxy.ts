@@ -62,7 +62,12 @@ const ADMIN_ONLY_API_PREFIXES = [
 
 // Pages under /settings that are personal preferences, not firm-wide
 // resources — open to every user, not just admins.
-const NON_ADMIN_SETTINGS_PAGES = ["/settings", "/settings/security", "/settings/translation"];
+const NON_ADMIN_SETTINGS_PAGES = [
+  "/settings",
+  "/settings/security",
+  "/settings/translation",
+  "/settings/document-templates",
+];
 
 // Top-level (non-/settings) pages that are still admin-only — operational/
 // infrastructure detail (storage paths, row counts, backup state), same
@@ -81,8 +86,15 @@ function isAdminOnlyPage(pathname: string): boolean {
 
 function isAdminOnlyApi(pathname: string): boolean {
   // Appearance and Translation settings are personal preferences, not
-  // firm-wide resources like API keys — open to all users.
-  if (pathname === "/api/settings/location" || pathname === "/api/settings/translation") {
+  // firm-wide resources like API keys — open to all users. Document
+  // templates are just reusable text any staff member might reasonably
+  // author (retainer letters, standard correspondence) — same tier as
+  // drafting a document, not a firm-wide credential/integration.
+  if (
+    pathname === "/api/settings/location" ||
+    pathname === "/api/settings/translation" ||
+    pathname.startsWith("/api/settings/document-templates")
+  ) {
     return false;
   }
   return ADMIN_ONLY_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));

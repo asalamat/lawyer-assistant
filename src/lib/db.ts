@@ -318,6 +318,34 @@ execWithRetry(`
   );
   CREATE INDEX IF NOT EXISTS idx_portal_messages_matterId ON portal_messages(matterId);
 
+  -- Merge-field document templates ("{{matter.title}}") authored directly
+  -- in-app as markdown/text, not real uploaded .docx files — reuses the
+  -- same rendering/export pipeline every other generated document already
+  -- has instead of adding a docx-templating dependency for less benefit.
+  CREATE TABLE IF NOT EXISTS document_templates (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    content TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    createdByUserId TEXT
+  );
+
+  -- templateId is deliberately NOT a hard foreign key — content is a fully
+  -- rendered, self-contained snapshot at generation time, so a generated
+  -- document stays valid (and viewable) even after its template is edited
+  -- or deleted; templateId is just informational lineage, not something
+  -- deleting a template should be blocked by.
+  CREATE TABLE IF NOT EXISTS assembled_documents (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    templateId TEXT,
+    content TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_assembled_documents_matterId ON assembled_documents(matterId);
+
   CREATE TABLE IF NOT EXISTS client_sessions (
     tokenHash TEXT PRIMARY KEY,
     clientUserId TEXT NOT NULL,
