@@ -95,7 +95,11 @@ export async function updateLead(
 }
 
 export async function deleteLead(id: string): Promise<void> {
+  const lead = await getLead(id);
   db.prepare("DELETE FROM leads WHERE id = ?").run(id);
+  if (lead) {
+    await recordAuditEvent("lead_deleted", null, `Deleted lead "${lead.name}"`);
+  }
 }
 
 // Reuses createMatter() — the exact same path the "New matter" form uses,

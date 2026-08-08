@@ -30,6 +30,10 @@ export default function LeadDetailPanel({ initialLead }: { initialLead: Lead }) 
   const [converting, setConverting] = useState(false);
   const [convertError, setConvertError] = useState<string | null>(null);
 
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -57,6 +61,23 @@ export default function LeadDetailPanel({ initialLead }: { initialLead: Lead }) 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ stage }),
     });
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/leads/${lead.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error ?? "Failed to delete lead");
+      }
+      router.push("/leads");
+      router.refresh();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Something went wrong");
+      setDeleting(false);
+    }
   }
 
   async function handleConvert(e: React.FormEvent) {
@@ -153,6 +174,32 @@ export default function LeadDetailPanel({ initialLead }: { initialLead: Lead }) 
             {saving ? "Saving…" : "Save"}
           </button>
         </form>
+      </div>
+
+      <div>
+        <h2 className="mb-2 font-display text-lg">Danger zone</h2>
+        <div className="surface-row flex flex-col gap-2">
+          <p className="text-sm text-muted">
+            Type <span className="font-mono">DELETE</span> to remove this lead permanently.
+          </p>
+          <div className="flex items-center gap-2">
+            <input
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              className="surface-input"
+              placeholder="DELETE"
+            />
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleteConfirmText !== "DELETE" || deleting}
+              className="btn-secondary text-red-600 disabled:opacity-50"
+            >
+              {deleting ? "Deleting…" : "Delete lead"}
+            </button>
+          </div>
+          {deleteError && <p className="text-sm text-red-600">{deleteError}</p>}
+        </div>
       </div>
     </div>
   );
