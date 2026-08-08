@@ -162,6 +162,12 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Maps allegations/charges to the elements that must be proven, the supporting evidence for each, and evidentiary gaps. Does not predict outcomes. Citations are checked against the matter's real documents; anything that doesn't match is flagged. Translate it or export as PDF like any other generated document. Once generated, click Visualize to see it as a node graph — parties, allegations, evidence, and gaps, with their connections. Click any node to highlight just its direct connections, or use the checkboxes to show/hide a whole category and narrow down what you're looking at.",
       },
       {
+        slug: "evidence-connections",
+        name: "Evidence connections",
+        detail:
+          "Unlike Evidence matrix's graph (which visualizes an already-generated matrix), this reads the matter's documents directly and maps how each one connects to an allegation — corroborates, contradicts, or is missing for it — with the actual relationship labeled on each connection. A photo's AI-generated visual description (see Document upload above) participates the same way a text document does, so a photo can show up connected to the allegation it supports or contradicts. Click Visualize to build it; click any node to highlight just its direct connections.",
+      },
+      {
         slug: "contradictions",
         name: "Contradictions",
         detail:

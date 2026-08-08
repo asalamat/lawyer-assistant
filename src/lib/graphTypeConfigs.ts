@@ -42,6 +42,25 @@ export const DEFENCE_GRAPH_TYPES: GraphTypeConfig = {
   columnX: { weakness: 0, theory: 340, issue: 680, step: 1020 },
 };
 
+// document (a piece of evidence) -> allegation (what it relates to) ->
+// gap (an allegation with missing evidence). Unlike EVIDENCE_GRAPH_TYPES
+// above (which reformats an already-generated matrix), this graph analyzes
+// the matter's raw documents directly — see extractEvidenceConnections.
+export const CONNECTIONS_GRAPH_TYPES: GraphTypeConfig = {
+  order: ["document", "allegation", "gap"],
+  labels: {
+    document: "Documents",
+    allegation: "Allegations",
+    gap: "Gaps",
+  },
+  colors: {
+    document: { bg: "#dcfce7", border: "#16a34a" },
+    allegation: { bg: "#fef3c7", border: "#d97706" },
+    gap: { bg: "#fee2e2", border: "#dc2626" },
+  },
+  columnX: { document: 0, allegation: 340, gap: 680 },
+};
+
 // Keyed registry so the chromeless fullscreen view (opened in a new tab,
 // see /graph-view/[id]) can look up the right config from a short string
 // in the URL/localStorage instead of needing to serialize the config
@@ -49,5 +68,6 @@ export const DEFENCE_GRAPH_TYPES: GraphTypeConfig = {
 export const GRAPH_TYPE_CONFIGS: Record<string, GraphTypeConfig> = {
   evidence: EVIDENCE_GRAPH_TYPES,
   defence: DEFENCE_GRAPH_TYPES,
+  connections: CONNECTIONS_GRAPH_TYPES,
 };
 export type GraphKind = keyof typeof GRAPH_TYPE_CONFIGS;

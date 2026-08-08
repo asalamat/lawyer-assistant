@@ -954,6 +954,85 @@ export async function extractMissingEvidenceItems(
   });
 }
 
+export interface EvidenceConnectionNode {
+  id: string;
+  label: string;
+  type: "document" | "allegation" | "gap";
+}
+
+export interface EvidenceConnectionEdge {
+  source: string;
+  target: string;
+  label: string | null;
+}
+
+export interface EvidenceConnectionGraph {
+  nodes: EvidenceConnectionNode[];
+  edges: EvidenceConnectionEdge[];
+}
+
+const EVIDENCE_CONNECTIONS_SCHEMA = {
+  type: "object",
+  properties: {
+    nodes: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "short unique slug, e.g. 'doc-1'" },
+          label: { type: "string", description: "a few words, shown on the graph — a filename for a document node" },
+          type: { type: "string", enum: ["document", "allegation", "gap"] },
+        },
+        required: ["id", "label", "type"],
+        additionalProperties: false,
+      },
+    },
+    edges: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          source: { type: "string" },
+          target: { type: "string" },
+          label: {
+            anyOf: [{ type: "string" }, { type: "null" }],
+            description: "the actual relationship, e.g. 'corroborates', 'contradicts', 'missing evidence for'",
+          },
+        },
+        required: ["source", "target", "label"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["nodes", "edges"],
+  additionalProperties: false,
+};
+
+// Unlike extractEvidenceGraph/extractDefenceGraph (which only reformat an
+// already-generated analysis), this reads the matter's raw documents
+// directly — a photo's AI visual description (see analyzeDocumentPhoto in
+// matters.ts) flows in here the same way any other document's text does,
+// since sections come from the same getMatterDocumentSections every other
+// full-context feature uses.
+export async function extractEvidenceConnections(
+  sections: MatterDocumentSection[],
+): Promise<EvidenceConnectionGraph> {
+  const system = `You are a legal assistant mapping how pieces of evidence connect to each other for a lawyer's case file. Base every node and edge only on the provided matter documents — never invent an allegation, document, or relationship. Create one node per document that contains case-relevant content (label = its filename), one node per distinct allegation/claim/charge you find across the documents, and one node per evidentiary gap you identify (an allegation with no supporting document, or a document that references evidence not itself provided). Create an edge from each document node to the allegation(s) it corroborates, contradicts, or otherwise relates to, and from each gap node to the allegation it's missing evidence for — label each edge with the actual relationship in a few words (e.g. "corroborates", "contradicts", "missing evidence for"). Skip documents with no case-relevant content instead of forcing a connection.`;
+
+  if (sections.length === 0) {
+    return { nodes: [], edges: [] };
+  }
+
+  const context = await buildMatterContext(sections);
+  return completeJSON<EvidenceConnectionGraph>({
+    system,
+    messages: [{ role: "user", content: context }],
+    schema: EVIDENCE_CONNECTIONS_SCHEMA,
+    schemaName: "evidence_connections",
+    maxTokens: 8192,
+  });
+}
+
 // Generic translation for any AI-generated output in this app (digests,
 // evidence matrices, drafts, chat answers, independent reviews, email
 // drafts) — not matter-specific, so it takes plain text/markdown rather

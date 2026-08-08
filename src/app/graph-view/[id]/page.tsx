@@ -35,7 +35,12 @@ function GraphFullscreenContent() {
   if (graph === null) return null;
 
   const typeConfig = GRAPH_TYPE_CONFIGS[kind] ?? GRAPH_TYPE_CONFIGS.evidence;
-  const title = kind === "defence" ? "Defence graph" : "Evidence graph";
+  const titles: Record<GraphKind, string> = {
+    evidence: "Evidence graph",
+    defence: "Defence graph",
+    connections: "Evidence connections",
+  };
+  const title = titles[kind] ?? titles.evidence;
 
   if (graph === "missing") {
     return (
