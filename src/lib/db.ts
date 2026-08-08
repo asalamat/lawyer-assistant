@@ -678,6 +678,21 @@ execWithRetry(`
     FOREIGN KEY (matterId) REFERENCES matters(id)
   );
   CREATE INDEX IF NOT EXISTS idx_privilege_reviews_matterId ON privilege_reviews(matterId);
+
+  -- A "wish item" any signed-in user can submit from the Help page — not
+  -- tied to a matter, just a lightweight backlog everyone at the firm can
+  -- see (so a request doesn't get duplicated) and an admin can triage.
+  CREATE TABLE IF NOT EXISTS feature_requests (
+    id TEXT PRIMARY KEY,
+    userId TEXT NOT NULL,
+    userName TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    status TEXT NOT NULL DEFAULT 'new',
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (userId) REFERENCES users(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_feature_requests_status ON feature_requests(status);
 `);
 
 // Schema migrations for columns added after the table already existed on a

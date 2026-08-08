@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { HELP_SECTIONS } from "@/lib/helpContent";
 import type { AppVersion } from "@/lib/systemInfo";
+import FeatureRequestsPanel from "@/components/FeatureRequestsPanel";
 import UploadProcessDiagram from "@/components/UploadProcessDiagram";
 
 // Renders extra, non-text content inline after a specific help item's
@@ -12,7 +13,7 @@ const EXTRAS: Record<string, React.ReactNode> = {
   "document-upload": <UploadProcessDiagram />,
 };
 
-export default function HelpGuide({ version }: { version: AppVersion }) {
+export default function HelpGuide({ version, isAdmin }: { version: AppVersion; isAdmin: boolean }) {
   const [filter, setFilter] = useState("");
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
   const articleRefs = useRef<Map<string, HTMLElement>>(new Map());
@@ -106,6 +107,7 @@ export default function HelpGuide({ version }: { version: AppVersion }) {
       </aside>
 
       <div className="min-w-0 flex-1">
+        <FeatureRequestsPanel isAdmin={isAdmin} />
         {groups.map((group) => {
           const visibleItems = group.items.filter((item) => isMatch(item.name, item.detail));
           if (visibleItems.length === 0) return null;

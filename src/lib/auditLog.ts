@@ -98,6 +98,9 @@ export const ACTION_LABELS: Record<string, string> = {
   lead_stage_changed: "Lead stage changed",
   lead_converted: "Lead converted to matter",
   lead_deleted: "Lead deleted",
+  feature_request_submitted: "Wish item submitted",
+  feature_request_status_changed: "Wish item status changed",
+  feature_request_deleted: "Wish item deleted",
   calendar_sync_toggled: "Calendar sync toggled",
   deadline_pushed_to_calendar: "Deadline pushed to calendar",
 };

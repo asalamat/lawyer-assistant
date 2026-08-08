@@ -312,6 +312,19 @@ export interface Lead {
   convertedAt: string | null;
 }
 
+export const FEATURE_REQUEST_STATUSES = ["new", "planned", "declined", "done"] as const;
+export type FeatureRequestStatus = (typeof FEATURE_REQUEST_STATUSES)[number];
+
+export interface FeatureRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  title: string;
+  description: string | null;
+  status: FeatureRequestStatus;
+  createdAt: string;
+}
+
 export const DRAFT_TYPES = [
   "Research memo",
   "Demand letter",
