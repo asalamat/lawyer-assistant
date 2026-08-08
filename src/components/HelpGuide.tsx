@@ -151,6 +151,13 @@ export default function HelpGuide({ version }: { version: AppVersion }) {
           Version {version.appVersion}
           {version.gitCommit && ` (${version.gitCommit.shortSha})`}
         </p>
+        <p className="mt-2 text-xs text-muted">
+          Developer contact: Ali Salamat —{" "}
+          <a href="mailto:ali.salamat@cortexhq.ai" className="text-accent hover:underline">
+            ali.salamat@cortexhq.ai
+          </a>{" "}
+          · (416) 984-9845
+        </p>
       </div>
     </div>
   );
