@@ -255,6 +255,19 @@ export interface Holiday {
   createdAt: string;
 }
 
+export const PORTAL_MESSAGE_SENDER_TYPES = ["staff", "client"] as const;
+export type PortalMessageSenderType = (typeof PORTAL_MESSAGE_SENDER_TYPES)[number];
+
+export interface PortalMessage {
+  id: string;
+  matterId: string;
+  senderType: PortalMessageSenderType;
+  senderUserId: string | null;
+  content: string;
+  createdAt: string;
+  readAt: string | null;
+}
+
 export const DRAFT_TYPES = [
   "Research memo",
   "Demand letter",

@@ -46,6 +46,7 @@ export default function MatterSidebarNav({ matterId }: { matterId: string }) {
     { href: `${base}/timesheet`, label: "Timesheet", Icon: TimesheetIcon },
     { href: `${base}/trust`, label: "Trust", Icon: TrustIcon },
     { href: `${base}/email`, label: "Email", Icon: MailIcon },
+    { href: `${base}/messages`, label: "Client messages", Icon: ChatIcon },
     { href: `${base}/activity`, label: "Activity", Icon: ActivityIcon },
     { href: `${base}/chat`, label: "Chat", Icon: ChatIcon },
   ];

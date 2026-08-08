@@ -302,6 +302,22 @@ execWithRetry(`
   );
   CREATE INDEX IF NOT EXISTS idx_client_users_clientId ON client_users(clientId);
 
+  -- In-app messaging between staff and a client's portal account — an
+  -- actual two-way thread, not the one-directional document-sharing the
+  -- portal launched with. No real SMS/texting integration (that needs a
+  -- Twilio-like account this firm doesn't have yet) — in-app only.
+  CREATE TABLE IF NOT EXISTS portal_messages (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    senderType TEXT NOT NULL,
+    senderUserId TEXT,
+    content TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    readAt TEXT,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_portal_messages_matterId ON portal_messages(matterId);
+
   CREATE TABLE IF NOT EXISTS client_sessions (
     tokenHash TEXT PRIMARY KEY,
     clientUserId TEXT NOT NULL,

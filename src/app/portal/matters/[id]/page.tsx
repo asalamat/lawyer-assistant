@@ -3,7 +3,9 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getClientSessionUser } from "@/lib/clientAuth";
 import { getMatter, listDocuments } from "@/lib/matters";
+import { listPortalMessages } from "@/lib/portalMessages";
 import PortalLogoutButton from "@/components/PortalLogoutButton";
+import PortalMessagesPanel from "@/components/PortalMessagesPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +30,7 @@ export default async function PortalMatterPage({
   if (!matter || matter.clientId !== user.clientId) notFound();
 
   const documents = (await listDocuments(id)).filter((doc) => doc.sharedWithClient);
+  const messages = await listPortalMessages(id);
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-10">
@@ -67,6 +70,8 @@ export default async function PortalMatterPage({
           </ul>
         )}
       </div>
+
+      <PortalMessagesPanel matterId={id} initialMessages={messages} />
     </main>
   );
 }

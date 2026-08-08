@@ -92,6 +92,7 @@ export const ACTION_LABELS: Record<string, string> = {
   trust_transfer_recorded: "Trust transfer to operating recorded",
   trust_account_reconciled: "Trust account reconciled",
   deadline_computed: "Deadline computed from a rule",
+  portal_message_sent: "Client portal message sent",
 };
 
 export async function recordAuditEvent(

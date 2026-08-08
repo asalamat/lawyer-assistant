@@ -304,6 +304,7 @@ export async function deleteMatter(matterId: string): Promise<boolean> {
   db.prepare("DELETE FROM invoices WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM time_entries WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM trust_transactions WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM portal_messages WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM matter_notes WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM matter_reference_documents WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM document_chunks WHERE matterId = ?").run(matterId);
