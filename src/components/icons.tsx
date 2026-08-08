@@ -352,3 +352,12 @@ export const PanelExpandIcon = (props: IconProps) =>
     </>,
     props,
   );
+
+export const StickyNoteIcon = (props: IconProps) =>
+  base(
+    <>
+      <path d="M4 4h13l3 3v10a3 3 0 0 1-3 3H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" />
+      <path d="M17 4v4a1 1 0 0 0 1 1h4" />
+    </>,
+    props,
+  );

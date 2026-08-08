@@ -3,6 +3,7 @@ import { Fraunces, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import { getCurrentUser } from "@/lib/auth";
 import { getAppVersion } from "@/lib/systemInfo";
 import ConditionalNav from "@/components/ConditionalNav";
+import StickyNotesWidget from "@/components/StickyNotesWidget";
 import ThemeScript from "@/components/ThemeScript";
 import TopUtilityBar from "@/components/TopUtilityBar";
 import "./globals.css";
@@ -54,6 +55,7 @@ export default async function RootLayout({
           <TopUtilityBar />
           {children}
         </div>
+        <StickyNotesWidget />
       </body>
     </html>
   );

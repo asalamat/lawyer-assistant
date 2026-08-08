@@ -346,3 +346,15 @@ export interface EmailFolder {
   id: string;
   name: string;
 }
+
+export const STICKY_NOTE_COLORS = ["yellow", "pink", "blue", "green", "purple"] as const;
+export type StickyNoteColor = (typeof STICKY_NOTE_COLORS)[number];
+
+export interface StickyNote {
+  id: string;
+  pagePath: string;
+  content: string;
+  color: StickyNoteColor;
+  createdAt: string;
+  updatedAt: string;
+}

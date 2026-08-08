@@ -244,6 +244,22 @@ execWithRetry(`
   );
   CREATE INDEX IF NOT EXISTS idx_client_sessions_clientUserId ON client_sessions(clientUserId);
 
+  -- A personal, freeform note pinned to a specific page (keyed by its raw
+  -- pathname, e.g. "/matters/abc123/digest") — private to the user who
+  -- wrote it, never shown to anyone else. Multiple notes per page, like
+  -- real sticky notes on a monitor.
+  CREATE TABLE IF NOT EXISTS sticky_notes (
+    id TEXT PRIMARY KEY,
+    userId TEXT NOT NULL,
+    pagePath TEXT NOT NULL,
+    content TEXT NOT NULL,
+    color TEXT NOT NULL DEFAULT 'yellow',
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT NOT NULL,
+    FOREIGN KEY (userId) REFERENCES users(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_sticky_notes_user_page ON sticky_notes(userId, pagePath);
+
   -- Issued once a password has already been verified but MFA is still
   -- outstanding — a real session is only ever created after the TOTP/backup
   -- code check passes. Short-lived (see createPendingMfaToken), single-use.

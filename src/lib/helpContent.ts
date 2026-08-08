@@ -11,6 +11,17 @@ export interface HelpSection {
 
 export const HELP_SECTIONS: HelpSection[] = [
   {
+    title: "General",
+    items: [
+      {
+        slug: "sticky-notes",
+        name: "Sticky notes",
+        detail:
+          "The note icon in the bottom-right corner of every page lets you leave yourself quick reminders pinned to that specific page — a matter's Digest tab, the Dashboard, Settings, anywhere. Click it to open the panel, \"+ New note\" to add one, and just start typing — it saves automatically as you go. Add as many as you like per page, pick a color for each with the dots at the top of the note, and click the ✕ to remove one you're done with. These are private to you: no one else, including other staff who open the same page, ever sees them.",
+      },
+    ],
+  },
+  {
     title: "Matters",
     items: [
       {
