@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 interface BackupInfo {
   fileName: string;
@@ -22,6 +22,12 @@ export default function BackupManager({
   const [confirmText, setConfirmText] = useState("");
   const [restoring, setRestoring] = useState(false);
   const [restoreResult, setRestoreResult] = useState<string | null>(null);
+
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadConfirming, setUploadConfirming] = useState(false);
+  const [uploadConfirmText, setUploadConfirmText] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function refresh() {
     const res = await fetch("/api/backup");
@@ -73,6 +79,30 @@ export default function BackupManager({
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setRestoring(false);
+    }
+  }
+
+  async function handleRestoreUpload() {
+    if (!uploadFile) return;
+    setUploading(true);
+    setError(null);
+    setRestoreResult(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", uploadFile);
+      formData.append("confirm", "RESTORE");
+      const res = await fetch("/api/backup/restore-upload", { method: "POST", body: formData });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Restore failed");
+      setRestoreResult(body.message);
+      setUploadFile(null);
+      setUploadConfirming(false);
+      setUploadConfirmText("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -170,6 +200,67 @@ export default function BackupManager({
           ))}
         </ul>
       )}
+
+      <div className="surface-row flex flex-col gap-2 text-sm">
+        <p className="font-medium">Restore from a file</p>
+        <p className="text-muted">
+          Browse to any backup <span className="font-mono">.tar.gz</span> file on this computer —
+          one downloaded earlier, copied in from another machine, or from before a migration —
+          not just the ones kept above.
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".gz,.tar.gz,application/gzip"
+          onChange={(e) => {
+            setUploadFile(e.target.files?.[0] ?? null);
+            setUploadConfirming(false);
+            setUploadConfirmText("");
+          }}
+          className="text-sm"
+        />
+        {uploadFile && !uploadConfirming && (
+          <button onClick={() => setUploadConfirming(true)} className="btn-secondary self-start text-xs">
+            Restore from {uploadFile.name}
+          </button>
+        )}
+        {uploadFile && uploadConfirming && (
+          <div className="surface-row flex flex-col gap-2 border-red-600/30 bg-red-600/5">
+            <p className="font-medium text-red-700 dark:text-red-400">
+              This replaces ALL current data (matters, documents, users, everything) with the
+              contents of {uploadFile.name}. The current data isn&apos;t deleted — it&apos;s moved
+              aside on disk — but you must restart the app immediately after for the restore to
+              take effect.
+            </p>
+            <p>
+              Type <span className="font-mono">RESTORE</span> to confirm:
+            </p>
+            <input
+              value={uploadConfirmText}
+              onChange={(e) => setUploadConfirmText(e.target.value)}
+              className="surface-input"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={handleRestoreUpload}
+                disabled={uploadConfirmText !== "RESTORE" || uploading}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+              >
+                {uploading ? "Restoring…" : "Restore now"}
+              </button>
+              <button
+                onClick={() => {
+                  setUploadConfirming(false);
+                  setUploadConfirmText("");
+                }}
+                className="btn-secondary"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="surface-row flex flex-col gap-2 text-sm">
         <p className="font-medium">Automatic backups</p>
