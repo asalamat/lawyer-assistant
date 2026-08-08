@@ -34,6 +34,19 @@ function execWithRetry(sql: string, attempts = 10): void {
 
 execWithRetry("PRAGMA journal_mode = WAL;");
 execWithRetry("PRAGMA busy_timeout = 5000;");
+// synchronous=FULL is WAL's default but costs an extra fsync per
+// transaction that NORMAL doesn't need — under WAL, NORMAL still guarantees
+// the database itself can never be corrupted by an app crash or power loss
+// (only the most recent commit could theoretically be lost, and durability
+// here already rests on this being a single-file local app, not a
+// multi-writer server). Standard recommended pairing for WAL mode.
+execWithRetry("PRAGMA synchronous = NORMAL;");
+// Sized for this app's actual working set (a handful of matters' worth of
+// hot data at a time, not the whole database) — 20MB page cache instead of
+// SQLite's ~2MB default, and lets SQLite memory-map up to 256MB of the file
+// for reads instead of always going through its own page cache.
+execWithRetry("PRAGMA cache_size = -20000;");
+execWithRetry("PRAGMA mmap_size = 268435456;");
 
 execWithRetry(`
   CREATE TABLE IF NOT EXISTS matters (
@@ -72,6 +85,11 @@ execWithRetry(`
     detail TEXT NOT NULL,
     createdAt TEXT NOT NULL
   );
+  -- The single most-queried column on this table besides the primary key —
+  -- every matter's Activity timeline, and the analytics "matters closed"
+  -- month-bucket scan, filter by matterId. Never indexed before now, so
+  -- both did a full sequential scan of an append-only, ever-growing table.
+  CREATE INDEX IF NOT EXISTS idx_audit_log_matterId ON audit_log(matterId);
 
   CREATE TABLE IF NOT EXISTS matter_digests (
     id TEXT PRIMARY KEY,
@@ -125,6 +143,11 @@ execWithRetry(`
     createdAt TEXT NOT NULL,
     FOREIGN KEY (matterId) REFERENCES matters(id)
   );
+  -- Analytics' hoursByUser filters by workedOn range — previously
+  -- unindexed. userId (grouped by in the same query) is added later via
+  -- ensureColumn, so its index lives down there instead — this table
+  -- doesn't have that column yet the first time this block ever runs.
+  CREATE INDEX IF NOT EXISTS idx_time_entries_workedOn ON time_entries(workedOn);
 
   CREATE TABLE IF NOT EXISTS email_accounts (
     id TEXT PRIMARY KEY,
@@ -455,6 +478,7 @@ execWithRetry(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_agent_runs_draftId ON agent_runs(draftId);
+  CREATE INDEX IF NOT EXISTS idx_agent_runs_matterId ON agent_runs(matterId);
 
   CREATE TABLE IF NOT EXISTS document_chunks (
     id TEXT PRIMARY KEY,
@@ -505,6 +529,7 @@ execWithRetry(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_client_access_tokens_resourceId ON client_access_tokens(resourceId);
+  CREATE INDEX IF NOT EXISTS idx_client_access_tokens_matterId ON client_access_tokens(matterId);
 
   -- Retainer agreements / conflict waivers / privacy consent / custom
   -- documents that need a client signature. status tracks the workflow
@@ -808,6 +833,7 @@ execWithRetry(`
   );
   CREATE INDEX IF NOT EXISTS idx_campaign_enrollments_nextSendAt ON campaign_enrollments(nextSendAt);
   CREATE INDEX IF NOT EXISTS idx_campaign_enrollments_leadId ON campaign_enrollments(leadId);
+  CREATE INDEX IF NOT EXISTS idx_campaign_enrollments_campaignId ON campaign_enrollments(campaignId);
 `);
 
 // Schema migrations for columns added after the table already existed on a
@@ -914,6 +940,7 @@ ensureColumn("matter_deadlines", "triggerDate", "TEXT");
 // the firm analytics dashboard can show hours logged per person going
 // forward. Historical entries stay NULL and simply don't count toward it.
 ensureColumn("time_entries", "userId", "TEXT");
+execWithRetry("CREATE INDEX IF NOT EXISTS idx_time_entries_userId ON time_entries(userId);");
 
 // One-way calendar push (deadlines -> Google/Outlook), off by default even
 // once a mail account is connected — nothing gets pushed to a calendar

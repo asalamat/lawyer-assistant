@@ -8,8 +8,10 @@ export default async function MatterEvidenceMatrixPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const evidenceMatrices = await listEvidenceMatrices(id);
-  const independentReviews = await listIndependentReviews(id);
+  const [evidenceMatrices, independentReviews] = await Promise.all([
+    listEvidenceMatrices(id),
+    listIndependentReviews(id),
+  ]);
   const initialUnverifiedCitations = evidenceMatrices[0]
     ? await findUnverifiedCitations(id, evidenceMatrices[0].content)
     : [];

@@ -7,8 +7,10 @@ export default async function MatterDigestPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const digests = await listDigests(id);
-  const independentReviews = await listIndependentReviews(id);
+  const [digests, independentReviews] = await Promise.all([
+    listDigests(id),
+    listIndependentReviews(id),
+  ]);
   const initialUnverifiedCitations = digests[0]
     ? await findUnverifiedCitations(id, digests[0].content)
     : [];

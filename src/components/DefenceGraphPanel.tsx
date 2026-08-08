@@ -1,8 +1,15 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { DEFENCE_GRAPH_TYPES } from "@/lib/graphTypeConfigs";
-import GraphView, { type Graph } from "./GraphView";
+import type { Graph } from "./GraphView";
+
+// React Flow (@xyflow/react) is a large dependency that this panel only
+// ever needs after the user clicks "Visualize" — dynamically importing it
+// keeps its JS and CSS out of this page's initial bundle for the (common)
+// case where no graph has been built yet.
+const GraphView = dynamic(() => import("./GraphView"), { ssr: false });
 
 export default function DefenceGraphPanel({
   matterId,

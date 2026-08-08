@@ -7,8 +7,10 @@ export default async function MatterExhibitListPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const lists = await listExhibitLists(id);
-  const independentReviews = await listIndependentReviews(id);
+  const [lists, independentReviews] = await Promise.all([
+    listExhibitLists(id),
+    listIndependentReviews(id),
+  ]);
   const initialUnverifiedCitations = lists[0]
     ? await findUnverifiedCitations(id, lists[0].content)
     : [];

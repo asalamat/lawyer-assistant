@@ -7,8 +7,10 @@ export default async function MatterContradictionsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const analyses = await listContradictionAnalyses(id);
-  const independentReviews = await listIndependentReviews(id);
+  const [analyses, independentReviews] = await Promise.all([
+    listContradictionAnalyses(id),
+    listIndependentReviews(id),
+  ]);
   const initialUnverifiedCitations = analyses[0]
     ? await findUnverifiedCitations(id, analyses[0].content)
     : [];

@@ -7,8 +7,10 @@ export default async function MatterCrownPositionPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const analyses = await listCrownPositionAnalyses(id);
-  const independentReviews = await listIndependentReviews(id);
+  const [analyses, independentReviews] = await Promise.all([
+    listCrownPositionAnalyses(id),
+    listIndependentReviews(id),
+  ]);
   const initialUnverifiedCitations = analyses[0]
     ? await findUnverifiedCitations(id, analyses[0].content)
     : [];

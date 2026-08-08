@@ -13,11 +13,13 @@ export default async function MatterChatPage({
 }) {
   const { id } = await params;
 
-  const messages = await listChatMessages(id);
-  const documents = await listDocuments(id);
+  const [messages, documents, feedback, reviews] = await Promise.all([
+    listChatMessages(id),
+    listDocuments(id),
+    getFeedbackForMatter(id),
+    listIndependentReviews(id),
+  ]);
   const knownFilenames = documents.map((doc) => doc.fileName);
-  const feedback = await getFeedbackForMatter(id);
-  const reviews = await listIndependentReviews(id);
   const chatReviews = reviews.filter((r) => r.sourceType === "chat_message");
 
   return (

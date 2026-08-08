@@ -2,6 +2,7 @@ import { mkdir, rm, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import { createHash } from "crypto";
 import path from "path";
+import { cache } from "react";
 import { recordAuditEvent } from "./auditLog";
 import { findOrCreateClient } from "./clients";
 import { encryptFile } from "./crypto";
@@ -55,10 +56,14 @@ export async function listMatters(): Promise<Matter[]> {
     .map((row) => toPlain<Matter>(row));
 }
 
-export async function getMatter(id: string): Promise<Matter | null> {
+// Wrapped in React's per-request cache — a matter's layout and every one
+// of its ~20 tab pages independently call getMatter(id) with the same id
+// on every navigation; without this each of those was its own round-trip
+// to the database for identical data within the same request.
+export const getMatter = cache(async (id: string): Promise<Matter | null> => {
   const row = db.prepare("SELECT * FROM matters WHERE id = ?").get(id);
   return row ? toPlain<Matter>(row) : null;
-}
+});
 
 function generateFileNumber(createdAt: string): string {
   const year = createdAt.slice(0, 4);

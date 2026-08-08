@@ -7,8 +7,10 @@ export default async function MatterDisclosureChecklistPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const checklists = await listDisclosureChecklists(id);
-  const independentReviews = await listIndependentReviews(id);
+  const [checklists, independentReviews] = await Promise.all([
+    listDisclosureChecklists(id),
+    listIndependentReviews(id),
+  ]);
   const initialUnverifiedCitations = checklists[0]
     ? await findUnverifiedCitations(id, checklists[0].content)
     : [];

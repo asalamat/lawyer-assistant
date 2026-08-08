@@ -7,8 +7,10 @@ export default async function MatterPrivilegeReviewPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const reviews = await listPrivilegeReviews(id);
-  const independentReviews = await listIndependentReviews(id);
+  const [reviews, independentReviews] = await Promise.all([
+    listPrivilegeReviews(id),
+    listIndependentReviews(id),
+  ]);
   const initialUnverifiedCitations = reviews[0]
     ? await findUnverifiedCitations(id, reviews[0].content)
     : [];

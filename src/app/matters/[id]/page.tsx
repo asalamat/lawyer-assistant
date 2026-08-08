@@ -18,17 +18,18 @@ export default async function MatterOverviewPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const matter = await getMatter(id);
-  const documents = await annotateNearDuplicates(
-    id,
-    annotateAttachments(annotateDuplicates(await listDocuments(id))),
-  );
-  const attachedReferenceDocs = await listAttachedReferenceDocuments(id);
-  const team = await listTeam(id);
+  const [matter, rawDocuments, attachedReferenceDocs, team, allReferenceDocs] = await Promise.all([
+    getMatter(id),
+    listDocuments(id),
+    listAttachedReferenceDocuments(id),
+    listTeam(id),
+    listReferenceDocuments(),
+  ]);
+  const documents = await annotateNearDuplicates(id, annotateAttachments(annotateDuplicates(rawDocuments)));
   // Only approved reference documents can be attached to a matter — a
   // pending upload isn't available here yet, even to the person who
   // uploaded it, until a lawyer/admin has signed off (see /reference-library).
-  const referenceLibrary = (await listReferenceDocuments()).filter((doc) => doc.approved);
+  const referenceLibrary = allReferenceDocs.filter((doc) => doc.approved);
 
   return (
     <div className="flex flex-col gap-6">

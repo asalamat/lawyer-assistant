@@ -9,9 +9,11 @@ export default async function MatterEmailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const matter = await getMatter(id);
-  const emailConfigured = await isEmailConfigured();
-  const documents = await listDocuments(id);
+  const [matter, emailConfigured, documents] = await Promise.all([
+    getMatter(id),
+    isEmailConfigured(),
+    listDocuments(id),
+  ]);
 
   return (
     <div className="flex flex-col gap-4">
