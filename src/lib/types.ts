@@ -82,6 +82,15 @@ export interface SavedSearch {
   createdAt: string;
 }
 
+// query is a JSON-encoded AnalyticsFilters object, not a plain string.
+export interface SavedReport {
+  id: string;
+  userId: string;
+  label: string;
+  query: string;
+  createdAt: string;
+}
+
 // extractionStatus is null until the first extraction attempt: "ok" (readable),
 // "failed" (extractable in principle but the attempt errored/produced nothing —
 // see extractionError), or "unsupported" (not a type this app tries to read).

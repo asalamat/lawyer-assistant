@@ -416,6 +416,19 @@ execWithRetry(`
 
   CREATE INDEX IF NOT EXISTS idx_saved_searches_userId ON saved_searches(userId);
 
+  -- Same shape as saved_searches above, just a different payload: query
+  -- here is a JSON-encoded AnalyticsFilters object (dateFrom/dateTo/
+  -- matterType) instead of a plain search term.
+  CREATE TABLE IF NOT EXISTS saved_reports (
+    id TEXT PRIMARY KEY,
+    userId TEXT NOT NULL,
+    label TEXT NOT NULL,
+    query TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (userId) REFERENCES users(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_saved_reports_userId ON saved_reports(userId);
+
   CREATE TABLE IF NOT EXISTS clients (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,

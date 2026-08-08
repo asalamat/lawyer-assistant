@@ -230,7 +230,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "analytics",
         name: "Analytics",
         detail:
-          "Firm-wide metrics (nav > Analytics, admins and lawyers only — not visible to staff): matters opened/closed over the last 12 months, work-in-progress (unbilled time value across every open matter), billed vs. collected by month, top matter types, and hours logged per person over the last 90 days. That last one only counts time entries logged since attorney attribution was added to time entries — older entries stay uncounted rather than guessed at. All numbers come straight from the same matters/time-entries/invoices data you already see elsewhere; nothing here is a separate, editable record.",
+          "Firm-wide metrics (nav > Analytics, admins and lawyers only — not visible to staff): matters opened/closed, work-in-progress (unbilled time value across every open matter), billed vs. collected by month, top matter types, and hours logged per person. Defaults to the last 12 months (90 days for hours); the Filters section narrows any of it to a custom date range and/or a specific matter type — every chart and the WIP figure update together. \"Save this report\" keeps a filter combination you'll want to re-run later, personal to your account like a saved search. Hours-per-person only counts time entries logged since attorney attribution was added — older entries stay uncounted rather than guessed at. All numbers come straight from the same matters/time-entries/invoices data you already see elsewhere; nothing here is a separate, editable record.",
       },
     ],
   },
