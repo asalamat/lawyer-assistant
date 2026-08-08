@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { Document, HeadingLevel, Packer, Paragraph } from "docx";
 import { recordAuditEvent } from "./auditLog";
 import { getClient } from "./clients";
 import db, { toPlain } from "./db";
@@ -131,4 +132,34 @@ export async function generateFromTemplate(
   );
 
   return { id, matterId, templateId, content, createdAt };
+}
+
+// Short, no trailing punctuation — a reasonable heuristic for "this is a
+// title, not a sentence." Deliberately applied only to the first non-empty
+// line, not every line that happens to be short — a formal letter is full
+// of short lines further down ("Matter: ...", "Date: ...", "Sincerely,")
+// that would otherwise get misdetected as headings too.
+function looksLikeHeading(line: string): boolean {
+  return line.length > 0 && line.length <= 70 && !/[.,;:]$/.test(line);
+}
+
+// A simple, cleanly-formatted .docx over the same merged content already
+// produced by generateFromTemplate() — an export format alongside the
+// existing PDF export, not a new authoring flow. Templates stay plain text
+// with {{field}} placeholders; this just also renders as a real Word file.
+export async function generateDocxBuffer(assembled: AssembledDocument): Promise<Buffer> {
+  let titleAssigned = false;
+  const paragraphs = assembled.content.split("\n").map((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) return new Paragraph({ text: "" });
+    if (!titleAssigned && looksLikeHeading(line)) {
+      titleAssigned = true;
+      return new Paragraph({ text: line, heading: HeadingLevel.HEADING_2 });
+    }
+    titleAssigned = true;
+    return new Paragraph({ text: line });
+  });
+
+  const doc = new Document({ sections: [{ children: paragraphs }] });
+  return Buffer.from(await Packer.toBuffer(doc));
 }

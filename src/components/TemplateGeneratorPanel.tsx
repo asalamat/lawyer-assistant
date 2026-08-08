@@ -99,7 +99,15 @@ export default function TemplateGeneratorPanel({
           {documents.map((doc) => (
             <div key={doc.id} className="surface-card flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <ExportPdfButton title="Generated document" content={doc.content} />
+                <div className="flex items-center gap-2">
+                  <ExportPdfButton title="Generated document" content={doc.content} />
+                  <a
+                    href={`/api/matters/${matterId}/assembled-documents/${doc.id}/export-docx`}
+                    className="text-sm text-accent hover:underline"
+                  >
+                    Export .docx
+                  </a>
+                </div>
                 <button
                   onClick={() => handleSaveAsDocument(doc.id)}
                   disabled={savedIds.has(doc.id)}
