@@ -216,12 +216,42 @@ export interface MatterNote {
   createdAt: string;
 }
 
+export const DEADLINE_SOURCES = ["extracted", "rule-computed", "manual"] as const;
+export type DeadlineSource = (typeof DEADLINE_SOURCES)[number];
+
 export interface MatterDeadline {
   id: string;
   matterId: string;
   description: string;
   dueDate: string | null;
   sourceDocument: string | null;
+  source: DeadlineSource;
+  ruleId: string | null;
+  triggerDate: string | null;
+  createdAt: string;
+}
+
+export const DEADLINE_OFFSET_UNITS = ["calendar", "business"] as const;
+export type DeadlineOffsetUnit = (typeof DEADLINE_OFFSET_UNITS)[number];
+
+export const DEADLINE_DIRECTIONS = ["after", "before"] as const;
+export type DeadlineDirection = (typeof DEADLINE_DIRECTIONS)[number];
+
+export interface DeadlineRule {
+  id: string;
+  name: string;
+  description: string | null;
+  offsetDays: number;
+  offsetUnit: DeadlineOffsetUnit;
+  direction: DeadlineDirection;
+  createdAt: string;
+}
+
+export interface Holiday {
+  id: string;
+  name: string;
+  date: string;
+  recurringYearly: number;
   createdAt: string;
 }
 

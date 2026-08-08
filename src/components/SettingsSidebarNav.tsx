@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   AiIcon,
   BackupIcon,
+  DeadlineIcon,
   EvidenceIcon,
   IntegrationIcon,
   MailIcon,
@@ -24,6 +25,7 @@ const LINKS = [
   { href: "/settings/transcription", label: "Transcription", Icon: MicIcon, adminOnly: true },
   { href: "/settings/review", label: "Independent review", Icon: ReviewIcon, adminOnly: true },
   { href: "/settings/legal-research", label: "Legal research", Icon: EvidenceIcon, adminOnly: true },
+  { href: "/settings/deadline-rules", label: "Deadline rules", Icon: DeadlineIcon, adminOnly: true },
   { href: "/settings/translation", label: "Translation", Icon: TranslateIcon, adminOnly: false },
   { href: "/settings/privacy", label: "Privacy", Icon: PrivacyIcon, adminOnly: true },
   { href: "/settings/email", label: "Email", Icon: MailIcon, adminOnly: true },

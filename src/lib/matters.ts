@@ -714,10 +714,13 @@ export async function replaceDeadlines(
       ? { ...deadline, sourceDocument: mergeSourceDocument(match.sourceDocument, deadline.sourceDocument) }
       : deadline;
   });
-  db.prepare("DELETE FROM matter_deadlines WHERE matterId = ?").run(matterId);
+  // Scoped to source='extracted' — a rule-computed or manually-added
+  // deadline living in this same table must survive a re-extract, which
+  // otherwise wipes and fully re-derives the list from scratch every time.
+  db.prepare("DELETE FROM matter_deadlines WHERE matterId = ? AND source = 'extracted'").run(matterId);
   const createdAt = new Date().toISOString();
   const insert = db.prepare(
-    "INSERT INTO matter_deadlines (id, matterId, description, dueDate, sourceDocument, createdAt) VALUES (?, ?, ?, ?, ?, ?)",
+    "INSERT INTO matter_deadlines (id, matterId, description, dueDate, sourceDocument, source, createdAt) VALUES (?, ?, ?, ?, ?, 'extracted', ?)",
   );
   for (const deadline of deadlines) {
     insert.run(

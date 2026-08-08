@@ -205,6 +205,29 @@ execWithRetry(`
   );
   CREATE INDEX IF NOT EXISTS idx_trust_reconciliations_trustAccountId ON trust_reconciliations(trustAccountId);
 
+  -- Firm-editable deadline rule library — there's no licensed court-rules
+  -- database in this stack (that's what LawToolBox sells as its core
+  -- product), so the firm defines its own reusable rules ("21 days after
+  -- service, business days") instead of us shipping an authoritative,
+  -- unmaintainable jurisdiction database.
+  CREATE TABLE IF NOT EXISTS deadline_rules (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    offsetDays INTEGER NOT NULL,
+    offsetUnit TEXT NOT NULL,
+    direction TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS holidays (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    date TEXT NOT NULL,
+    recurringYearly INTEGER NOT NULL DEFAULT 1,
+    createdAt TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS matter_notes (
     id TEXT PRIMARY KEY,
     matterId TEXT NOT NULL,
@@ -680,6 +703,17 @@ ensureColumn("documents", "sharedWithClient", "INTEGER NOT NULL DEFAULT 0");
 // viewport size it has no way to know.
 ensureColumn("sticky_notes", "x", "REAL");
 ensureColumn("sticky_notes", "y", "REAL");
+
+// Distinguishes a deadline the AI extracted from a matter's documents
+// (existing behaviour — every pre-existing row backfills to this default,
+// which is accurate: they were all extracted) from one computed by the
+// rules-based calculator or entered by hand. This is what lets
+// replaceDeadlines() below wipe and re-derive only the extracted subset on
+// every re-extract, instead of destroying rule-computed/manual deadlines
+// that happen to live in the same table.
+ensureColumn("matter_deadlines", "source", "TEXT NOT NULL DEFAULT 'extracted'");
+ensureColumn("matter_deadlines", "ruleId", "TEXT");
+ensureColumn("matter_deadlines", "triggerDate", "TEXT");
 
 // Splits the reference library's single shelf into the two shared tiers of
 // the vision doc's three-layer knowledge architecture (client-matter
