@@ -41,27 +41,46 @@ licensing: add as many lawyers and staff as your office needs.
 lifecycle (open/closed/archived), classification (standard/privileged/
 highly-sensitive), legal holds that block deletion, retention dates,
 conflict-of-interest checking (exact and near-miss name matching) on
-intake, and a client roster that automatically links a client's matters
-together.
+intake, and a client roster (individual, corporate, or institutional, with
+contact person and registration number for the latter two) that
+automatically links a client's matters together.
 
 **Document intake** — drag-and-drop upload of text, PDF, Word, Excel/CSV,
-images (OCR), and audio/video (transcription); exact-duplicate detection
-by content hash, plus near-duplicate detection by content similarity for
-re-scanned or reformatted copies; a review queue for documents that fail
-extraction, with a one-click retry; a shared reference library for
-statutes/case law you attach to whichever matters need them.
+images (OCR), and audio/video (transcription); local malware scanning
+(ClamAV) before anything is stored or read, with infected files quarantined
+rather than silently rejected; exact-duplicate detection by content hash,
+plus near-duplicate detection by content similarity for re-scanned or
+reformatted copies; automatic language identification and a processing-
+quality score per document; table structure preserved (as markdown tables)
+instead of flattened, for both PDFs (vector-grid detection) and Word
+documents; email attachments imported and linked back to the email they
+arrived with; a review queue for documents that fail extraction, with a
+one-click retry; a reference library split into firm knowledge (precedents,
+internal know-how) and public legal authority (statutes, case law), each
+attachable to whichever matters need it.
 
-**AI features, grounded and cited** — chat Q&A (retrieval-based, so it
-stays fast and accurate even on large matters), executive digests,
-evidence-mapping matrices, defence strategy memos, deadline extraction,
+**AI features, grounded, cited, and checked** — chat Q&A (retrieval-based
+with hybrid vector + lexical re-ranking and parent-child context expansion,
+so it stays fast and accurate even on large matters), executive digests,
+evidence-mapping matrices, contradiction/witness-inconsistency detection,
+exhibit lists, disclosure-completeness checklists, Crown-position analysis,
+privilege/redaction review, defence strategy memos, deadline extraction,
 first-draft memos/letters/correspondence, and smart email drafting — every
-fact cited to its source document and page number, unsupported claims
-explicitly flagged rather than invented. An independent second AI model
-(Google Gemini) can review any digest, evidence matrix, or chat answer for
-blind spots. Voice dictation on every free-text field, for anyone who'd
-rather speak than type. Any AI-generated output can be translated into a
-configurable language (Settings > Translation), with citations and
-markdown structure preserved, and exported as a clean, printable PDF.
+fact cited to its source document and page number, and every generated
+document independently double-checked for citations that don't match a
+real document in the matter, flagged in the UI rather than trusted blindly.
+An independent second AI model (Google Gemini) can review any digest,
+evidence matrix, or chat answer for blind spots. Voice dictation on every
+free-text field, for anyone who'd rather speak than type. Any AI-generated
+output can be translated into a configurable language (Settings >
+Translation), with citations and markdown structure preserved, and
+exported as a clean, printable PDF.
+
+**Client portal** — a real, persistent login for clients (not just a
+single-use signed link), separate from staff accounts. A lawyer grants
+access from the client's own page and chooses exactly which documents are
+visible; the client logs in anytime to see their own matters and download
+whatever's been shared with them, nothing else.
 
 **Visual evidence & defence graphs** — turns a generated evidence matrix
 or defence strategy memo into an interactive node graph (parties,
@@ -84,14 +103,20 @@ a matter.
 **Security & governance** — real multi-user accounts and roles;
 two-factor authentication (QR-code enrollment, backup codes); per-matter
 ethical walls that restrict a matter to its assigned team, enforced on
-every page and API route; API keys, SMTP credentials, and uploaded
-documents encrypted at rest; a cryptographically tamper-evident audit log
-with a one-click integrity check (and an admin-gated, written-reason-required
-re-anchor path for the rare case the chain needs deliberate repair);
-per-matter legal holds and classification; SIN/SSN/credit card numbers
-(and, optionally, phone numbers and email addresses) automatically masked
-out of matter content before it's sent to any AI provider, on by default
-(Settings > Privacy).
+every page and API route; local malware scanning on every upload; API keys,
+SMTP credentials, and uploaded documents encrypted at rest; a
+cryptographically tamper-evident audit log with a one-click integrity check
+(and an admin-gated, written-reason-required re-anchor path for the rare
+case the chain needs deliberate repair); per-matter legal holds and
+classification; SIN/SSN/credit card numbers (and, optionally, phone numbers
+and email addresses) automatically masked out of matter content before it's
+sent to any AI provider, on by default (Settings > Privacy); DLP-lite
+rate-limiting and audit alerting on bulk exports/downloads (full backup
+downloads, matter emails with several attachments, a client pulling many
+portal documents at once); a written [privacy impact
+assessment](docs/PRIVACY_IMPACT_ASSESSMENT.md) and [incident response
+runbook](docs/INCIDENT_RESPONSE_RUNBOOK.md), honest about what's covered
+and what isn't.
 
 **Backup & restore** — one-click backup of the entire app (matters,
 documents, clients, users, settings) to a downloadable archive, with
@@ -132,6 +157,44 @@ Windows, and Linux.
 
 ## Recent changes
 
+- Privacy impact assessment and incident response runbook — real,
+  codebase-specific documents (not code), honest about what's covered and
+  what isn't
+- DLP-lite: rate limiting and audit alerting on bulk exports/downloads
+  (backup downloads, matter emails with several attachments, portal
+  document downloads)
+- Table structure preserved instead of flattened, for both PDF (vector-grid
+  detection via `pdf-parse`'s `getTable()`) and Word documents (walking
+  mammoth's parsed document tree) — rendered as markdown tables alongside
+  the original extracted text
+- Persistent, login-based client portal — a real account, separate from
+  staff, that a lawyer grants and a client keeps using, in place of a
+  single-use signed link per document
+- Reference library split into firm knowledge and public legal authority
+  tiers, each attachable to a matter independently
+- Email attachments imported and linked back to the email they arrived
+  with, for Gmail, Microsoft Graph, and IMAP/Yahoo
+- Hybrid vector + lexical re-ranking and parent-child chunk expansion for
+  matter chat/drafting retrieval — exact-match legal text (names, case
+  numbers, statute sections) that pure embedding similarity under-ranks now
+  surfaces correctly, and retrieved passages carry surrounding context
+  instead of arriving as isolated fragments
+- Deterministic citation quality-check extended to every generated-document
+  feature (digest, evidence matrix, contradictions, exhibit list,
+  disclosure checklist, Crown-position, privilege review), not just chat
+  and drafting — flags any cited filename that doesn't match a real
+  document in the matter
+- Contradiction/witness-inconsistency detection, exhibit lists,
+  disclosure-completeness checklists, Crown-position analysis, and
+  privilege/redaction review as new AI-generated analyses
+- Local malware scanning (ClamAV) on every upload, matter documents and
+  reference library alike — infected files are quarantined, never chunked
+  or read
+- Corporate/institutional client types (contact person, registration
+  number) alongside individuals; additional draft types; search filters by
+  party/date/type; automatic language identification and a processing-
+  quality score per document; insufficient-evidence gating so a
+  low-confidence retrieval says so instead of guessing
 - Ollama as a fourth AI provider (Settings > AI model) — runs entirely on
   this machine, no account or cost, for offices that want a fully local
   option available as a fallback
@@ -270,11 +333,6 @@ reasoning behind each decision, is in
 
 ## Known limitations (by design, not oversight)
 
-- **No malware scanning on upload.** Both real options (installing
-  system-level antivirus, or sending file content to a cloud scanner) have
-  real costs — the second one specifically means sending privileged client
-  document data to a third party. Skipped deliberately; uploaded files are
-  only ever stored and text-extracted here, never executed.
 - **No verification of case-law/legislation citations against CanLII.**
   CanLII's public API has no citation-search endpoint at all — confirmed
   against their own documentation, not assumed. Citations against a
@@ -289,6 +347,17 @@ reasoning behind each decision, is in
   member who can open a matter can apply or remove its wall, same as legal
   hold and classification. Revisit if that turns out to be too permissive
   in practice.
+- **Matter classification doesn't gate which AI provider a matter uses.** A
+  privileged or highly-sensitive matter can still be sent to a third-party
+  AI provider like any other matter — if certain matters must never leave
+  the machine, that's staff discipline (choosing the local Ollama option)
+  today, not something the system enforces.
+- **No independent penetration test or vendor security assessment.** Every
+  safeguard in this app (encryption, malware scanning, audit log, MFA,
+  DLP-lite) is self-implemented and self-verified. Appropriate for the
+  current size of office this is built for — see
+  [docs/PRIVACY_IMPACT_ASSESSMENT.md](docs/PRIVACY_IMPACT_ASSESSMENT.md) for
+  the full, honest list of what hasn't been independently reviewed.
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for the full reasoning behind every
 item above, plus what's still queued.
