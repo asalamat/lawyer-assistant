@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import type { IndependentReview } from "@/lib/types";
 import ExportPdfButton from "./ExportPdfButton";
 import MarkdownContent from "./MarkdownContent";
@@ -33,6 +34,7 @@ export default function GeneratedDocPanel({
   // any real document/attached reference material for this matter.
   initialUnverifiedCitations?: string[];
 }) {
+  const router = useRouter();
   const [doc, setDoc] = useState(initialDoc);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +44,58 @@ export default function GeneratedDocPanel({
   const [unverifiedCitations, setUnverifiedCitations] = useState(initialUnverifiedCitations);
 
   const currentReview = doc ? reviews.find((r) => r.sourceId === doc.id) : undefined;
+
+  // Keeps this component's state in sync when the server-rendered props
+  // change without a full remount — specifically, router.refresh() below,
+  // fired once a generation started elsewhere (another tab, or before the
+  // user navigated away and came back) is detected to have finished.
+  // Adjusted during render (React's documented pattern for this), not in
+  // an effect, so it doesn't cost an extra render pass.
+  const [prevInitialDoc, setPrevInitialDoc] = useState(initialDoc);
+  if (initialDoc !== prevInitialDoc) {
+    setPrevInitialDoc(initialDoc);
+    setDoc(initialDoc);
+    setUnverifiedCitations(initialUnverifiedCitations);
+    setReviews(initialReviews);
+  }
+
+  // On mount, check whether a generation for this matter+feature is
+  // already running (started before this page loaded, e.g. the user
+  // navigated away mid-generation and came back). If so, poll until it
+  // finishes, then pull in the fresh result via router.refresh() rather
+  // than re-deriving unverifiedCitations/reviews client-side — that
+  // computation already lives server-side in each page.tsx.
+  useEffect(() => {
+    let cancelled = false;
+    let interval: ReturnType<typeof setInterval> | null = null;
+    let wasInProgress = false;
+
+    async function checkStatus() {
+      const res = await fetch(`/api/matters/${matterId}/generation-status?type=${sourceType}`);
+      const status = await res.json().catch(() => ({ inProgress: false }));
+      if (cancelled) return;
+
+      if (status.inProgress) {
+        wasInProgress = true;
+        setGenerating(true);
+        if (!interval) interval = setInterval(checkStatus, 3000);
+      } else if (wasInProgress) {
+        wasInProgress = false;
+        setGenerating(false);
+        if (interval) {
+          clearInterval(interval);
+          interval = null;
+        }
+        router.refresh();
+      }
+    }
+
+    checkStatus();
+    return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
+    };
+  }, [matterId, sourceType, router]);
 
   async function handleGenerate() {
     setGenerating(true);

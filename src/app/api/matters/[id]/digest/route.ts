@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { aiErrorResponse } from "@/lib/aiErrorResponse";
 import { generateMatterDigest } from "@/lib/claude";
+import { generationKey, trackGeneration } from "@/lib/generationTracker";
 import { addDigest, findUnverifiedCitations, getMatter, getMatterDocumentSections, listDigests } from "@/lib/matters";
 
 export async function GET(
@@ -22,12 +23,15 @@ export async function POST(
     return NextResponse.json({ error: "Matter not found" }, { status: 404 });
   }
 
-  const sections = await getMatterDocumentSections(id);
   try {
-    const content = await generateMatterDigest(sections);
-    const digest = await addDigest(id, content);
-    const unverifiedCitations = await findUnverifiedCitations(id, content);
-    return NextResponse.json({ ...digest, unverifiedCitations }, { status: 201 });
+    const result = await trackGeneration(generationKey("digest", id), async () => {
+      const sections = await getMatterDocumentSections(id);
+      const content = await generateMatterDigest(sections);
+      const digest = await addDigest(id, content);
+      const unverifiedCitations = await findUnverifiedCitations(id, content);
+      return { ...digest, unverifiedCitations };
+    });
+    return NextResponse.json(result, { status: 201 });
   } catch (err) {
     return aiErrorResponse(err);
   }

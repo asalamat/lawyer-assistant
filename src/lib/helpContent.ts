@@ -129,7 +129,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "matter-digest",
         name: "Matter digest",
         detail:
-          "Generates an executive summary: parties, key dates, facts, evidence inventory, and open questions — all cited to source documents and notes. Citations are checked against the matter's real documents; anything that doesn't match is flagged in a banner rather than trusted blindly. Renders as proper formatted text (real headings and lists, not literal \"##\"/\"-\" characters); use Translate for a copy in another language, or Export PDF to open a clean, printable copy in a new tab and save it via your browser's print dialog.",
+          "Generates an executive summary: parties, key dates, facts, evidence inventory, and open questions — all cited to source documents and notes. Citations are checked against the matter's real documents; anything that doesn't match is flagged in a banner rather than trusted blindly. Renders as proper formatted text (real headings and lists, not literal \"##\"/\"-\" characters); use Translate for a copy in another language, or Export PDF to open a clean, printable copy in a new tab and save it via your browser's print dialog. Navigating away mid-generation never stops it — it keeps running and saves normally; coming back to this tab (or opening it in another one) shows \"Generating…\" instead of a plain button while it's still running, and picks up the finished result automatically rather than letting you start a second one. Every other AI analysis below (evidence matrix, contradictions, exhibit list, disclosure checklist, Crown position, privilege review) behaves the same way.",
       },
       {
         slug: "independent-review",
