@@ -7,6 +7,7 @@ import type { AppVersion } from "@/lib/systemInfo";
 import HealthIndicator from "./HealthIndicator";
 import LogoutButton from "./LogoutButton";
 import {
+  AnalyticsIcon,
   AuditIcon,
   DashboardIcon,
   HelpIcon,
@@ -26,6 +27,7 @@ const LINKS = [
   { href: "/matters", label: "Matters", Icon: MattersIcon },
   { href: "/clients", label: "Clients", Icon: UsersIcon },
   { href: "/trust-accounting", label: "Trust accounting", Icon: TrustIcon },
+  { href: "/analytics", label: "Analytics", Icon: AnalyticsIcon, hideForStaff: true },
   { href: "/reference-library", label: "Reference library", Icon: LibraryIcon },
   { href: "/audit", label: "Audit log", Icon: AuditIcon },
   { href: "/settings", label: "Settings", Icon: SettingsIcon },
@@ -58,7 +60,7 @@ export default function AppSidebar({
       </div>
 
       <nav className="flex flex-1 flex-col gap-0.5 px-3">
-        {LINKS.map(({ href, label, Icon }) => {
+        {LINKS.filter((link) => !link.hideForStaff || user?.role !== "staff").map(({ href, label, Icon }) => {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (
             <Link

@@ -208,6 +208,12 @@ export const HELP_SECTIONS: HelpSection[] = [
         detail:
           "Every matter/document/chat/digest/feedback/status/invoice/email/user-management action is recorded with a timestamp and who did it — viewable app-wide at Audit log, or filtered to one matter in its Activity timeline section. Also flags duplicate document uploads (same file content uploaded twice). Bulk export/download activity — several backup downloads, a matter email with several attachments, a burst of client-portal downloads, all within the same hour by the same person — is capped and, before it's capped, produces a distinctly labelled \"Unusual bulk export/download activity flagged\" entry, so it's visible here rather than blending in with routine single-item actions. The log is tamper-evident: each entry is cryptographically chained to the one before it, so an edit or deletion made outside the app is detectable. Admins can check this any time with the \"Verify log integrity\" button on the Audit log page. If it ever reports broken and you've identified and fixed a genuine cause (not unexplained tampering), an admin can re-anchor the chain from that point — this requires typing a reason, which is then recorded permanently as the next log entry, so there's always a record of why.",
       },
+      {
+        slug: "analytics",
+        name: "Analytics",
+        detail:
+          "Firm-wide metrics (nav > Analytics, admins and lawyers only — not visible to staff): matters opened/closed over the last 12 months, work-in-progress (unbilled time value across every open matter), billed vs. collected by month, top matter types, and hours logged per person over the last 90 days. That last one only counts time entries logged since attorney attribution was added to time entries — older entries stay uncounted rather than guessed at. All numbers come straight from the same matters/time-entries/invoices data you already see elsewhere; nothing here is a separate, editable record.",
+      },
     ],
   },
   {

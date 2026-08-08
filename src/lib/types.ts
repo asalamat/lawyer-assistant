@@ -358,6 +358,7 @@ export interface TimeEntry {
   hours: number;
   rate: number | null;
   invoiceId: string | null;
+  userId: string | null;
   createdAt: string;
 }
 

@@ -994,7 +994,7 @@ export async function listTimeEntries(matterId: string): Promise<TimeEntry[]> {
 
 export async function addTimeEntry(
   matterId: string,
-  input: { workedOn: string; description: string; hours: number; rate?: number | null },
+  input: { workedOn: string; description: string; hours: number; rate?: number | null; userId?: string | null },
 ): Promise<TimeEntry> {
   const entry: TimeEntry = {
     id: crypto.randomUUID(),
@@ -1004,10 +1004,11 @@ export async function addTimeEntry(
     hours: input.hours,
     rate: input.rate ?? null,
     invoiceId: null,
+    userId: input.userId ?? null,
     createdAt: new Date().toISOString(),
   };
   db.prepare(
-    "INSERT INTO time_entries (id, matterId, workedOn, description, hours, rate, invoiceId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO time_entries (id, matterId, workedOn, description, hours, rate, invoiceId, userId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
   ).run(
     entry.id,
     entry.matterId,
@@ -1016,6 +1017,7 @@ export async function addTimeEntry(
     entry.hours,
     entry.rate,
     entry.invoiceId,
+    entry.userId,
     entry.createdAt,
   );
   await recordAuditEvent(

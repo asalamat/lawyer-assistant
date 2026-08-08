@@ -731,6 +731,11 @@ ensureColumn("matter_deadlines", "source", "TEXT NOT NULL DEFAULT 'extracted'");
 ensureColumn("matter_deadlines", "ruleId", "TEXT");
 ensureColumn("matter_deadlines", "triggerDate", "TEXT");
 
+// Time entries previously had no attorney attribution at all — added so
+// the firm analytics dashboard can show hours logged per person going
+// forward. Historical entries stay NULL and simply don't count toward it.
+ensureColumn("time_entries", "userId", "TEXT");
+
 // Splits the reference library's single shelf into the two shared tiers of
 // the vision doc's three-layer knowledge architecture (client-matter
 // documents are already their own tier — the `documents` table above):

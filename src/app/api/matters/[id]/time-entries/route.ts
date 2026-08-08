@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { addTimeEntry, listTimeEntries } from "@/lib/matters";
 
 export async function GET(
@@ -36,11 +37,13 @@ export async function POST(
     }
   }
 
+  const user = await getCurrentUser();
   const entry = await addTimeEntry(id, {
     workedOn,
     description: description.trim(),
     hours: parsedHours,
     rate: parsedRate,
+    userId: user?.id ?? null,
   });
   return NextResponse.json(entry, { status: 201 });
 }
