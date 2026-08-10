@@ -162,6 +162,30 @@ interface StoredBackupSchedule extends BackupScheduleConfig {
 
 const DEFAULT_BACKUP_SCHEDULE: BackupScheduleConfig = { enabled: false, intervalHours: 1 };
 
+export interface ChangeBackupConfig {
+  enabled: boolean;
+  // How long the app needs to go quiet after the last change before
+  // backing up — resets on every new change, so a burst of activity
+  // doesn't trigger a backup mid-burst.
+  debounceMinutes: number;
+  // Floor between two change-triggered backups regardless of how much
+  // activity happens — prevents continuous usage from running full
+  // backups back to back all day.
+  cooldownMinutes: number;
+}
+
+interface StoredChangeBackup extends ChangeBackupConfig {
+  lastRunAt?: string;
+  lastStatus?: "ok" | "error";
+  lastError?: string;
+}
+
+const DEFAULT_CHANGE_BACKUP: ChangeBackupConfig = {
+  enabled: false,
+  debounceMinutes: 2,
+  cooldownMinutes: 10,
+};
+
 interface Settings {
   anthropicApiKey?: string;
   openaiApiKey?: string;
@@ -177,6 +201,7 @@ interface Settings {
   malwareScanningEnabled?: boolean;
   cloudBackup?: StoredCloudBackup;
   backupSchedule?: StoredBackupSchedule;
+  changeBackup?: StoredChangeBackup;
 }
 
 export const DEFAULT_TRANSLATION_LANGUAGE = "French";
@@ -766,6 +791,57 @@ export async function recordBackupScheduleResult(
   settings.backupSchedule = {
     enabled: settings.backupSchedule?.enabled ?? DEFAULT_BACKUP_SCHEDULE.enabled,
     intervalHours: settings.backupSchedule?.intervalHours ?? DEFAULT_BACKUP_SCHEDULE.intervalHours,
+    lastRunAt: new Date().toISOString(),
+    lastStatus: status,
+    lastError: status === "error" ? error : undefined,
+  };
+  await writeSettings(settings);
+}
+
+export interface ChangeBackupStatus extends ChangeBackupConfig {
+  lastRunAt: string | null;
+  lastStatus: "ok" | "error" | null;
+  lastError: string | null;
+}
+
+// Independent of, and additive to, the interval scheduler above — either
+// can be on, both can be on (the interval one is then just a backstop in
+// case a real change slips past proxy.ts's change-tracking hook), or both
+// off. Disabled by default for the same reason: opt-in, not a silent
+// upgrade into extra disk/network usage.
+export async function getChangeBackupStatus(): Promise<ChangeBackupStatus> {
+  const settings = await readSettings();
+  const cb = settings.changeBackup;
+  return {
+    enabled: cb?.enabled ?? DEFAULT_CHANGE_BACKUP.enabled,
+    debounceMinutes: cb?.debounceMinutes ?? DEFAULT_CHANGE_BACKUP.debounceMinutes,
+    cooldownMinutes: cb?.cooldownMinutes ?? DEFAULT_CHANGE_BACKUP.cooldownMinutes,
+    lastRunAt: cb?.lastRunAt ?? null,
+    lastStatus: cb?.lastStatus ?? null,
+    lastError: cb?.lastError ?? null,
+  };
+}
+
+export async function setChangeBackupConfig(config: ChangeBackupConfig): Promise<void> {
+  const settings = await readSettings();
+  const previous = settings.changeBackup;
+  settings.changeBackup = {
+    enabled: config.enabled,
+    debounceMinutes: Math.max(1, Math.round(config.debounceMinutes)),
+    cooldownMinutes: Math.max(1, Math.round(config.cooldownMinutes)),
+    lastRunAt: previous?.lastRunAt,
+    lastStatus: previous?.lastStatus,
+    lastError: previous?.lastError,
+  };
+  await writeSettings(settings);
+}
+
+export async function recordChangeBackupResult(status: "ok" | "error", error?: string): Promise<void> {
+  const settings = await readSettings();
+  settings.changeBackup = {
+    enabled: settings.changeBackup?.enabled ?? DEFAULT_CHANGE_BACKUP.enabled,
+    debounceMinutes: settings.changeBackup?.debounceMinutes ?? DEFAULT_CHANGE_BACKUP.debounceMinutes,
+    cooldownMinutes: settings.changeBackup?.cooldownMinutes ?? DEFAULT_CHANGE_BACKUP.cooldownMinutes,
     lastRunAt: new Date().toISOString(),
     lastStatus: status,
     lastError: status === "error" ? error : undefined,

@@ -1,7 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
+import { markDirty } from "@/lib/backupScheduler";
 import { getSessionUser } from "@/lib/auth";
 import { getClientSessionUser } from "@/lib/clientAuth";
 import { canAccessMatter } from "@/lib/matterAccess";
+
+// Anything under these prefixes is excluded from change-triggered backup
+// tracking — either because it's the backup system itself (a backup
+// completing, or its own settings being saved, shouldn't count as a
+// "change" worth backing up — that would be a feedback loop) or because
+// it's a session/auth action rather than a data change.
+const CHANGE_TRACKING_EXCLUDED_PREFIXES = [
+  "/api/backup",
+  "/api/settings/cloud-backup",
+  "/api/settings/backup-schedule",
+  "/api/settings/change-backup",
+  "/api/auth",
+];
+
+function isChangeWorthTracking(request: NextRequest, pathname: string): boolean {
+  if (request.method === "GET" || request.method === "HEAD") return false;
+  if (!pathname.startsWith("/api/")) return false;
+  return !CHANGE_TRACKING_EXCLUDED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
 
 // Sub-routes of /api/matters/ (and only /api/matters/, not /matters/ pages)
 // that aren't a matterId — a real matterId can never collide with these
@@ -123,6 +143,12 @@ function isAdminOnlyApi(pathname: string): boolean {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Marked here, before any auth branching below, so this covers every
+  // request path uniformly — including the public/token-gated ones
+  // (e-signature submission, public lead intake, client portal messages)
+  // that return early further down and would otherwise be missed.
+  if (isChangeWorthTracking(request, pathname)) markDirty();
 
   if (isPortalPath(pathname)) {
     if (PORTAL_PUBLIC_PATHS.includes(pathname)) return NextResponse.next();

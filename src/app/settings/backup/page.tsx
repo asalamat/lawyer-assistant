@@ -4,7 +4,7 @@ import { listBackups } from "@/lib/backup";
 import { getOAuthCredentialStatus } from "@/lib/emailIntegration";
 import { listRcloneRemotes } from "@/lib/rcloneBackup";
 import { getInstallPlan, isRcloneInstalled } from "@/lib/rcloneInstall";
-import { getBackupScheduleStatus, getCloudBackupStatus, getOrCreateCronSecret } from "@/lib/settings";
+import { getBackupScheduleStatus, getChangeBackupStatus, getCloudBackupStatus, getOrCreateCronSecret } from "@/lib/settings";
 import BackupManager from "@/components/BackupManager";
 import CloudBackupPanel from "@/components/CloudBackupPanel";
 import SettingsSection from "@/components/SettingsSection";
@@ -16,17 +16,27 @@ export default async function BackupSettingsPage() {
   const user = await getCurrentUser();
   if (user?.role !== "admin") redirect("/settings/security");
 
-  const [backups, cronSecret, schedule, cloud, oauthCredentialStatus, rcloneRemotes, rcloneInstalled, rcloneInstallPlan] =
-    await Promise.all([
-      listBackups(),
-      getOrCreateCronSecret(),
-      getBackupScheduleStatus(),
-      getCloudBackupStatus(),
-      getOAuthCredentialStatus(),
-      listRcloneRemotes(),
-      isRcloneInstalled(),
-      getInstallPlan(),
-    ]);
+  const [
+    backups,
+    cronSecret,
+    schedule,
+    cloud,
+    oauthCredentialStatus,
+    rcloneRemotes,
+    rcloneInstalled,
+    rcloneInstallPlan,
+    changeBackup,
+  ] = await Promise.all([
+    listBackups(),
+    getOrCreateCronSecret(),
+    getBackupScheduleStatus(),
+    getCloudBackupStatus(),
+    getOAuthCredentialStatus(),
+    listRcloneRemotes(),
+    isRcloneInstalled(),
+    getInstallPlan(),
+    getChangeBackupStatus(),
+  ]);
 
   return (
     <SettingsSection
@@ -42,6 +52,7 @@ export default async function BackupSettingsPage() {
           initialRcloneRemotes={rcloneRemotes}
           initialRcloneInstalled={rcloneInstalled}
           initialRcloneInstallPlan={rcloneInstallPlan}
+          initialChangeBackup={changeBackup}
         />
         <BackupManager initialBackups={backups} cronSecret={cronSecret} cloudConfigured={cloud.configured} />
       </div>

@@ -109,16 +109,15 @@ export function deleteBackup(fileName: string): void {
 // cloud target must not stop the local backup from being recorded as a
 // success, since the local file is the part that actually protects the data.
 export async function runScheduledBackup(
-  trigger: "cron" | "interval",
+  trigger: "cron" | "interval" | "change",
 ): Promise<{ backup: BackupInfo; cloud: { attempted: boolean; ok: boolean; error?: string } }> {
   const backup = await createBackup();
-  await recordAuditEvent(
-    "backup_created",
-    null,
-    trigger === "interval"
-      ? `Automatic hourly backup created: ${backup.fileName}`
-      : `Scheduled backup created via external cron: ${backup.fileName}`,
-  );
+  const triggerLabel: Record<typeof trigger, string> = {
+    interval: `Automatic scheduled backup created: ${backup.fileName}`,
+    change: `Automatic backup created after recent activity: ${backup.fileName}`,
+    cron: `Scheduled backup created via external cron: ${backup.fileName}`,
+  };
+  await recordAuditEvent("backup_created", null, triggerLabel[trigger]);
 
   const cloudConfig = await getCloudBackupConfig();
   if (!cloudConfig) {

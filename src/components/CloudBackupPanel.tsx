@@ -4,7 +4,8 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { formatDateTime } from "@/lib/formatDate";
 import type { InstallPlan } from "@/lib/rcloneInstall";
-import type { BackupScheduleStatus, CloudBackupProvider, CloudBackupStatus } from "@/lib/settings";
+import type { BackupScheduleStatus, ChangeBackupStatus, CloudBackupProvider, CloudBackupStatus } from "@/lib/settings";
+import ChangeBackupPanel from "./ChangeBackupPanel";
 import RcloneWizard from "./RcloneWizard";
 
 function formatWhen(iso: string | null): string {
@@ -30,6 +31,7 @@ export default function CloudBackupPanel({
   initialRcloneRemotes,
   initialRcloneInstalled,
   initialRcloneInstallPlan,
+  initialChangeBackup,
 }: {
   initialSchedule: BackupScheduleStatus;
   initialCloud: CloudBackupStatus;
@@ -37,6 +39,7 @@ export default function CloudBackupPanel({
   initialRcloneRemotes: string[];
   initialRcloneInstalled: boolean;
   initialRcloneInstallPlan: InstallPlan;
+  initialChangeBackup: ChangeBackupStatus;
 }) {
   const searchParams = useSearchParams();
   const [callbackNotice] = useState(() => ({
@@ -292,6 +295,8 @@ export default function CloudBackupPanel({
           ) : null}
         </p>
       </div>
+
+      <ChangeBackupPanel initialStatus={initialChangeBackup} />
 
       <div className="surface-row flex flex-col gap-3 text-sm">
         <p className="font-medium">Cloud storage</p>
