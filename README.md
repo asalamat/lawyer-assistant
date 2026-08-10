@@ -10,6 +10,76 @@ file storage, your own choice of AI provider. There is no vendor
 subscription, no third-party server holding your matters, and no seat
 licensing: add as many lawyers and staff as your office needs.
 
+## ✨ Features at a glance
+
+**📁 Matter & Client Management**
+- 🗂️ Matters with file numbers, status, classification, legal holds, retention dates
+- 👥 Client roster (individual/corporate/institutional) with auto-linked matters
+- ⚠️ Conflict-of-interest checking (exact + near-miss name matching) on intake
+- 🔗 Parties tracking per matter, related-matters linking
+- 🚧 Per-matter ethical walls (restrict a matter to its assigned team)
+- ✅ Client intake forms + e-consent capture
+
+**📄 Document Intake & Processing**
+- 📤 Drag-and-drop upload: text, PDF, Word, Excel/CSV, images (OCR), audio/video (transcription)
+- 🛡️ Local malware scanning (ClamAV) with quarantine
+- 🔁 Exact-duplicate (hash) and near-duplicate (similarity) detection
+- 📦 Bulk ZIP/folder import
+- 🌐 Language auto-detection, table-structure preservation, failed-extraction review queue
+- 📸 AI photo analysis (vision) — real description of an image's visual content
+- 📚 Shared reference library (firm precedents + public legal authority)
+
+**🤖 AI-Powered Legal Work Product**
+- 💬 Grounded chat Q&A, every fact cited to source document + page
+- 🧾 Matter digests, evidence-mapping matrices, contradiction detection
+- 📋 Exhibit lists, disclosure-completeness checklists, Crown-position analysis, privilege review
+- 🛡️ Defence strategy memos, missing-evidence rollup report
+- ⏰ Deadline extraction (AI) + rules-based deadline calculator
+- ✍️ First-draft memos/letters/correspondence, smart email drafting
+- 🔍 Self-checking drafting agent (verifies its own citations)
+- 📜 Contract clause library + AI redlining
+- ⚖️ Case-citation checking against CanLII
+- 🧠 Independent second-model review (Gemini) for blind spots
+- 🎙️ Voice dictation on every free-text field
+- 🌍 Translation of any AI output + clean PDF export
+- 🕸️ Evidence graph, defence graph, evidence-connections graph (visual node maps)
+
+**🏛️ Client Portal**
+- 🔐 Persistent client login (separate identity from staff)
+- 💌 Lawyer-controlled per-document visibility, portal messaging
+
+**📈 Leads / CRM**
+- 🗓️ Kanban pipeline (new → contacted → consultation → proposal → won/lost)
+- ➡️ Convert lead → real matter/client; public embeddable lead-intake form
+- 📧 Marketing drip campaigns (staged email sequences)
+
+**💼 Practice Management**
+- ⏱️ Timesheets, invoicing, SMTP email sending with attachments
+- 💰 Trust accounting (compliance-first ledger, bank reconciliation)
+- ✔️ Task/to-do management per matter
+- 🧩 Document assembly templates + DOCX export
+- ✒️ E-signature requests and signing flow
+- 📊 Firm analytics dashboard (WIP, billed vs. collected, hours/attorney)
+- 🔎 Saved searches/reports, global search
+
+**📬 Communications**
+- ✉️ Connected email (Gmail, Outlook/O365, Yahoo) — browse, import to matter
+- 👀 Legislation watch (CanLII) for tracked statutes
+
+**🔒 Security & Governance**
+- 🧑‍⚖️ Multi-user accounts + roles, TOTP MFA with backup codes
+- 🔐 Encryption at rest for API keys, credentials, and documents
+- ⛓️ Cryptographically tamper-evident audit log (hash-chained)
+- 🕶️ PII masking (SIN/SSN/credit card/phone/email) before any AI call
+- 🚫 Login rate limiting, DLP-lite export/download alerting
+- 📝 Privacy Impact Assessment + Incident Response Runbook
+
+**☁️ Backup & Infrastructure**
+- 🔄 One-click + automatic scheduled backups (no OS cron needed)
+- ☁️ Cloud backup to S3-compatible storage, Google Drive, or OneDrive
+- 🔌 Public versioned API (`/api/v1`) with API-key auth, outbound webhooks
+- 💡 System health dashboard, update checker, feature-request tracking, weather widget, sticky notes, dark mode
+
 ## Why a legal office would use this
 
 - **Time savings on the work every matter needs.** Matter digests, evidence
@@ -156,8 +226,15 @@ and what isn't.
 **Backup & restore** — one-click backup of the entire app (matters,
 documents, clients, users, settings) to a downloadable archive, with
 automatic pruning to the last 10; restore moves current data aside rather
-than deleting it; an unattended scheduled-backup endpoint for wiring into
-an OS-level cron job/Task Scheduler.
+than deleting it. A built-in scheduler runs backups automatically on
+whatever interval you set (hourly by default option) — no OS-level cron
+job required, though the unattended endpoint is still there for anyone who
+prefers wiring it into their own cron/Task Scheduler. Optional off-site
+copy to cloud storage of your choice: any S3-compatible bucket (AWS S3,
+Cloudflare R2, Backblaze B2, Wasabi, MinIO…), Google Drive, or OneDrive —
+each backup encrypted the same way as everything else at rest, and Drive/
+OneDrive access is scoped to a single dedicated backups folder the app
+creates for itself, never the rest of your account.
 
 Full detail on every feature, including what's deliberately *not* built
 and why, is in [docs/ROADMAP.md](docs/ROADMAP.md).
