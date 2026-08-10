@@ -21,3 +21,24 @@ export function formatDateOnly(isoDate: string): string {
     day: "numeric",
   });
 }
+
+/**
+ * Same locale-pinning rationale as formatDateOnly(), but for a full
+ * timestamp (date + time) rather than a date-only string — for any
+ * server-rendered component that displays a raw `.toLocaleString()` of a
+ * createdAt/updatedAt timestamp using initial server-provided data. An
+ * unpinned `.toLocaleString()` renders using the server process's ambient
+ * locale during SSR and the browser's locale during hydration; whenever
+ * those differ, React throws a hydration mismatch and has to re-render the
+ * whole subtree client-side, which is what surfaced this in the first
+ * place (a backups list rendered from `initialBackups`).
+ */
+export function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}

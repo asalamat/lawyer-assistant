@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { formatDateTime } from "@/lib/formatDate";
 
 interface BackupInfo {
   fileName: string;
@@ -11,13 +12,17 @@ interface BackupInfo {
 export default function BackupManager({
   initialBackups,
   cronSecret,
+  cloudConfigured,
 }: {
   initialBackups: BackupInfo[];
   cronSecret: string;
+  cloudConfigured: boolean;
 }) {
   const [backups, setBackups] = useState(initialBackups);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadingCloud, setUploadingCloud] = useState<string | null>(null);
+  const [cloudUploadResult, setCloudUploadResult] = useState<{ fileName: string; ok: boolean; error?: string } | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<string | null>(null);
   const [confirmText, setConfirmText] = useState("");
   const [restoring, setRestoring] = useState(false);
@@ -58,6 +63,25 @@ export default function BackupManager({
       return;
     }
     await refresh();
+  }
+
+  async function handleUploadToCloud(fileName: string) {
+    setUploadingCloud(fileName);
+    setCloudUploadResult(null);
+    try {
+      const res = await fetch(`/api/backup/${encodeURIComponent(fileName)}/upload-cloud`, { method: "POST" });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Upload failed");
+      setCloudUploadResult({ fileName, ok: true });
+    } catch (err) {
+      setCloudUploadResult({
+        fileName,
+        ok: false,
+        error: err instanceof Error ? err.message : "Something went wrong",
+      });
+    } finally {
+      setUploadingCloud(null);
+    }
   }
 
   async function handleRestore(fileName: string) {
@@ -137,7 +161,7 @@ export default function BackupManager({
                 <span className="font-mono text-xs">{b.fileName}</span>
                 <span className="text-xs text-muted">
                   {(b.sizeBytes / (1024 * 1024)).toFixed(1)} MB &middot;{" "}
-                  {new Date(b.createdAt).toLocaleString()}
+                  {formatDateTime(b.createdAt)}
                 </span>
               </div>
               <div className="flex items-center gap-3">
@@ -159,7 +183,21 @@ export default function BackupManager({
                 >
                   Restore from this
                 </button>
+                {cloudConfigured && (
+                  <button
+                    onClick={() => handleUploadToCloud(b.fileName)}
+                    disabled={uploadingCloud === b.fileName}
+                    className="text-xs text-accent hover:underline disabled:opacity-50"
+                  >
+                    {uploadingCloud === b.fileName ? "Uploading…" : "Upload to cloud"}
+                  </button>
+                )}
               </div>
+              {cloudUploadResult?.fileName === b.fileName && (
+                <p className={cloudUploadResult.ok ? "text-xs text-emerald-600" : "text-xs text-red-600"}>
+                  {cloudUploadResult.ok ? "Uploaded to cloud storage." : `Failed: ${cloudUploadResult.error}`}
+                </p>
+              )}
               {restoreTarget === b.fileName && (
                 <div className="surface-row flex flex-col gap-2 border-red-600/30 bg-red-600/5">
                   <p className="font-medium text-red-700 dark:text-red-400">
@@ -263,10 +301,12 @@ export default function BackupManager({
       </div>
 
       <div className="surface-row flex flex-col gap-2 text-sm">
-        <p className="font-medium">Automatic backups</p>
+        <p className="font-medium">External cron (optional alternative)</p>
         <p className="text-muted">
-          This app has no built-in background scheduler — set up an OS-level scheduled task
-          hitting this endpoint with your own secret:
+          The section above runs backups from inside this app on its own — no extra setup
+          needed. If you&apos;d rather trigger backups from an OS-level scheduler instead (or in
+          addition — e.g. from a separate off-machine trigger), this endpoint accepts the same
+          secret-bearer-token pattern used by the legislation-watch and campaign checkers:
         </p>
         <code className="block overflow-x-auto rounded bg-black/[0.04] p-2 text-xs dark:bg-white/[0.06]">
           {cronCommand}

@@ -1,7 +1,10 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync } from "fs";
 import path from "path";
 import { create, extract } from "tar";
+import { recordAuditEvent } from "./auditLog";
+import { pruneCloudBackups, uploadBackupToCloud } from "./cloudBackup";
 import db from "./db";
+import { getCloudBackupConfig, recordCloudBackupResult } from "./settings";
 
 const PROJECT_ROOT = process.cwd();
 const DATA_DIR = path.join(PROJECT_ROOT, "data");
@@ -96,6 +99,47 @@ export function getBackupPath(fileName: string): string {
 export function deleteBackup(fileName: string): void {
   const fullPath = getBackupPath(fileName);
   rmSync(fullPath, { force: true });
+}
+
+// Shared by both unattended paths that create a backup without a real user
+// action driving it: the external cron-secret endpoint and the in-process
+// hourly scheduler (backupScheduler.ts). Local backup always happens; cloud
+// upload only runs if cloud backup has actually been configured, and a
+// cloud failure never throws back to the caller — a hung/misconfigured
+// cloud target must not stop the local backup from being recorded as a
+// success, since the local file is the part that actually protects the data.
+export async function runScheduledBackup(
+  trigger: "cron" | "interval",
+): Promise<{ backup: BackupInfo; cloud: { attempted: boolean; ok: boolean; error?: string } }> {
+  const backup = await createBackup();
+  await recordAuditEvent(
+    "backup_created",
+    null,
+    trigger === "interval"
+      ? `Automatic hourly backup created: ${backup.fileName}`
+      : `Scheduled backup created via external cron: ${backup.fileName}`,
+  );
+
+  const cloudConfig = await getCloudBackupConfig();
+  if (!cloudConfig) {
+    return { backup, cloud: { attempted: false, ok: true } };
+  }
+
+  try {
+    await uploadBackupToCloud(cloudConfig, getBackupPath(backup.fileName), backup.fileName);
+    await pruneCloudBackups(cloudConfig, MAX_BACKUPS).catch(() => {
+      // Pruning failure shouldn't mask a successful upload — old cloud
+      // backups just pile up until the next successful prune instead.
+    });
+    await recordCloudBackupResult("ok", { fileName: backup.fileName });
+    await recordAuditEvent("cloud_backup_uploaded", null, `Uploaded ${backup.fileName} to cloud storage`);
+    return { backup, cloud: { attempted: true, ok: true } };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Cloud upload failed";
+    await recordCloudBackupResult("error", { error: message });
+    await recordAuditEvent("cloud_backup_failed", null, `Cloud backup upload failed: ${message}`);
+    return { backup, cloud: { attempted: true, ok: false, error: message } };
+  }
 }
 
 // Moves the CURRENT data/ directory aside (never deletes it) and replaces

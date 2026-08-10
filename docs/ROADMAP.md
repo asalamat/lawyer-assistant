@@ -1224,6 +1224,40 @@ see git log for exact history.
       route. Audit hash chain re-verified valid (759 entries) after
       cleanup.
 
+- [x] **Automatic backups + cloud storage (2026-08-09/10)** — `src/instrumentation.ts` +
+      `src/lib/backupScheduler.ts` run an in-process scheduler (checks every
+      5 minutes whether the configured interval has elapsed) so hourly (or
+      any N-hour) local backups no longer require an OS-level cron job —
+      Settings > Backup still documents the external-cron endpoint as an
+      optional alternative for anyone who prefers it. Cloud upload supports
+      three provider families, selectable in the same panel:
+      - S3-compatible (`src/lib/cloudBackup.ts`, `@aws-sdk/client-s3`) — a
+        custom `endpoint` + `forcePathStyle` covers AWS S3, Cloudflare R2,
+        Backblaze B2, Wasabi, DigitalOcean Spaces, or self-hosted MinIO with
+        no OAuth needed, just an access key/secret. This is the
+        works-today path — verified live against a real S3-compatible HTTP
+        server (PUT/DELETE/List all round-tripped correctly).
+      - Google Drive and OneDrive (`src/lib/cloudDriveBackup.ts`) — real
+        OAuth (Google Drive resumable-upload API, Microsoft Graph
+        `createUploadSession` chunked upload — both verified against the
+        providers' current docs via WebFetch, not assumed from training
+        data), reusing the SAME Client ID/Secret already entered in
+        Settings > Integrations for the Gmail/Outlook email integration
+        (one app registration, requested with an additional Drive/Files
+        scope) rather than asking for a second app registration. **Not
+        usable yet** — same external blocker as decision #6 below: needs
+        that Microsoft/Google app's scope widened to include
+        `Files.ReadWrite` / `drive.file`, then "Connect" in Settings >
+        Backup. Google Drive only ever touches a dedicated "Lawyer
+        Assistant Backups" folder it creates itself (`drive.file` scope
+        can't see anything else in the account's Drive); OneDrive uploads
+        into a dedicated `LawyerAssistantBackups` folder the same way.
+      All three providers' access/refresh tokens and credentials are
+      encrypted at rest via the existing `crypto.ts` master-key mechanism —
+      unlike the pre-existing email integration's `email_accounts` table,
+      which still stores its OAuth tokens in plaintext (a gap worth closing
+      separately, not introduced by this feature).
+
 ## Dependency notes
 
 - **`react-markdown`** — renders AI-generated markdown content. Adds zero
@@ -1349,6 +1383,10 @@ they're not silently skipped or silently guessed:
    nothing will connect for these two until at least one OAuth app exists.
    ~~Yahoo~~ needs no such registration — it's **resolved** via an app
    password over IMAP instead (see above), which is already working.
+   **Also now blocks Google Drive / OneDrive cloud backup** (see "Also
+   built" above) — same app registration, just needs the Drive
+   (`drive.file`) or Files.ReadWrite scope added once the app exists.
+   S3-compatible cloud backup doesn't need any of this and works today.
 7. ~~**Multi-user access model**~~ — **Resolved 2026-08-04.** Confirmed:
    every user sees every matter by default (roles gate admin/settings
    actions); admin creates accounts manually with a temporary password

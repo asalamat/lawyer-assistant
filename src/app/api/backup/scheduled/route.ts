@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
-import { createBackup } from "@/lib/backup";
+import { runScheduledBackup } from "@/lib/backup";
 import { getOrCreateCronSecret } from "@/lib/settings";
 
 // This route is listed as public in proxy.ts (no browser session exists for
@@ -21,6 +21,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const backup = await createBackup();
-  return NextResponse.json(backup, { status: 201 });
+  const { backup, cloud } = await runScheduledBackup("cron");
+  return NextResponse.json({ ...backup, cloud }, { status: 201 });
 }

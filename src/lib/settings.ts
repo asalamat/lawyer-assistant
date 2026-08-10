@@ -55,6 +55,76 @@ const DEFAULT_PII_MASKING: PiiMaskingSettings = {
   email: true,
 };
 
+export type CloudBackupProvider = "s3" | "google-drive" | "onedrive";
+
+export interface S3BackupConfig {
+  provider: "s3";
+  // Blank endpoint = real AWS S3 (region-derived default endpoint). Set this
+  // for any other S3-compatible provider — Cloudflare R2, Backblaze B2,
+  // Wasabi, DigitalOcean Spaces, MinIO, etc. — this is what makes the
+  // feature "any cloud", not just AWS.
+  endpoint?: string;
+  region: string;
+  bucket: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  prefix?: string;
+  // Path-style (bucket in the URL path) is required by some non-AWS
+  // providers/self-hosted MinIO; AWS itself supports either.
+  forcePathStyle?: boolean;
+}
+
+export interface DriveBackupConfig {
+  provider: "google-drive" | "onedrive";
+  accessToken: string;
+  refreshToken: string;
+  // Google Drive addresses uploads by folder ID (created on first connect);
+  // OneDrive addresses uploads by path instead, so this stays unused there.
+  folderId?: string;
+}
+
+export type CloudBackupConfig = S3BackupConfig | DriveBackupConfig;
+
+// Flat on-disk shape covering every provider's fields as optional — simpler
+// than a real discriminated union in JSON, since only `provider` says which
+// subset is actually populated. getCloudBackupConfig() reassembles the
+// right typed shape for whichever provider is currently active.
+interface StoredCloudBackup {
+  provider?: CloudBackupProvider;
+  // S3 fields
+  endpoint?: string;
+  region?: string;
+  bucket?: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  prefix?: string;
+  forcePathStyle?: boolean;
+  // Google Drive / OneDrive fields
+  driveAccessToken?: string;
+  driveRefreshToken?: string;
+  driveTokenExpiresAt?: string;
+  driveAccountEmail?: string;
+  driveFolderId?: string;
+  // Shared status
+  lastRunAt?: string;
+  lastStatus?: "ok" | "error";
+  lastError?: string;
+  lastUploadedFileName?: string;
+}
+
+export interface BackupScheduleConfig {
+  enabled: boolean;
+  intervalHours: number;
+}
+
+interface StoredBackupSchedule extends BackupScheduleConfig {
+  lastRunAt?: string;
+  lastStatus?: "ok" | "error";
+  lastError?: string;
+}
+
+const DEFAULT_BACKUP_SCHEDULE: BackupScheduleConfig = { enabled: false, intervalHours: 1 };
+
 interface Settings {
   anthropicApiKey?: string;
   openaiApiKey?: string;
@@ -68,6 +138,8 @@ interface Settings {
   piiMasking?: Partial<PiiMaskingSettings>;
   ollama?: Partial<OllamaConfig>;
   malwareScanningEnabled?: boolean;
+  cloudBackup?: StoredCloudBackup;
+  backupSchedule?: StoredBackupSchedule;
 }
 
 export const DEFAULT_TRANSLATION_LANGUAGE = "French";
@@ -89,6 +161,22 @@ async function readSettings(): Promise<Settings> {
   }
   if (settings.smtp?.password && !isEncryptedText(settings.smtp.password)) {
     settings.smtp.password = await encryptText(settings.smtp.password);
+    migrated = true;
+  }
+  if (settings.cloudBackup?.accessKeyId && !isEncryptedText(settings.cloudBackup.accessKeyId)) {
+    settings.cloudBackup.accessKeyId = await encryptText(settings.cloudBackup.accessKeyId);
+    migrated = true;
+  }
+  if (settings.cloudBackup?.secretAccessKey && !isEncryptedText(settings.cloudBackup.secretAccessKey)) {
+    settings.cloudBackup.secretAccessKey = await encryptText(settings.cloudBackup.secretAccessKey);
+    migrated = true;
+  }
+  if (settings.cloudBackup?.driveAccessToken && !isEncryptedText(settings.cloudBackup.driveAccessToken)) {
+    settings.cloudBackup.driveAccessToken = await encryptText(settings.cloudBackup.driveAccessToken);
+    migrated = true;
+  }
+  if (settings.cloudBackup?.driveRefreshToken && !isEncryptedText(settings.cloudBackup.driveRefreshToken)) {
+    settings.cloudBackup.driveRefreshToken = await encryptText(settings.cloudBackup.driveRefreshToken);
     migrated = true;
   }
   if (migrated) await writeSecureJson(SETTINGS_FILE, settings);
@@ -361,4 +449,246 @@ export async function getOrCreateCronSecret(): Promise<string> {
   settings.cronSecret = await encryptText(secret);
   await writeSettings(settings);
   return secret;
+}
+
+// Decrypted, for actually performing an upload (cloudBackup.ts/
+// cloudDriveBackup.ts only). Returns undefined until either the S3 fields
+// or a Drive OAuth connection have actually been completed.
+export async function getCloudBackupConfig(): Promise<CloudBackupConfig | undefined> {
+  const settings = await readSettings();
+  const cb = settings.cloudBackup;
+  if (!cb) return undefined;
+
+  if (cb.provider === "google-drive" || cb.provider === "onedrive") {
+    if (!cb.driveAccessToken || !cb.driveRefreshToken) return undefined;
+    return {
+      provider: cb.provider,
+      accessToken: (await decryptSecret(cb.driveAccessToken)) as string,
+      refreshToken: (await decryptSecret(cb.driveRefreshToken)) as string,
+      folderId: cb.driveFolderId,
+    };
+  }
+
+  if (!cb.bucket || !cb.accessKeyId || !cb.secretAccessKey) return undefined;
+  return {
+    provider: "s3",
+    endpoint: cb.endpoint,
+    region: cb.region ?? "us-east-1",
+    bucket: cb.bucket,
+    accessKeyId: (await decryptSecret(cb.accessKeyId)) as string,
+    secretAccessKey: (await decryptSecret(cb.secretAccessKey)) as string,
+    prefix: cb.prefix,
+    forcePathStyle: cb.forcePathStyle,
+  };
+}
+
+// Preserves lastRunAt/lastStatus/lastError/lastUploadedFileName across a
+// credential update — saving new keys shouldn't erase the run history.
+// Switching provider (e.g. S3 -> Google Drive) clears the other provider's
+// fields so a stale bucket/credential can't linger after switching away.
+export async function setS3BackupConfig(config: Omit<S3BackupConfig, "provider">): Promise<void> {
+  const settings = await readSettings();
+  const previous = settings.cloudBackup;
+  settings.cloudBackup = {
+    provider: "s3",
+    endpoint: config.endpoint?.trim() || undefined,
+    region: config.region.trim(),
+    bucket: config.bucket.trim(),
+    accessKeyId: await encryptText(config.accessKeyId),
+    secretAccessKey: await encryptText(config.secretAccessKey),
+    prefix: config.prefix?.trim() || undefined,
+    forcePathStyle: Boolean(config.forcePathStyle),
+    lastRunAt: previous?.lastRunAt,
+    lastStatus: previous?.lastStatus,
+    lastError: previous?.lastError,
+    lastUploadedFileName: previous?.lastUploadedFileName,
+  };
+  await writeSettings(settings);
+}
+
+// Called once after a successful Drive/OneDrive OAuth callback.
+export async function saveDriveBackupConnection(params: {
+  provider: "google-drive" | "onedrive";
+  accessToken: string;
+  refreshToken: string;
+  tokenExpiresAt: string | null;
+  accountEmail: string;
+  folderId?: string;
+}): Promise<void> {
+  const settings = await readSettings();
+  const previous = settings.cloudBackup;
+  settings.cloudBackup = {
+    provider: params.provider,
+    driveAccessToken: await encryptText(params.accessToken),
+    driveRefreshToken: await encryptText(params.refreshToken),
+    driveTokenExpiresAt: params.tokenExpiresAt ?? undefined,
+    driveAccountEmail: params.accountEmail,
+    driveFolderId: params.folderId,
+    lastRunAt: previous?.provider === params.provider ? previous?.lastRunAt : undefined,
+    lastStatus: previous?.provider === params.provider ? previous?.lastStatus : undefined,
+    lastError: previous?.provider === params.provider ? previous?.lastError : undefined,
+    lastUploadedFileName: previous?.provider === params.provider ? previous?.lastUploadedFileName : undefined,
+  };
+  await writeSettings(settings);
+}
+
+// A refreshed access token (and occasionally a rotated refresh token —
+// Microsoft sometimes reissues one) needs to be persisted so the next
+// upload doesn't have to refresh again. Silently no-ops if the provider was
+// switched away from in the meantime, since there'd be nothing to update.
+// Google Drive addresses uploads by folder ID, discovered/created lazily on
+// first upload (see cloudDriveBackup.ts) rather than at connect time — kept
+// here rather than folded into saveDriveBackupConnection since it's set on
+// a completely different, later code path (the first upload, not the OAuth
+// callback).
+export async function setDriveBackupFolderId(folderId: string): Promise<void> {
+  const settings = await readSettings();
+  if (!settings.cloudBackup || settings.cloudBackup.provider !== "google-drive") return;
+  settings.cloudBackup.driveFolderId = folderId;
+  await writeSettings(settings);
+}
+
+export async function updateDriveBackupTokens(
+  provider: "google-drive" | "onedrive",
+  accessToken: string,
+  refreshToken: string | undefined,
+  tokenExpiresAt: string | null,
+): Promise<void> {
+  const settings = await readSettings();
+  if (settings.cloudBackup?.provider !== provider) return;
+  settings.cloudBackup.driveAccessToken = await encryptText(accessToken);
+  if (refreshToken) settings.cloudBackup.driveRefreshToken = await encryptText(refreshToken);
+  settings.cloudBackup.driveTokenExpiresAt = tokenExpiresAt ?? undefined;
+  await writeSettings(settings);
+}
+
+export async function disconnectCloudBackup(): Promise<void> {
+  const settings = await readSettings();
+  settings.cloudBackup = undefined;
+  await writeSettings(settings);
+}
+
+export interface CloudBackupStatus {
+  provider: CloudBackupProvider | null;
+  configured: boolean;
+  // S3
+  endpoint: string | null;
+  region: string | null;
+  bucket: string | null;
+  prefix: string | null;
+  forcePathStyle: boolean;
+  accessKeyIdPreview: string | null;
+  // Drive
+  driveAccountEmail: string | null;
+  // Shared
+  lastRunAt: string | null;
+  lastStatus: "ok" | "error" | null;
+  lastError: string | null;
+  lastUploadedFileName: string | null;
+}
+
+// Redacted (no secret material), for display in Settings.
+export async function getCloudBackupStatus(): Promise<CloudBackupStatus> {
+  const settings = await readSettings();
+  const cb = settings.cloudBackup;
+  const empty: CloudBackupStatus = {
+    provider: cb?.provider ?? null,
+    configured: false,
+    endpoint: null,
+    region: null,
+    bucket: null,
+    prefix: null,
+    forcePathStyle: false,
+    accessKeyIdPreview: null,
+    driveAccountEmail: null,
+    lastRunAt: cb?.lastRunAt ?? null,
+    lastStatus: cb?.lastStatus ?? null,
+    lastError: cb?.lastError ?? null,
+    lastUploadedFileName: cb?.lastUploadedFileName ?? null,
+  };
+  if (!cb) return empty;
+
+  if (cb.provider === "google-drive" || cb.provider === "onedrive") {
+    return {
+      ...empty,
+      configured: Boolean(cb.driveAccessToken && cb.driveRefreshToken),
+      driveAccountEmail: cb.driveAccountEmail ?? null,
+    };
+  }
+
+  if (!cb.bucket) return empty;
+  const accessKeyId = cb.accessKeyId ? await decryptSecret(cb.accessKeyId) : undefined;
+  return {
+    ...empty,
+    configured: Boolean(cb.accessKeyId && cb.secretAccessKey),
+    endpoint: cb.endpoint ?? null,
+    region: cb.region ?? null,
+    bucket: cb.bucket,
+    prefix: cb.prefix ?? null,
+    forcePathStyle: Boolean(cb.forcePathStyle),
+    accessKeyIdPreview: accessKeyId ? `••••${accessKeyId.slice(-4)}` : null,
+  };
+}
+
+export async function recordCloudBackupResult(
+  status: "ok" | "error",
+  opts: { error?: string; fileName?: string } = {},
+): Promise<void> {
+  const settings = await readSettings();
+  if (!settings.cloudBackup) return; // nothing configured to record against
+  settings.cloudBackup.lastRunAt = new Date().toISOString();
+  settings.cloudBackup.lastStatus = status;
+  settings.cloudBackup.lastError = status === "error" ? opts.error : undefined;
+  if (status === "ok" && opts.fileName) settings.cloudBackup.lastUploadedFileName = opts.fileName;
+  await writeSettings(settings);
+}
+
+export interface BackupScheduleStatus extends BackupScheduleConfig {
+  lastRunAt: string | null;
+  lastStatus: "ok" | "error" | null;
+  lastError: string | null;
+}
+
+// Drives the in-process scheduler in backupScheduler.ts. Disabled by
+// default — an hourly local backup costs disk space even with nothing to
+// upload to, so this stays opt-in rather than silently running for
+// everyone who upgrades into this feature.
+export async function getBackupScheduleStatus(): Promise<BackupScheduleStatus> {
+  const settings = await readSettings();
+  const schedule = settings.backupSchedule;
+  return {
+    enabled: schedule?.enabled ?? DEFAULT_BACKUP_SCHEDULE.enabled,
+    intervalHours: schedule?.intervalHours ?? DEFAULT_BACKUP_SCHEDULE.intervalHours,
+    lastRunAt: schedule?.lastRunAt ?? null,
+    lastStatus: schedule?.lastStatus ?? null,
+    lastError: schedule?.lastError ?? null,
+  };
+}
+
+export async function setBackupScheduleConfig(config: BackupScheduleConfig): Promise<void> {
+  const settings = await readSettings();
+  const previous = settings.backupSchedule;
+  settings.backupSchedule = {
+    enabled: config.enabled,
+    intervalHours: Math.max(1, Math.round(config.intervalHours)),
+    lastRunAt: previous?.lastRunAt,
+    lastStatus: previous?.lastStatus,
+    lastError: previous?.lastError,
+  };
+  await writeSettings(settings);
+}
+
+export async function recordBackupScheduleResult(
+  status: "ok" | "error",
+  error?: string,
+): Promise<void> {
+  const settings = await readSettings();
+  settings.backupSchedule = {
+    enabled: settings.backupSchedule?.enabled ?? DEFAULT_BACKUP_SCHEDULE.enabled,
+    intervalHours: settings.backupSchedule?.intervalHours ?? DEFAULT_BACKUP_SCHEDULE.intervalHours,
+    lastRunAt: new Date().toISOString(),
+    lastStatus: status,
+    lastError: status === "error" ? error : undefined,
+  };
+  await writeSettings(settings);
 }
