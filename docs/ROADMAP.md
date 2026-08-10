@@ -1257,6 +1257,53 @@ see git log for exact history.
       unlike the pre-existing email integration's `email_accounts` table,
       which still stores its OAuth tokens in plaintext (a gap worth closing
       separately, not introduced by this feature).
+- [x] **Cloud backup follow-up: unblocked, rclone provider, setup wizard,
+      activity-triggered backups (2026-08-10)** — the Drive/OneDrive
+      "not usable yet" blocker above is resolved for OneDrive: the OAuth
+      connect flow now reuses the SAME redirect URI already registered for
+      the email integration (`/api/integrations/[provider]/callback`,
+      which now branches on whether `state` matches an email or a
+      cloud-backup OAuth attempt), so no second redirect URI needs
+      registering — only the Files.ReadWrite/drive.file scope needs adding
+      to an existing app. Also added, given the account owner doesn't want
+      to require an Azure/Google app registration at all:
+      - **`rclone` as a fourth provider** (`src/lib/rcloneBackup.ts`,
+        `src/lib/rcloneInstall.ts`) — rclone ships its own already-registered
+        Microsoft/Google app, so this is the only path needing zero app
+        registration. Settings > Backup can install rclone itself
+        (Homebrew on macOS/Linux, winget on Windows) if it's missing.
+      - **An in-app setup wizard** (`src/lib/rcloneWizard.ts`,
+        `RcloneWizard.tsx`) driving rclone's own `config create/update
+        --non-interactive` JSON question/answer protocol (verified live
+        against a real rclone install, not assumed from docs) — auto-
+        answers only two specific, verified-safe questions
+        (use-browser=yes, OneDrive connection-type=onedrive) and surfaces
+        anything else as a real choice. **Real bug caught by live
+        testing**: an early version also auto-matched any option whose
+        label contained "personal", which silently picked the wrong
+        Microsoft drive on an account that had several
+        Microsoft-managed storage resources (Bundles, ODCMetadataArchive,
+        etc.) all *also* labelled "(personal)" alongside the actual
+        OneDrive — every access then failed with "unable to get drive_id
+        and drive_type" since the real drive was never actually selected.
+        Fixed by replacing the heuristic with an explicit allowlist of
+        only the two verified question names; the drive picker now always
+        surfaces to the user, with whichever option is actually named
+        "OneDrive" highlighted. Verified the fix live end-to-end: real
+        OAuth connection, real drive selection, real file
+        upload/list/delete against the account's actual OneDrive.
+      - **Debounced activity-triggered backups** (`src/proxy.ts` marks the
+        app "dirty" on any mutating `/api/*` request, excluding the
+        backup/auth/settings-backup routes themselves to avoid a feedback
+        loop) — backs up shortly after real changes go quiet (default
+        2 min debounce), never more often than a cooldown floor (default
+        10 min), independent of and additive to the fixed-interval
+        schedule. Built instead of literally "back up after every change"
+        (which the account owner initially asked for) after flagging that
+        a full VACUUM+tar+cloud-upload on every single write would
+        meaningfully slow the app and risk provider rate limits — the
+        account owner chose the debounced approach once that tradeoff was
+        explained.
 
 ## Dependency notes
 

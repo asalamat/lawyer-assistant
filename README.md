@@ -75,8 +75,9 @@ licensing: add as many lawyers and staff as your office needs.
 - 📝 Privacy Impact Assessment + Incident Response Runbook
 
 **☁️ Backup & Infrastructure**
-- 🔄 One-click + automatic scheduled backups (no OS cron needed)
-- ☁️ Cloud backup to S3-compatible storage, Google Drive, or OneDrive
+- 🆕⏱️ **Two automatic backup triggers, no OS cron needed** — a fixed interval (hourly by default) *and* a debounced trigger that backs up shortly after real activity settles down, each independently configurable
+- 🆕🧙 **One-click setup wizard for cloud backup** — installs `rclone` itself if it's missing, then drives the whole OAuth sign-in for OneDrive/Google Drive end to end; the only manual step left is approving access in the browser that pops open
+- ☁️ **Cloud backup, any provider you like** — S3-compatible (AWS S3, Cloudflare R2, Backblaze B2, Wasabi, MinIO), Google Drive, OneDrive, or `rclone` (the zero-app-registration option)
 - 🔌 Public versioned API (`/api/v1`) with API-key auth, outbound webhooks
 - 💡 System health dashboard, update checker, feature-request tracking, weather widget, sticky notes, dark mode
 
@@ -226,15 +227,25 @@ and what isn't.
 **Backup & restore** — one-click backup of the entire app (matters,
 documents, clients, users, settings) to a downloadable archive, with
 automatic pruning to the last 10; restore moves current data aside rather
-than deleting it. A built-in scheduler runs backups automatically on
-whatever interval you set (hourly by default option) — no OS-level cron
-job required, though the unattended endpoint is still there for anyone who
-prefers wiring it into their own cron/Task Scheduler. Optional off-site
-copy to cloud storage of your choice: any S3-compatible bucket (AWS S3,
-Cloudflare R2, Backblaze B2, Wasabi, MinIO…), Google Drive, or OneDrive —
-each backup encrypted the same way as everything else at rest, and Drive/
-OneDrive access is scoped to a single dedicated backups folder the app
-creates for itself, never the rest of your account.
+than deleting it. **Two independent, built-in automatic triggers** — no
+OS-level cron job required, though the unattended endpoint is still there
+for anyone who prefers wiring it into their own cron/Task Scheduler:
+- ⏰ a **fixed interval** (hourly by default, configurable)
+- 🌊 a **debounced activity trigger** — backs up shortly after real
+  changes in the app go quiet, with a minimum cooldown so a busy stretch
+  can't fire off backups back to back
+
+Optional off-site copy to cloud storage of your choice — **any S3-compatible
+bucket** (AWS S3, Cloudflare R2, Backblaze B2, Wasabi, MinIO…), **Google
+Drive**, **OneDrive**, or **`rclone`** (the only option needing zero cloud
+app registration, since rclone ships its own). A **setup wizard** drives the
+whole thing for Drive/OneDrive-via-rclone: it installs `rclone` itself if
+it's missing, then walks the entire OAuth handshake automatically — the
+only step left for a human is clicking through the Microsoft/Google sign-in
+that opens in the browser. Every backup is encrypted the same way as
+everything else at rest, and Drive/OneDrive access is scoped to a single
+dedicated backups folder the app creates for itself, never the rest of your
+account.
 
 Full detail on every feature, including what's deliberately *not* built
 and why, is in [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -269,6 +280,25 @@ Windows, and Linux.
 
 ## Recent changes
 
+- 🆕⏱️ **Two built-in automatic-backup triggers** (`Settings > Backup`) — no
+  OS-level cron job needed anymore for either: a fixed interval (hourly by
+  default) and a debounced trigger that backs up shortly after real
+  activity in the app settles down, capped by a minimum cooldown so a busy
+  stretch can't fire off backups back to back. They run independently and
+  can both be on at once.
+- 🆕☁️ **Cloud backup, any provider** — any S3-compatible bucket (AWS S3,
+  Cloudflare R2, Backblaze B2, Wasabi, MinIO), Google Drive, OneDrive, or
+  **`rclone`** — the only option needing zero cloud app registration at
+  all, since rclone ships its own already-registered Microsoft/Google app.
+- 🆕🧙 **One-click cloud-backup setup wizard** — installs `rclone` itself
+  (via Homebrew/winget) if it's missing, then drives rclone's own
+  non-interactive OAuth protocol end to end: picking account type,
+  resolving the right drive, all of it — the only step left for a human is
+  approving access in the Microsoft/Google sign-in page that opens
+  automatically. Falls back to a plain question (never a silent guess) for
+  anything it doesn't recognize — caught a real bug live where an account
+  with multiple Microsoft-managed storage resources needed exactly this
+  fallback to pick the actual OneDrive instead of an unrelated one.
 - In-app Help rebuilt as a single, filterable reference guide (`/help`) —
   every entry numbered and grouped the same way as the app's own
   navigation, a live filter box, and scroll-aware active-section
