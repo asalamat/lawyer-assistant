@@ -33,6 +33,7 @@ export default async function MatterChatPage({
         matterId={id}
         initialMessages={messages}
         knownFilenames={knownFilenames}
+        documents={documents.map((d) => ({ id: d.id, fileName: d.fileName }))}
         initialFeedback={feedback}
         initialReviews={chatReviews}
       />

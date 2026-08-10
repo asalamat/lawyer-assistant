@@ -25,11 +25,13 @@ import { fireWebhook } from "./webhooks";
 import { getImageMimeType, isImageFile, isSafeToExtract, readPlaintextFile } from "./textExtraction";
 import {
   analyzeImage,
+  analyzePageForQuestion,
   extractDeadlines,
   extractMissingEvidenceItems,
   suggestMatterClassification,
   type ExtractedDeadline,
 } from "./claude";
+import { renderPdfPageToPng } from "./pdfPageRender";
 import type {
   ChatMessage,
   Document,
@@ -488,6 +490,40 @@ export async function analyzeDocumentPhoto(
   }
 
   return getDocument(matterId, documentId);
+}
+
+// On-demand visual check of one specific page — not something run at
+// upload time or cached, unlike photo analysis above. Text extraction
+// (pdf-parse) can find the right page and question but has no way to see
+// a checkbox mark, signature, or handwriting; this renders that one page
+// as an image and asks a vision-capable model to look at it directly.
+// Deliberately not persisted anywhere — a one-off answer to a one-off
+// question, not a property of the document itself.
+export async function inspectDocumentPageForQuestion(
+  matterId: string,
+  documentId: string,
+  page: number,
+  question: string,
+): Promise<{ answer: string; pageCount: number; fileName: string }> {
+  const document = await getDocument(matterId, documentId);
+  if (!document) throw new Error("Document not found");
+  if (document.malwareScanStatus === "infected") {
+    throw new Error("This document was quarantined as malware and can't be inspected.");
+  }
+  if (!document.fileName.toLowerCase().endsWith(".pdf")) {
+    throw new Error("Visual page inspection only applies to PDF documents.");
+  }
+
+  const { buffer, pageCount } = await renderPdfPageToPng(document.storagePath, page);
+  const answer = await analyzePageForQuestion(buffer, "image/png", question);
+
+  await recordAuditEvent(
+    "document_page_inspected",
+    matterId,
+    `Visually inspected "${document.fileName}" page ${page} for: ${question}`,
+  );
+
+  return { answer, pageCount, fileName: document.fileName };
 }
 
 export async function addDocument(

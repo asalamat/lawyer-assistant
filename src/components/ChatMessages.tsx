@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { verifyCitations } from "@/lib/citationCheck";
+import { extractCitations, verifyCitations } from "@/lib/citationCheck";
 import type { ChatMessage, IndependentReview } from "@/lib/types";
 import DictateButton from "./DictateButton";
 import ExportPdfButton from "./ExportPdfButton";
@@ -10,16 +10,24 @@ import TranslateButton from "./TranslateButton";
 
 type Rating = "up" | "down";
 
+interface PageInspection {
+  loading: boolean;
+  answer?: string;
+  error?: string;
+}
+
 export default function ChatMessages({
   matterId,
   initialMessages,
   knownFilenames,
+  documents,
   initialFeedback,
   initialReviews = [],
 }: {
   matterId: string;
   initialMessages: ChatMessage[];
   knownFilenames: string[];
+  documents: { id: string; fileName: string }[];
   initialFeedback: Record<string, Rating>;
   initialReviews?: IndependentReview[];
 }) {
@@ -31,6 +39,29 @@ export default function ChatMessages({
   const [reviews, setReviews] = useState(initialReviews);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [pageInspections, setPageInspections] = useState<Record<string, PageInspection>>({});
+
+  async function handleInspectPage(question: string, fileName: string, page: number) {
+    const doc = documents.find((d) => d.fileName === fileName);
+    if (!doc) return;
+    const key = `${doc.id}|${page}`;
+    setPageInspections((prev) => ({ ...prev, [key]: { loading: true } }));
+    try {
+      const res = await fetch(`/api/matters/${matterId}/documents/${doc.id}/inspect-page`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ page, question }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Page inspection failed");
+      setPageInspections((prev) => ({ ...prev, [key]: { loading: false, answer: body.answer } }));
+    } catch (err) {
+      setPageInspections((prev) => ({
+        ...prev,
+        [key]: { loading: false, error: err instanceof Error ? err.message : "Something went wrong" },
+      }));
+    }
+  }
 
   async function handleReview(message: ChatMessage) {
     setReviewingId(message.id);
@@ -110,11 +141,26 @@ export default function ChatMessages({
             Ask a question about this matter&apos;s uploaded documents.
           </p>
         ) : (
-          messages.map((message) => {
+          messages.map((message, index) => {
             const unverified =
               message.role === "assistant"
                 ? verifyCitations(message.content, knownFilenames).filter((c) => !c.verified)
                 : [];
+            // Citations with a page number, against a real PDF in this matter, are
+            // candidates for on-demand visual inspection — text extraction found the
+            // right page but may not be able to see something only visible there
+            // (a checkbox mark, a signature, handwriting). The preceding user
+            // message is what actually gets re-asked against the rendered page.
+            const inspectablePages =
+              message.role === "assistant"
+                ? extractCitations(message.content).filter(
+                    (c) =>
+                      c.page !== null &&
+                      c.filename.toLowerCase().endsWith(".pdf") &&
+                      documents.some((d) => d.fileName === c.filename),
+                  )
+                : [];
+            const precedingQuestion = index > 0 ? messages[index - 1].content : message.content;
             const review = reviews.find((r) => r.sourceId === message.id);
             return (
               <div
@@ -136,6 +182,38 @@ export default function ChatMessages({
                     {unverified.length === 1 ? "isn't" : "aren't"} among this matter&apos;s
                     uploaded documents — verify before relying on this.
                   </p>
+                )}
+                {inspectablePages.length > 0 && (
+                  <div className="mt-2 flex flex-col gap-2">
+                    {inspectablePages.map((c) => {
+                      const doc = documents.find((d) => d.fileName === c.filename);
+                      const key = `${doc?.id}|${c.page}`;
+                      const inspection = pageInspections[key];
+                      return (
+                        <div key={key}>
+                          {inspection?.answer ? (
+                            <div className="surface-row text-xs">
+                              <p className="mb-1 font-medium text-muted">
+                                From the actual scan — {c.filename}, p. {c.page}
+                              </p>
+                              <MarkdownContent content={inspection.answer} />
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleInspectPage(precedingQuestion, c.filename, c.page!)}
+                              disabled={inspection?.loading}
+                              className="text-xs text-accent underline decoration-accent/40 disabled:opacity-50"
+                            >
+                              {inspection?.loading
+                                ? "Checking the actual scan…"
+                                : `🔍 Check ${c.filename}, p. ${c.page} visually`}
+                            </button>
+                          )}
+                          {inspection?.error && <p className="text-xs text-red-600">{inspection.error}</p>}
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
                 {message.role === "assistant" && (
                   <div className="mt-2 flex items-center gap-2">

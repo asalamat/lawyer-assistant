@@ -10,6 +10,7 @@ export const ACTION_LABELS: Record<string, string> = {
   mfa_enabled: "Two-factor authentication enabled",
   mfa_disabled: "Two-factor authentication disabled",
   malware_detected: "Malware detected and quarantined",
+  document_page_inspected: "Document page visually inspected",
   contradiction_analysis_generated: "Contradiction analysis generated",
   exhibit_list_generated: "Exhibit list generated",
   disclosure_checklist_generated: "Disclosure checklist generated",

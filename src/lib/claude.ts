@@ -224,6 +224,25 @@ export async function analyzeImage(buffer: Buffer, mimeType: string): Promise<st
   );
 }
 
+// For on-demand visual inspection of one rendered PDF page (see
+// pdfPageRender.ts) — used when chat can find the right page via text but
+// can't determine something inherently visual there (which checkbox is
+// marked, a signature, a diagram). Unlike analyzeImage() above, the prompt
+// is the specific question being asked, not a fixed general-description
+// prompt, since this is answering something targeted rather than
+// summarizing the page as a whole.
+export async function analyzePageForQuestion(buffer: Buffer, mimeType: string, question: string): Promise<string> {
+  const prompt = `This is a rendered page from a scanned legal document. Plain-text extraction of this page could not answer the following question, most likely because the answer depends on something only visible on the page itself — a checkbox or box that's marked, a signature, handwriting, or a diagram. Look at the actual page image and answer the question based only on what you can see there. If the answer genuinely isn't visually determinable either, say so plainly rather than guessing.\n\nQuestion: ${question}`;
+  return forEachConfiguredProvider(
+    (provider) => {
+      if (provider === "anthropic") return analyzeImageAnthropic(buffer, mimeType, prompt);
+      if (provider === "openai") return analyzeImageWithOpenAI(buffer, mimeType, prompt);
+      return analyzeImageGemini(buffer, mimeType, prompt);
+    },
+    { excludeProviders: ["ollama"] },
+  );
+}
+
 export async function askClaude(params: {
   question: string;
   context: string;
