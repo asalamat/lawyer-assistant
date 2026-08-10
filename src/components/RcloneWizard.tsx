@@ -140,21 +140,31 @@ export default function RcloneWizard({ onComplete }: { onComplete: (remoteName: 
       {state.phase === "question" && state.question && (
         <div className="flex flex-col gap-2">
           <p className="text-xs text-muted whitespace-pre-wrap">{state.question.help}</p>
+          {state.question.name === "config_driveid" && (
+            <p className="text-xs text-amber-600">
+              Your account has more than one Microsoft-managed storage resource — pick the one
+              actually named &quot;OneDrive&quot;, not app-specific ones like Bundles or
+              ODCMetadataArchive.
+            </p>
+          )}
           {state.question.options.length > 0 ? (
             <div className="flex flex-wrap gap-2">
-              {state.question.options.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => {
-                    setAnswerValue(opt.value);
-                    submitAnswer();
-                  }}
-                  disabled={submittingAnswer}
-                  className="btn-secondary px-3 py-1.5 text-xs"
-                >
-                  {opt.label}
-                </button>
-              ))}
+              {state.question.options.map((opt) => {
+                const recommended = /^onedrive\b/i.test(opt.label);
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => {
+                      setAnswerValue(opt.value);
+                      submitAnswer();
+                    }}
+                    disabled={submittingAnswer}
+                    className={recommended ? "btn-primary px-3 py-1.5 text-xs" : "btn-secondary px-3 py-1.5 text-xs"}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <div className="flex gap-2">

@@ -80,19 +80,29 @@ async function runRcloneConfig(args: string[]): Promise<RcloneConfigResponse> {
 // Auto-answers only the specific questions this wizard is built to expect
 // for the onedrive/drive backends — always use the browser flow, and
 // default OneDrive's account-type picker to "personal" (the Hotmail/
-// Outlook.com case this wizard targets). Anything else that has a usable
-// default is accepted as-is; anything with no safe default gets surfaced
-// to the user rather than guessed at.
+// Outlook.com case this wizard targets).
+//
+// Deliberately an explicit allowlist of exact question names verified
+// live against a real account, NOT a generic "match anything with
+// 'personal' in it" heuristic — that broader version picked the WRONG
+// drive on a real account that had several Microsoft-managed storage
+// resources ("Bundles", "ODCMetadataArchive", etc.) all *also* labelled
+// "(personal)" alongside the actual OneDrive, silently configuring the
+// remote against a metadata store no one meant to back up into. A
+// question this doesn't recognize (like the drive picker, config_driveid)
+// is always safer to surface to the user than to guess at, especially
+// when the choice is a specific resource rather than a yes/no default.
+const KNOWN_AUTO_ANSWERS: Record<string, string> = {
+  config_is_local: "true",
+  // OneDrive's own connection-type sub-choice (not the top-level backend
+  // type, which the wizard already fixed by calling `rclone config create
+  // <name> onedrive`) — "onedrive" here means "OneDrive Personal or
+  // Business", as opposed to a SharePoint site/URL/search/raw-ID option.
+  config_type: "onedrive",
+};
+
 function autoAnswer(option: RcloneOption): string | null {
-  if (option.Name === "config_is_local") return "true";
-  if (option.Examples?.length) {
-    const personal = option.Examples.find((e) => /personal/i.test(e.Help));
-    if (personal) return personal.Value;
-  }
-  if (option.Default !== null && option.Default !== undefined && option.Default !== "") {
-    return String(option.Default);
-  }
-  return null;
+  return KNOWN_AUTO_ANSWERS[option.Name] ?? null;
 }
 
 async function advance(remoteName: string, provider: RcloneWizardProvider, args: string[]): Promise<void> {
