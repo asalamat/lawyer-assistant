@@ -55,7 +55,7 @@ const DEFAULT_PII_MASKING: PiiMaskingSettings = {
   email: true,
 };
 
-export type CloudBackupProvider = "s3" | "google-drive" | "onedrive";
+export type CloudBackupProvider = "s3" | "google-drive" | "onedrive" | "rclone";
 
 export interface S3BackupConfig {
   provider: "s3";
@@ -83,7 +83,39 @@ export interface DriveBackupConfig {
   folderId?: string;
 }
 
-export type CloudBackupConfig = S3BackupConfig | DriveBackupConfig;
+// Single-literal-discriminant variants of DriveBackupConfig, used only in
+// the CloudBackupConfig union below — TypeScript can't fully narrow a
+// union member out of a larger union via control flow when that member's
+// own discriminant property is itself a union of two literals (as
+// DriveBackupConfig's is), so cloudBackup.ts's provider dispatch needs
+// these instead to narrow CloudBackupConfig cleanly. cloudDriveBackup.ts
+// itself still uses the plain DriveBackupConfig shape throughout, since it
+// never narrows on `.provider` — it's always told which provider via a
+// separate parameter.
+export interface GoogleDriveBackupConfig extends Omit<DriveBackupConfig, "provider"> {
+  provider: "google-drive";
+}
+export interface OneDriveBackupConfig extends Omit<DriveBackupConfig, "provider"> {
+  provider: "onedrive";
+}
+
+export interface RcloneBackupConfig {
+  provider: "rclone";
+  // Name of a remote already configured via `rclone config` on this
+  // machine (e.g. "onedrive") — the actual Microsoft/Google OAuth tokens
+  // live entirely in rclone's own config file, never in this app. This app
+  // only ever shells out to the rclone binary; it never sees a credential.
+  remote: string;
+  path?: string;
+  // Defaults to "rclone" (resolved via PATH) if not set.
+  binaryPath?: string;
+}
+
+export type CloudBackupConfig =
+  | S3BackupConfig
+  | GoogleDriveBackupConfig
+  | OneDriveBackupConfig
+  | RcloneBackupConfig;
 
 // Flat on-disk shape covering every provider's fields as optional — simpler
 // than a real discriminated union in JSON, since only `provider` says which
@@ -105,6 +137,11 @@ interface StoredCloudBackup {
   driveTokenExpiresAt?: string;
   driveAccountEmail?: string;
   driveFolderId?: string;
+  // rclone fields — no secrets here; rclone's own config file (outside
+  // this app entirely) holds whatever credentials the remote needs.
+  rcloneRemote?: string;
+  rclonePath?: string;
+  rcloneBinaryPath?: string;
   // Shared status
   lastRunAt?: string;
   lastStatus?: "ok" | "error";
@@ -469,6 +506,16 @@ export async function getCloudBackupConfig(): Promise<CloudBackupConfig | undefi
     };
   }
 
+  if (cb.provider === "rclone") {
+    if (!cb.rcloneRemote) return undefined;
+    return {
+      provider: "rclone",
+      remote: cb.rcloneRemote,
+      path: cb.rclonePath,
+      binaryPath: cb.rcloneBinaryPath,
+    };
+  }
+
   if (!cb.bucket || !cb.accessKeyId || !cb.secretAccessKey) return undefined;
   return {
     provider: "s3",
@@ -562,6 +609,25 @@ export async function updateDriveBackupTokens(
   await writeSettings(settings);
 }
 
+// No secrets to encrypt here — rclone's own config file (outside this app,
+// typically ~/.config/rclone/rclone.conf) holds whatever tokens the remote
+// needs. This app only ever needs the remote's name.
+export async function setRcloneBackupConfig(config: Omit<RcloneBackupConfig, "provider">): Promise<void> {
+  const settings = await readSettings();
+  const previous = settings.cloudBackup;
+  settings.cloudBackup = {
+    provider: "rclone",
+    rcloneRemote: config.remote.trim(),
+    rclonePath: config.path?.trim() || undefined,
+    rcloneBinaryPath: config.binaryPath?.trim() || undefined,
+    lastRunAt: previous?.provider === "rclone" ? previous?.lastRunAt : undefined,
+    lastStatus: previous?.provider === "rclone" ? previous?.lastStatus : undefined,
+    lastError: previous?.provider === "rclone" ? previous?.lastError : undefined,
+    lastUploadedFileName: previous?.provider === "rclone" ? previous?.lastUploadedFileName : undefined,
+  };
+  await writeSettings(settings);
+}
+
 export async function disconnectCloudBackup(): Promise<void> {
   const settings = await readSettings();
   settings.cloudBackup = undefined;
@@ -580,6 +646,9 @@ export interface CloudBackupStatus {
   accessKeyIdPreview: string | null;
   // Drive
   driveAccountEmail: string | null;
+  // rclone
+  rcloneRemote: string | null;
+  rclonePath: string | null;
   // Shared
   lastRunAt: string | null;
   lastStatus: "ok" | "error" | null;
@@ -601,6 +670,8 @@ export async function getCloudBackupStatus(): Promise<CloudBackupStatus> {
     forcePathStyle: false,
     accessKeyIdPreview: null,
     driveAccountEmail: null,
+    rcloneRemote: null,
+    rclonePath: null,
     lastRunAt: cb?.lastRunAt ?? null,
     lastStatus: cb?.lastStatus ?? null,
     lastError: cb?.lastError ?? null,
@@ -613,6 +684,15 @@ export async function getCloudBackupStatus(): Promise<CloudBackupStatus> {
       ...empty,
       configured: Boolean(cb.driveAccessToken && cb.driveRefreshToken),
       driveAccountEmail: cb.driveAccountEmail ?? null,
+    };
+  }
+
+  if (cb.provider === "rclone") {
+    return {
+      ...empty,
+      configured: Boolean(cb.rcloneRemote),
+      rcloneRemote: cb.rcloneRemote ?? null,
+      rclonePath: cb.rclonePath ?? null,
     };
   }
 

@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { listBackups } from "@/lib/backup";
 import { getOAuthCredentialStatus } from "@/lib/emailIntegration";
+import { listRcloneRemotes } from "@/lib/rcloneBackup";
+import { getInstallPlan, isRcloneInstalled } from "@/lib/rcloneInstall";
 import { getBackupScheduleStatus, getCloudBackupStatus, getOrCreateCronSecret } from "@/lib/settings";
 import BackupManager from "@/components/BackupManager";
 import CloudBackupPanel from "@/components/CloudBackupPanel";
@@ -14,13 +16,17 @@ export default async function BackupSettingsPage() {
   const user = await getCurrentUser();
   if (user?.role !== "admin") redirect("/settings/security");
 
-  const [backups, cronSecret, schedule, cloud, oauthCredentialStatus] = await Promise.all([
-    listBackups(),
-    getOrCreateCronSecret(),
-    getBackupScheduleStatus(),
-    getCloudBackupStatus(),
-    getOAuthCredentialStatus(),
-  ]);
+  const [backups, cronSecret, schedule, cloud, oauthCredentialStatus, rcloneRemotes, rcloneInstalled, rcloneInstallPlan] =
+    await Promise.all([
+      listBackups(),
+      getOrCreateCronSecret(),
+      getBackupScheduleStatus(),
+      getCloudBackupStatus(),
+      getOAuthCredentialStatus(),
+      listRcloneRemotes(),
+      isRcloneInstalled(),
+      getInstallPlan(),
+    ]);
 
   return (
     <SettingsSection
@@ -33,6 +39,9 @@ export default async function BackupSettingsPage() {
           initialSchedule={schedule}
           initialCloud={cloud}
           initialOAuthConfigured={{ google: oauthCredentialStatus.google, microsoft: oauthCredentialStatus.microsoft }}
+          initialRcloneRemotes={rcloneRemotes}
+          initialRcloneInstalled={rcloneInstalled}
+          initialRcloneInstallPlan={rcloneInstallPlan}
         />
         <BackupManager initialBackups={backups} cronSecret={cronSecret} cloudConfigured={cloud.configured} />
       </div>
