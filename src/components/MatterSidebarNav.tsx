@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   ActivityIcon,
   AuditIcon,
+  CalendarIcon,
   ChatIcon,
   DeadlineIcon,
   DigestIcon,
@@ -37,6 +38,7 @@ export default function MatterSidebarNav({ matterId }: { matterId: string }) {
     { href: `${base}/consent`, label: "Consent & signatures", Icon: SignatureIcon },
     { href: `${base}/digest`, label: "Digest", Icon: DigestIcon },
     { href: `${base}/deadlines`, label: "Deadlines", Icon: DeadlineIcon },
+    { href: `${base}/calendar`, label: "Calendar", Icon: CalendarIcon },
     { href: `${base}/tasks`, label: "Tasks", Icon: TaskIcon },
     { href: `${base}/evidence-matrix`, label: "Evidence matrix", Icon: EvidenceIcon },
     { href: `${base}/evidence-connections`, label: "Evidence connections", Icon: EvidenceIcon },

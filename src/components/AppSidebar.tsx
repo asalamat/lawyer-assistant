@@ -9,6 +9,7 @@ import LogoutButton from "./LogoutButton";
 import {
   AnalyticsIcon,
   AuditIcon,
+  CalendarIcon,
   DashboardIcon,
   HelpIcon,
   LeadsIcon,
@@ -25,6 +26,7 @@ import {
 
 const LINKS = [
   { href: "/", label: "Dashboard", Icon: DashboardIcon },
+  { href: "/calendar", label: "Calendar", Icon: CalendarIcon },
   { href: "/leads", label: "Leads", Icon: LeadsIcon },
   { href: "/matters", label: "Matters", Icon: MattersIcon },
   { href: "/clients", label: "Clients", Icon: UsersIcon },

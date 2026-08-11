@@ -117,6 +117,47 @@ execWithRetry(`
     FOREIGN KEY (matterId) REFERENCES matters(id)
   );
 
+  -- Ad-hoc calendar entries (meetings, reminders) that aren't an
+  -- AI-extracted or rule-computed deadline — the other event source the
+  -- native Calendar draws from, alongside matter_deadlines. matterId NULL
+  -- means a firm-wide event not tied to a specific case.
+  CREATE TABLE IF NOT EXISTS calendar_events (
+    id TEXT PRIMARY KEY,
+    matterId TEXT,
+    title TEXT NOT NULL,
+    description TEXT,
+    startDate TEXT NOT NULL,
+    endDate TEXT,
+    reminderDaysBefore INTEGER,
+    createdBy TEXT,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (matterId) REFERENCES matters(id),
+    FOREIGN KEY (createdBy) REFERENCES users(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_calendar_events_matterId ON calendar_events(matterId);
+  CREATE INDEX IF NOT EXISTS idx_calendar_events_startDate ON calendar_events(startDate);
+
+  -- Firm-wide, not per-user (matches this app's default "every matter
+  -- visible to everyone" model) — readAt is "has anyone dismissed this",
+  -- not per-user read state. The UNIQUE constraint is the dedup
+  -- mechanism: the reminder scheduler INSERT OR IGNOREs, so the same
+  -- deadline/event can only ever produce one reminder notification.
+  CREATE TABLE IF NOT EXISTS notifications (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    matterId TEXT,
+    relatedType TEXT,
+    relatedId TEXT,
+    readAt TEXT,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (matterId) REFERENCES matters(id),
+    UNIQUE(relatedType, relatedId, type)
+  );
+  CREATE INDEX IF NOT EXISTS idx_notifications_readAt ON notifications(readAt);
+  CREATE INDEX IF NOT EXISTS idx_notifications_createdAt ON notifications(createdAt);
+
   CREATE TABLE IF NOT EXISTS drafts (
     id TEXT PRIMARY KEY,
     matterId TEXT NOT NULL,

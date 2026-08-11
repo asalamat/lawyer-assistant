@@ -251,6 +251,48 @@ export interface MatterDeadline {
   createdAt: string;
 }
 
+// Ad-hoc calendar entry (meeting, reminder) — the other event source the
+// native Calendar draws from, alongside MatterDeadline. matterId null
+// means a firm-wide event not tied to a specific case.
+export interface CalendarEvent {
+  id: string;
+  matterId: string | null;
+  title: string;
+  description: string | null;
+  startDate: string;
+  endDate: string | null;
+  reminderDaysBefore: number | null;
+  createdBy: string | null;
+  createdAt: string;
+}
+
+// A single shape both MatterDeadline and CalendarEvent get normalized
+// into for rendering on a calendar grid — the grid component doesn't need
+// to know about the two different underlying sources.
+export interface CalendarItem {
+  id: string;
+  kind: "deadline" | "event";
+  title: string;
+  date: string;
+  endDate: string | null;
+  matterId: string | null;
+  matterTitle: string | null;
+}
+
+export type NotificationType = "deadline_reminder" | "event_reminder" | "deadline_overdue";
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  matterId: string | null;
+  relatedType: "deadline" | "calendar_event" | null;
+  relatedId: string | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
 export interface Campaign {
   id: string;
   name: string;

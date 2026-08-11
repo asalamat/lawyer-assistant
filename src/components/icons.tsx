@@ -43,6 +43,26 @@ export const MattersIcon = (props: IconProps) =>
     props,
   );
 
+export const CalendarIcon = (props: IconProps) =>
+  base(
+    <>
+      <rect x="3" y="4" width="18" height="17" rx="2" />
+      <path d="M3 9h18" />
+      <path d="M8 2v4" />
+      <path d="M16 2v4" />
+    </>,
+    props,
+  );
+
+export const BellIcon = (props: IconProps) =>
+  base(
+    <>
+      <path d="M18 8a6 6 0 0 0-12 0c0 4-2 5-2 7h16c0-2-2-3-2-7Z" />
+      <path d="M10 20a2 2 0 0 0 4 0" />
+    </>,
+    props,
+  );
+
 export const AuditIcon = (props: IconProps) =>
   base(
     <>

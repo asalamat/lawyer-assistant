@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { isChromelessRoute } from "@/lib/chromelessRoutes";
+import NotificationBell from "./NotificationBell";
 import ThemeToggle from "./ThemeToggle";
 import WeatherDisplay from "./WeatherDisplay";
 
@@ -12,6 +13,7 @@ export default function TopUtilityBar() {
   return (
     <div className="flex items-center justify-end gap-4 border-b border-border bg-card/60 px-6 py-3 backdrop-blur">
       <WeatherDisplay />
+      <NotificationBell />
       <ThemeToggle />
     </div>
   );
