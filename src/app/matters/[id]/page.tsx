@@ -5,6 +5,7 @@ import { listAttachedReferenceDocuments, listReferenceDocuments } from "@/lib/re
 import { isExtractableDocument, isImageFile } from "@/lib/textExtraction";
 import AnalyzePhotoButton from "@/components/AnalyzePhotoButton";
 import DeleteMatterButton from "@/components/DeleteMatterButton";
+import ImportEmailPanel from "@/components/ImportEmailPanel";
 import MatterComplianceControls from "@/components/MatterComplianceControls";
 import MatterTeamPanel from "@/components/MatterTeamPanel";
 import ReferenceDocumentsAttachPanel from "@/components/ReferenceDocumentsAttachPanel";
@@ -145,6 +146,8 @@ export default async function MatterOverviewPage({
           </ul>
         )}
       </div>
+
+      <ImportEmailPanel matterId={id} />
 
       <ReferenceDocumentsAttachPanel
         matterId={id}

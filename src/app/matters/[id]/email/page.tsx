@@ -1,7 +1,6 @@
 import { getMatter, listDocuments } from "@/lib/matters";
 import { isEmailConfigured } from "@/lib/email";
 import ComposeEmailPanel from "@/components/ComposeEmailPanel";
-import ImportEmailPanel from "@/components/ImportEmailPanel";
 
 export default async function MatterEmailPage({
   params,
@@ -23,7 +22,6 @@ export default async function MatterEmailPage({
         emailConfigured={emailConfigured}
         documents={documents.map((doc) => ({ id: doc.id, fileName: doc.fileName }))}
       />
-      <ImportEmailPanel matterId={id} />
     </div>
   );
 }
