@@ -57,10 +57,9 @@ function signPayload(body: string, secret: string): string {
 
 // Best-effort, fire-and-forget — a webhook delivery failing (receiving
 // endpoint down, DNS error, timeout) must never block or roll back the
-// action that triggered it, same principle as tryAutoPushDeadline() for
-// calendar sync. Every active subscription for this event type gets its
-// own signed POST; failures are swallowed silently rather than retried —
-// there's no delivery/retry queue in this first version.
+// action that triggered it. Every active subscription for this event type
+// gets its own signed POST; failures are swallowed silently rather than
+// retried — there's no delivery/retry queue in this first version.
 export async function fireWebhook(eventType: WebhookEventType, payload: unknown): Promise<void> {
   const subscriptions = db
     .prepare("SELECT * FROM webhook_subscriptions WHERE eventType = ? AND active = 1")

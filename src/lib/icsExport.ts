@@ -1,9 +1,9 @@
-// Zero-setup alternative to OAuth calendar push (see calendarSync.ts) — a
-// standard iCalendar file, the same mechanism behind a Zoom invite or an
-// Eventbrite ticket. No Google/Microsoft account connection, no app
-// registration, no sign-in: whatever calendar app is already on the
-// user's device opens it directly. One-way and manual (one click per
-// deadline), which is the deliberate trade for needing absolutely no setup.
+// Optional courtesy export to a personal calendar app — a standard
+// iCalendar file, the same mechanism behind a Zoom invite or an Eventbrite
+// ticket. Deadlines and events live natively in this app's own Calendar
+// (see calendar.ts/CalendarView) regardless of whether anyone ever uses
+// this export; it's a one-way, one-off copy for someone who wants the
+// same item in Google/Outlook/Apple's calendar too.
 
 function formatDateStamp(date: Date): string {
   return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");

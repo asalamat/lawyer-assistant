@@ -1,4 +1,3 @@
-import { getCalendarSyncAccount } from "./calendarSync";
 import {
   getAnthropicApiKeyStatus,
   getCanliiApiKeyStatus,
@@ -20,13 +19,12 @@ export interface HealthStatus {
 }
 
 export async function getHealthStatus(): Promise<HealthStatus> {
-  const [anthropic, openai, canlii, smtp, location, calendarSyncAccount] = await Promise.all([
+  const [anthropic, openai, canlii, smtp, location] = await Promise.all([
     getAnthropicApiKeyStatus(),
     getOpenaiApiKeyStatus(),
     getCanliiApiKeyStatus(),
     getSmtpStatus(),
     getWeatherLocation(),
-    getCalendarSyncAccount(),
   ]);
 
   const anyAiConfigured = anthropic.configured || openai.configured;
@@ -73,14 +71,6 @@ export async function getHealthStatus(): Promise<HealthStatus> {
       configured: Boolean(location),
       detail: location ? `Set to ${location.name}` : "Not set — optional",
       settingsHref: "/settings",
-    },
-    {
-      name: "Calendar sync (deadlines)",
-      configured: Boolean(calendarSyncAccount),
-      detail: calendarSyncAccount
-        ? `Enabled via ${calendarSyncAccount.provider} (${calendarSyncAccount.emailAddress})`
-        : "Not enabled — optional; rule-computed deadlines won't push to a calendar automatically",
-      settingsHref: "/settings/integrations",
     },
   ];
 

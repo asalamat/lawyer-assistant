@@ -1,6 +1,5 @@
 import { randomUUID } from "crypto";
 import { recordAuditEvent } from "./auditLog";
-import { tryAutoPushDeadline } from "./calendarSync";
 import db, { toPlain } from "./db";
 import type { DeadlineRule, Holiday, MatterDeadline } from "./types";
 
@@ -161,16 +160,6 @@ export async function applyDeadlineRule(
     `Computed deadline "${description}" → ${dueDate} using rule "${rule.name}"`,
   );
 
-  // Best-effort — a calendar sync failure never blocks the deadline itself
-  // from existing. Re-read afterward so the returned object reflects
-  // whether the push actually succeeded (calendarEventId set) instead of
-  // guessing.
-  await tryAutoPushDeadline(matterId, id);
-  const pushed = db.prepare("SELECT calendarEventId, calendarProvider FROM matter_deadlines WHERE id = ?").get(id) as {
-    calendarEventId: string | null;
-    calendarProvider: string | null;
-  };
-
   return {
     id,
     matterId,
@@ -180,8 +169,8 @@ export async function applyDeadlineRule(
     source: "rule-computed",
     ruleId,
     triggerDate,
-    calendarEventId: pushed.calendarEventId,
-    calendarProvider: pushed.calendarProvider,
+    calendarEventId: null,
+    calendarProvider: null,
     createdAt,
   };
 }

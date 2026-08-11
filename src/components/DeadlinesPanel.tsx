@@ -112,20 +112,6 @@ export default function DeadlinesPanel({
     );
   }
 
-  async function handlePushToCalendar(deadlineId: string) {
-    setError(null);
-    try {
-      const res = await fetch(`/api/matters/${matterId}/deadlines/${deadlineId}/push-to-calendar`, {
-        method: "POST",
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? "Failed to push to calendar");
-      setDeadlines((prev) => prev.map((d) => (d.id === deadlineId ? body : d)));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-    }
-  }
-
   return (
     <div className="flex flex-col gap-4">
       <div className="surface-card flex flex-col gap-3">
@@ -157,27 +143,13 @@ export default function DeadlinesPanel({
                   <span className="text-sm font-medium text-accent">
                     {deadline.dueDate ? formatDateOnly(deadline.dueDate) : "Date unclear"}
                   </span>
-                  {deadline.calendarEventId ? (
-                    <span className="badge" title={`Synced to ${deadline.calendarProvider}`}>
-                      Synced
-                    </span>
-                  ) : (
-                    deadline.dueDate && (
-                      <button
-                        onClick={() => handlePushToCalendar(deadline.id)}
-                        className="text-xs text-accent underline decoration-accent/40"
-                      >
-                        Push to calendar
-                      </button>
-                    )
-                  )}
                   {deadline.dueDate && (
                     <a
                       href={`/api/matters/${matterId}/deadlines/${deadline.id}/ics`}
                       className="text-xs text-accent underline decoration-accent/40"
-                      title="Downloads a calendar file any app (Google, Outlook, Apple) can open directly — no sign-in needed"
+                      title="Downloads a calendar file for a personal calendar app (Google, Outlook, Apple) — this deadline already appears on this app's own Calendar automatically"
                     >
-                      Add to calendar
+                      Export to personal calendar
                     </a>
                   )}
                 </span>

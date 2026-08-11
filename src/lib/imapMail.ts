@@ -5,10 +5,7 @@ import type { EmailFolder, EmailProvider } from "./types";
 
 // App passwords are a real, currently-supported alternative to OAuth for
 // IMAP mail access — no developer app registration needed, just a per-app
-// credential generated from the account's own security settings. The
-// tradeoff: an app password carries no Calendar API scope, so accounts
-// connected this way can read mail but can't do calendar sync (see
-// calendarSync.ts, which filters these out).
+// credential generated from the account's own security settings.
 //
 // Coverage differs by provider:
 // - Yahoo: the only mail-read option at all (no OAuth mail scope exists

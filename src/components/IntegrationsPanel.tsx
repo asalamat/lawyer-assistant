@@ -17,9 +17,7 @@ interface IntegrationsState {
 
 // Shared by every provider's "connect without OAuth" path — a per-app
 // password generated from the account's own security settings, used over
-// plain IMAP. No developer app registration needed, but mail-only: an
-// app-password connection carries no Calendar API scope, so it can't do
-// calendar sync (see the authMethod branch in ProviderRow below).
+// plain IMAP. No developer app registration needed.
 function AppPasswordConnectForm({
   provider,
   helpText,
@@ -104,27 +102,6 @@ function ProviderRow({
   const [disconnecting, setDisconnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  const [togglingCalendarSync, setTogglingCalendarSync] = useState(false);
-  const [calendarSyncError, setCalendarSyncError] = useState<string | null>(null);
-
-  async function handleToggleCalendarSync(enabled: boolean) {
-    setTogglingCalendarSync(true);
-    setCalendarSyncError(null);
-    try {
-      const res = await fetch(`/api/integrations/${provider}/calendar-sync`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled }),
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? "Failed to update calendar sync");
-      onChange();
-    } catch (err) {
-      setCalendarSyncError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setTogglingCalendarSync(false);
-    }
-  }
 
   async function handleSaveCredentials(e: React.FormEvent) {
     e.preventDefault();
@@ -173,7 +150,7 @@ function ProviderRow({
         >
           myaccount.google.com/apppasswords
         </a>
-        , and connect with that instead. Mail only — this path can&apos;t do calendar sync.
+        , and connect with that instead.
       </>
     ) : (
       <>
@@ -189,7 +166,6 @@ function ProviderRow({
         </a>
         , then connect with that instead. Only works for a personal Outlook.com/Hotmail account —
         a work or school Microsoft 365 account has no app-password option and needs OAuth above.
-        Mail only either way — this path can&apos;t do calendar sync.
       </>
     );
 
@@ -206,31 +182,13 @@ function ProviderRow({
 
       {account ? (
         <div className="mt-3 flex flex-col gap-2">
-          {account.authMethod === "oauth" ? (
-            <>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={Boolean(account.calendarSyncEnabled)}
-                  disabled={togglingCalendarSync}
-                  onChange={(e) => handleToggleCalendarSync(e.target.checked)}
-                />
-                Sync deadlines to calendar
-              </label>
-              <p className="text-xs text-muted">
-                New deadlines computed from a rule push automatically; any deadline can also be
-                pushed manually from its matter&apos;s Deadlines tab. One-way only — edits made
-                directly in {PROVIDER_LABELS[provider]} never flow back here.
-              </p>
-              {calendarSyncError && <p className="text-xs text-red-600">{calendarSyncError}</p>}
-            </>
-          ) : (
-            <p className="text-xs text-muted">
-              Connected via app password — mail reading works, but calendar sync isn&apos;t
-              available on this path (an app password carries no Calendar API access). Disconnect
-              and reconnect via OAuth below if you need calendar sync.
-            </p>
-          )}
+          <p className="text-xs text-muted">
+            {account.authMethod === "oauth"
+              ? "Connected via browser sign-in."
+              : "Connected via app password."}{" "}
+            Deadlines and events live in this app&apos;s own calendar (see the Calendar page) —
+            nothing here pushes to or reads from {PROVIDER_LABELS[provider]}&apos;s calendar.
+          </p>
           <button
             onClick={handleDisconnect}
             disabled={disconnecting}
@@ -246,8 +204,8 @@ function ProviderRow({
               ✅ Ready to connect with OAuth — click below to sign in with your browser
             </p>
             <p className="text-xs text-muted">
-              This is the option that supports calendar sync. You&apos;ll be sent to{" "}
-              {PROVIDER_LABELS[provider]}&apos;s own sign-in page — nothing typed here.
+              You&apos;ll be sent to {PROVIDER_LABELS[provider]}&apos;s own sign-in page — your
+              password is never typed into this app.
             </p>
             <a href={`/api/integrations/${provider}/connect`} className="btn-primary self-start">
               Connect {PROVIDER_LABELS[provider]} with browser sign-in
@@ -256,7 +214,7 @@ function ProviderRow({
 
           <details className="text-xs text-muted">
             <summary className="cursor-pointer select-none">
-              Advanced: use an app password instead (mail only — no calendar sync)
+              Advanced: use an app password instead
             </summary>
             <div className="mt-2 flex flex-col gap-2">
               <AppPasswordConnectForm provider={provider} helpText={appPasswordHelp} onChange={onChange} />
@@ -297,7 +255,6 @@ function ProviderRow({
             <p className="text-xs text-muted">
               Requires an OAuth app registered with this provider (Client ID + Secret), with
               redirect URI <code>{`{this app's URL}/api/integrations/${provider}/callback`}</code>.
-              Needed for calendar sync.
             </p>
             <form onSubmit={handleSaveCredentials} className="flex flex-col gap-2 sm:flex-row">
               <input
@@ -436,9 +393,8 @@ export default function IntegrationsPanel() {
     <div className="flex flex-col gap-3">
       <p className="text-sm text-muted">
         Connect a mailbox so matter-related email and attachments can be ingested. Each provider
-        can be connected either via OAuth (its own login + consent screen, needed for calendar
-        sync) or, for Google and Microsoft, with a simpler app password instead — see Help for
-        setup notes.
+        can be connected either via OAuth (its own login + consent screen) or, for Google and
+        Microsoft, with a simpler app password instead — see Help for setup notes.
       </p>
       {connected && (
         <p className="text-sm text-green-600">

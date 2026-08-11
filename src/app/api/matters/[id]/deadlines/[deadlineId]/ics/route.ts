@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { buildDeadlineIcs } from "@/lib/icsExport";
 import { getMatter, listDeadlines } from "@/lib/matters";
 
-// The zero-setup alternative to "Push to calendar" (calendarSync.ts) — a
-// downloadable .ics file the browser hands off to whatever calendar app is
-// already installed, the same way a Zoom invite works. No Google/
-// Microsoft connection needed.
+// Exports one deadline to a downloadable .ics file for a personal
+// calendar app (Google, Outlook, Apple) — the same mechanism as a Zoom
+// invite. This deadline already appears on this app's own Calendar
+// automatically; this is just an optional courtesy export.
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string; deadlineId: string }> },
