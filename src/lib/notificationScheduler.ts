@@ -1,5 +1,7 @@
+import { listUsers } from "./auth";
 import { createNotificationIfNew } from "./calendar";
 import db from "./db";
+import { isEmailConfigured, sendEmail } from "./email";
 
 // Checked hourly, not every minute like backupScheduler — reminders are
 // day-granularity (due dates, event dates), so there's no benefit to
@@ -21,6 +23,17 @@ function addDaysToIso(isoDate: string, days: number): string {
   return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }
 
+// Notifications are firm-wide, not per-user (see calendar.ts), so a reminder
+// email goes to every active staff account rather than one specific owner.
+async function sendReminderEmail(subject: string, body: string): Promise<void> {
+  if (!(await isEmailConfigured())) return;
+  const recipients = (await listUsers())
+    .filter((u) => u.active)
+    .map((u) => u.email);
+  if (recipients.length === 0) return;
+  await sendEmail({ to: recipients.join(", "), subject, text: body });
+}
+
 async function checkDeadlineReminders(): Promise<void> {
   const today = new Date().toISOString().slice(0, 10);
   const reminderTargetDate = addDaysToIso(today, DEADLINE_REMINDER_DAYS_BEFORE);
@@ -34,14 +47,16 @@ async function checkDeadlineReminders(): Promise<void> {
     .all(reminderTargetDate) as { id: string; description: string; matterId: string; matterTitle: string }[];
 
   for (const d of dueTomorrow) {
-    await createNotificationIfNew({
+    const title = `Due tomorrow: ${d.matterTitle}`;
+    const isNew = await createNotificationIfNew({
       type: "deadline_reminder",
-      title: `Due tomorrow: ${d.matterTitle}`,
+      title,
       body: d.description,
       matterId: d.matterId,
       relatedType: "deadline",
       relatedId: d.id,
     });
+    if (isNew) await sendReminderEmail(title, d.description);
   }
 
   const overdueToday = db
@@ -53,14 +68,16 @@ async function checkDeadlineReminders(): Promise<void> {
     .all(today) as { id: string; description: string; matterId: string; matterTitle: string }[];
 
   for (const d of overdueToday) {
-    await createNotificationIfNew({
+    const title = `Due today: ${d.matterTitle}`;
+    const isNew = await createNotificationIfNew({
       type: "deadline_overdue",
-      title: `Due today: ${d.matterTitle}`,
+      title,
       body: d.description,
       matterId: d.matterId,
       relatedType: "deadline",
       relatedId: d.id,
     });
+    if (isNew) await sendReminderEmail(title, d.description);
   }
 }
 
@@ -85,14 +102,17 @@ async function checkEventReminders(): Promise<void> {
   for (const e of events) {
     const reminderDate = addDaysToIso(e.startDate, -e.reminderDaysBefore);
     if (reminderDate > today) continue; // not due yet
-    await createNotificationIfNew({
+    const title = e.matterTitle ? `${e.title} — ${e.matterTitle}` : e.title;
+    const body = `On ${e.startDate}`;
+    const isNew = await createNotificationIfNew({
       type: "event_reminder",
-      title: e.matterTitle ? `${e.title} — ${e.matterTitle}` : e.title,
-      body: `On ${e.startDate}`,
+      title,
+      body,
       matterId: e.matterId,
       relatedType: "calendar_event",
       relatedId: e.id,
     });
+    if (isNew) await sendReminderEmail(title, body);
   }
 }
 
