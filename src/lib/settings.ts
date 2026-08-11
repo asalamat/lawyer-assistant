@@ -195,6 +195,7 @@ interface Settings {
   location?: WeatherLocation;
   aiProviderOrder?: AiProvider[];
   cronSecret?: string;
+  calendarFeedSecret?: string;
   defaultTranslationLanguage?: string;
   piiMasking?: Partial<PiiMaskingSettings>;
   ollama?: Partial<OllamaConfig>;
@@ -206,7 +207,14 @@ interface Settings {
 
 export const DEFAULT_TRANSLATION_LANGUAGE = "French";
 
-const SECRET_FIELDS = ["anthropicApiKey", "openaiApiKey", "geminiApiKey", "canliiApiKey", "cronSecret"] as const;
+const SECRET_FIELDS = [
+  "anthropicApiKey",
+  "openaiApiKey",
+  "geminiApiKey",
+  "canliiApiKey",
+  "cronSecret",
+  "calendarFeedSecret",
+] as const;
 
 // Settings secrets are encrypted at rest. Values written before this feature
 // shipped are still plaintext on disk — migrate them to encrypted form the
@@ -509,6 +517,28 @@ export async function getOrCreateCronSecret(): Promise<string> {
   if (settings.cronSecret) return (await decryptSecret(settings.cronSecret)) as string;
   const secret = randomBytes(32).toString("hex");
   settings.cronSecret = await encryptText(secret);
+  await writeSettings(settings);
+  return secret;
+}
+
+// Embedded directly in the calendar subscription feed's URL path (see
+// /api/deadlines/feed/[token]) rather than sent as a bearer header — a
+// calendar app subscribing to a feed URL has no way to attach a custom
+// Authorization header, so the secret has to be part of the URL itself.
+// Distinct from cronSecret so rotating one doesn't invalidate the other.
+export async function getOrCreateCalendarFeedSecret(): Promise<string> {
+  const settings = await readSettings();
+  if (settings.calendarFeedSecret) return (await decryptSecret(settings.calendarFeedSecret)) as string;
+  const secret = randomBytes(32).toString("hex");
+  settings.calendarFeedSecret = await encryptText(secret);
+  await writeSettings(settings);
+  return secret;
+}
+
+export async function regenerateCalendarFeedSecret(): Promise<string> {
+  const settings = await readSettings();
+  const secret = randomBytes(32).toString("hex");
+  settings.calendarFeedSecret = await encryptText(secret);
   await writeSettings(settings);
   return secret;
 }

@@ -71,6 +71,10 @@ const PUBLIC_PATH_PREFIXES = [
   // apply to an API key at all, so each /api/v1/* route checks its own
   // Authorization header instead (see requireApiKey in apiV1Auth.ts).
   "/api/v1/",
+  // The calendar subscription feed — a calendar app polling this URL has
+  // no session and can't send a custom header, so it's gated by a secret
+  // embedded in the URL path itself instead (see getOrCreateCalendarFeedSecret).
+  "/api/deadlines/feed/",
 ];
 
 // The persistent client portal (see clientAuth.ts) is a wholly separate

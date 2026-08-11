@@ -774,9 +774,27 @@ function isSameDeadline(
 // collapses matches using isSameDeadline() above. Merges sourceDocument
 // mentions from every duplicate into the kept row rather than discarding
 // them.
+// Despite DEADLINES_SCHEMA explicitly allowing a real JSON null for
+// dueDate, the model occasionally emits the 4-character string "null"
+// instead of the null literal for a date it couldn't resolve (caught live:
+// a deadline description with an ambiguous date produced dueDate: "null",
+// which then passed every "IS NOT NULL" filter downstream as if it were a
+// real date and crashed date parsing in the calendar feed). Schema
+// validation only checks JSON shape, not this kind of semantic mix-up, so
+// it has to be normalized here before anything downstream treats it as a
+// real value.
+function normalizeExtractedDeadline(deadline: ExtractedDeadline): ExtractedDeadline {
+  const isNullish = (v: string | null) => v === null || v.trim().toLowerCase() === "null" || v.trim() === "";
+  return {
+    ...deadline,
+    dueDate: isNullish(deadline.dueDate) ? null : deadline.dueDate,
+  };
+}
+
 function dedupeExtractedDeadlines(deadlines: ExtractedDeadline[]): ExtractedDeadline[] {
   const kept: ExtractedDeadline[] = [];
-  for (const deadline of deadlines) {
+  for (const raw of deadlines) {
+    const deadline = normalizeExtractedDeadline(raw);
     const match = kept.find((existing) => isSameDeadline(deadline, existing));
     if (match) {
       match.sourceDocument = mergeSourceDocument(match.sourceDocument, deadline.sourceDocument);
@@ -895,6 +913,24 @@ export async function checkMatterClassification(
 
   const { classification, reason } = await suggestMatterClassification(context);
   return classification === "standard" ? null : { classification, reason };
+}
+
+// For the calendar subscription feed (icsExport.ts) — every deadline with
+// a due date, not just the next few, since a subscribed calendar feed is
+// meant to be the complete picture rather than a dashboard preview. Capped
+// generously rather than truly unbounded, just as a sanity limit.
+export async function listAllDeadlinesForFeed(): Promise<(MatterDeadline & { matterTitle: string })[]> {
+  return db
+    .prepare(
+      `SELECT d.*, m.title as matterTitle
+       FROM matter_deadlines d
+       JOIN matters m ON m.id = d.matterId
+       WHERE d.dueDate IS NOT NULL
+       ORDER BY d.dueDate ASC
+       LIMIT 2000`,
+    )
+    .all()
+    .map((row) => toPlain<MatterDeadline & { matterTitle: string }>(row));
 }
 
 export async function listUpcomingDeadlines(limit = 10): Promise<(MatterDeadline & { matterTitle: string })[]> {

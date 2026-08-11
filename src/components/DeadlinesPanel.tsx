@@ -171,6 +171,15 @@ export default function DeadlinesPanel({
                       </button>
                     )
                   )}
+                  {deadline.dueDate && (
+                    <a
+                      href={`/api/matters/${matterId}/deadlines/${deadline.id}/ics`}
+                      className="text-xs text-accent underline decoration-accent/40"
+                      title="Downloads a calendar file any app (Google, Outlook, Apple) can open directly — no sign-in needed"
+                    >
+                      Add to calendar
+                    </a>
+                  )}
                 </span>
               </li>
             ))}
