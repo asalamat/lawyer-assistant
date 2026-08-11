@@ -239,6 +239,58 @@ function ProviderRow({
             {disconnecting ? "Disconnecting…" : "Disconnect"}
           </button>
         </div>
+      ) : hasCredentials ? (
+        <div className="mt-3 flex flex-col gap-3">
+          <div className="surface-row flex flex-col gap-2 border-accent/30 bg-accent/5">
+            <p className="text-sm font-medium">
+              ✅ Ready to connect with OAuth — click below to sign in with your browser
+            </p>
+            <p className="text-xs text-muted">
+              This is the option that supports calendar sync. You&apos;ll be sent to{" "}
+              {PROVIDER_LABELS[provider]}&apos;s own sign-in page — nothing typed here.
+            </p>
+            <a href={`/api/integrations/${provider}/connect`} className="btn-primary self-start">
+              Connect {PROVIDER_LABELS[provider]} with browser sign-in
+            </a>
+          </div>
+
+          <details className="text-xs text-muted">
+            <summary className="cursor-pointer select-none">
+              Advanced: use an app password instead (mail only — no calendar sync)
+            </summary>
+            <div className="mt-2 flex flex-col gap-2">
+              <AppPasswordConnectForm provider={provider} helpText={appPasswordHelp} onChange={onChange} />
+            </div>
+          </details>
+
+          <details className="text-xs text-muted">
+            <summary className="cursor-pointer select-none">Change the saved OAuth Client ID/Secret</summary>
+            <form onSubmit={handleSaveCredentials} className="mt-2 flex flex-col gap-2 sm:flex-row">
+              <input
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                placeholder="Client ID"
+                className="surface-input flex-1"
+              />
+              <input
+                type="password"
+                value={clientSecret}
+                onChange={(e) => setClientSecret(e.target.value)}
+                placeholder="Client Secret"
+                className="surface-input flex-1"
+              />
+              <button
+                type="submit"
+                disabled={saving || !clientId.trim() || !clientSecret.trim()}
+                className="btn-primary px-3 py-2"
+              >
+                {saving ? "Saving…" : "Save"}
+              </button>
+            </form>
+            {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+            {saved && <p className="mt-2 text-xs text-green-600">Credentials saved.</p>}
+          </details>
+        </div>
       ) : (
         <div className="mt-3 flex flex-col gap-3">
           <div className="flex flex-col gap-2">
@@ -271,11 +323,6 @@ function ProviderRow({
             </form>
             {error && <p className="text-xs text-red-600">{error}</p>}
             {saved && <p className="text-xs text-green-600">Credentials saved.</p>}
-            {hasCredentials && (
-              <a href={`/api/integrations/${provider}/connect`} className="btn-primary self-start">
-                Connect {PROVIDER_LABELS[provider]}
-              </a>
-            )}
           </div>
 
           <div className="flex items-center gap-2 text-xs text-muted">
