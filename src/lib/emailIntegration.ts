@@ -25,12 +25,9 @@ export const PROVIDER_CONFIG: Record<EmailProvider, ProviderConfig> = {
     authUrl: "https://accounts.google.com/o/oauth2/v2/auth",
     tokenUrl: "https://oauth2.googleapis.com/token",
     userInfoUrl: "https://www.googleapis.com/oauth2/v2/userinfo",
-    // calendar.events is requested upfront alongside mail-read, not
-    // incrementally when calendar sync is later turned on — Google's
-    // consent flow doesn't support silently widening an already-granted
-    // scope without another full consent screen, so an account connected
-    // before this scope was added has to be reconnected once.
-    scope: "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/calendar.events openid email",
+    // Mail-read only — this app's calendar is entirely native now (see
+    // calendar.ts), so there's no calendar scope to request here at all.
+    scope: "https://www.googleapis.com/auth/gmail.readonly openid email",
     extraAuthParams: { access_type: "offline", prompt: "consent" },
   },
   microsoft: {
@@ -38,7 +35,7 @@ export const PROVIDER_CONFIG: Record<EmailProvider, ProviderConfig> = {
     authUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
     tokenUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
     userInfoUrl: "https://graph.microsoft.com/v1.0/me",
-    scope: "offline_access Mail.Read Calendars.ReadWrite User.Read",
+    scope: "offline_access Mail.Read User.Read",
   },
   // Yahoo's own developer docs state mail scopes are "not available for
   // self-served setup in the developer console" — third-party mail read

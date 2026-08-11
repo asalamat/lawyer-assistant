@@ -1016,21 +1016,21 @@ ensureColumn("matter_deadlines", "triggerDate", "TEXT");
 ensureColumn("time_entries", "userId", "TEXT");
 execWithRetry("CREATE INDEX IF NOT EXISTS idx_time_entries_userId ON time_entries(userId);");
 
-// One-way calendar push (deadlines -> Google/Outlook), off by default even
-// once a mail account is connected — nothing gets pushed to a calendar
-// just because email reading works. calendarEventId/calendarProvider let
-// a later edit to the same deadline update the event that was already
-// pushed, instead of creating a duplicate.
+// Leftover from a removed Google/Microsoft calendar-push integration —
+// deadlines now live entirely in this app's own calendar (see calendar.ts)
+// and nothing ever writes to these columns anymore. Kept rather than
+// migrated away since dropping a populated column isn't worth the risk
+// for three unused fields.
 ensureColumn("email_accounts", "calendarSyncEnabled", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("matter_deadlines", "calendarEventId", "TEXT");
 ensureColumn("matter_deadlines", "calendarProvider", "TEXT");
 
 // Gmail and Microsoft can be connected either via OAuth (real login +
-// consent screen, needed for calendar sync) or via IMAP with a per-app
-// password (no developer app registration, mail-only) — see
-// emailIntegration.ts. Every row that existed before this column was added
-// was necessarily OAuth, except Yahoo, which has never had an OAuth
-// mail-read path at all and was always effectively an app password.
+// consent screen) or via IMAP with a per-app password (no developer app
+// registration, mail-only) — see emailIntegration.ts. Every row that
+// existed before this column was added was necessarily OAuth, except
+// Yahoo, which has never had an OAuth mail-read path at all and was always
+// effectively an app password.
 ensureColumn("email_accounts", "authMethod", "TEXT NOT NULL DEFAULT 'oauth'");
 db.prepare("UPDATE email_accounts SET authMethod = 'app_password' WHERE provider = 'yahoo'").run();
 

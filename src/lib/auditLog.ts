@@ -117,8 +117,6 @@ export const ACTION_LABELS: Record<string, string> = {
   task_created: "Task added",
   task_completed: "Task completed",
   task_deleted: "Task deleted",
-  calendar_sync_toggled: "Calendar sync toggled",
-  deadline_pushed_to_calendar: "Deadline pushed to calendar",
 };
 
 export async function recordAuditEvent(

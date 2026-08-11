@@ -167,13 +167,16 @@ stored number that could drift), a hard rejection of any transaction that
 would take a matter's balance negative, and permanent reconciliation
 records against a bank statement.
 
-**Rules-based deadline calculator, with one-way calendar push** — a
+**Rules-based deadline calculator, with a native calendar** — a
 firm-editable library of deadline rules (e.g. "21 business days after
 service," correctly skipping weekends and a configurable holiday list)
 that computes a deadline straight into a matter's existing list, alongside
-whatever the AI already extracted. A connected Google or Microsoft account
-can have deadlines push to its calendar automatically or on demand
-(one-way — edits made directly in the calendar never flow back).
+whatever the AI already extracted. Every deadline shows up automatically on
+a firm-wide calendar (`/calendar`) and on its matter's own calendar tab —
+one data source, two views, no external account or sync step involved.
+Ad-hoc events can be added directly, each with an optional reminder lead
+time. Reminders surface through an in-app notification bell, email, and
+(if enabled per-device) a browser push notification.
 
 **Document assembly templates** — reusable, plain-text templates with
 `{{field}}` placeholders; matter/client/date fields fill in automatically,
@@ -280,6 +283,17 @@ Windows, and Linux.
 
 ## Recent changes
 
+- 🆕📅🔔 **Native calendar + reminders, no external calendar account
+  needed** — deadlines and ad-hoc events now live entirely in the app
+  itself: a firm-wide calendar (`/calendar`) and a per-matter calendar tab,
+  both views over the same data. Replaces the old Google/Microsoft OAuth
+  calendar-push integration entirely — that path required a developer-
+  registered cloud app per provider, which was too much setup burden for a
+  non-technical firm to maintain. Reminders now go out through an in-app
+  notification bell, email, and an opt-in browser push notification
+  (`Settings > Security`), all driven by one hourly scheduler with no
+  OAuth, no app registration, and nothing that can go stale or get revoked
+  on the provider's side.
 - 🆕⏱️ **Two built-in automatic-backup triggers** (`Settings > Backup`) — no
   OS-level cron job needed anymore for either: a fixed interval (hourly by
   default) and a debounced trigger that backs up shortly after real
@@ -306,12 +320,7 @@ Windows, and Linux.
 - System status dashboard extended with row counts and integration checks
   for every subsystem added below (leads, trust accounts/transactions,
   portal messages, document templates, assembled documents, deadline
-  rules, calendar sync)
-- One-way calendar push (`Settings > Integrations`) — a rule-computed
-  deadline can push automatically to a connected Google or Microsoft
-  calendar, or any deadline can be pushed manually from its matter's
-  Deadlines tab; required adding this app's first OAuth access-token
-  refresh logic, since nothing previously refreshed an expired token
+  rules)
 - Leads / CRM pipeline (`/leads`) — a kanban-style board for prospective
   clients before a matter exists, converting straight into a real matter
   (and client) when ready

@@ -571,12 +571,12 @@ export const EMAIL_PROVIDERS = ["google", "microsoft", "yahoo"] as const;
 export type EmailProvider = (typeof EMAIL_PROVIDERS)[number];
 
 // oauth: connected via the provider's real login + consent screen, token
-// stored, can also do calendar sync. app_password: connected via IMAP with
-// a per-app password generated from the account's own security settings —
-// no developer app registration needed, but mail-only: app passwords carry
-// no Calendar API scope, so calendar sync isn't available on this path.
-// Yahoo has no OAuth mail-read option at all (see emailIntegration.ts), so
-// it's always "app_password".
+// stored. app_password: connected via IMAP with a per-app password
+// generated from the account's own security settings — no developer app
+// registration needed. Both are mail-only; this app's calendar is native
+// (see calendar.ts), not tied to either connection method. Yahoo has no
+// OAuth mail-read option at all (see emailIntegration.ts), so it's always
+// "app_password".
 export const EMAIL_AUTH_METHODS = ["oauth", "app_password"] as const;
 export type EmailAuthMethod = (typeof EMAIL_AUTH_METHODS)[number];
 
