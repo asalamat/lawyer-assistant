@@ -2,6 +2,7 @@ import { listUsers } from "./auth";
 import { createNotificationIfNew } from "./calendar";
 import db from "./db";
 import { isEmailConfigured, sendEmail } from "./email";
+import { sendPushToAllSubscribers } from "./push";
 
 // Checked hourly, not every minute like backupScheduler — reminders are
 // day-granularity (due dates, event dates), so there's no benefit to
@@ -24,7 +25,8 @@ function addDaysToIso(isoDate: string, days: number): string {
 }
 
 // Notifications are firm-wide, not per-user (see calendar.ts), so a reminder
-// email goes to every active staff account rather than one specific owner.
+// email goes to every active staff account and a push goes to every
+// subscribed browser, rather than one specific owner.
 async function sendReminderEmail(subject: string, body: string): Promise<void> {
   if (!(await isEmailConfigured())) return;
   const recipients = (await listUsers())
@@ -32,6 +34,13 @@ async function sendReminderEmail(subject: string, body: string): Promise<void> {
     .map((u) => u.email);
   if (recipients.length === 0) return;
   await sendEmail({ to: recipients.join(", "), subject, text: body });
+}
+
+async function dispatchReminderAlert(title: string, body: string): Promise<void> {
+  await Promise.all([
+    sendReminderEmail(title, body),
+    sendPushToAllSubscribers({ title, body, url: "/calendar" }),
+  ]);
 }
 
 async function checkDeadlineReminders(): Promise<void> {
@@ -56,7 +65,7 @@ async function checkDeadlineReminders(): Promise<void> {
       relatedType: "deadline",
       relatedId: d.id,
     });
-    if (isNew) await sendReminderEmail(title, d.description);
+    if (isNew) await dispatchReminderAlert(title, d.description);
   }
 
   const overdueToday = db
@@ -77,7 +86,7 @@ async function checkDeadlineReminders(): Promise<void> {
       relatedType: "deadline",
       relatedId: d.id,
     });
-    if (isNew) await sendReminderEmail(title, d.description);
+    if (isNew) await dispatchReminderAlert(title, d.description);
   }
 }
 
@@ -112,7 +121,7 @@ async function checkEventReminders(): Promise<void> {
       relatedType: "calendar_event",
       relatedId: e.id,
     });
-    if (isNew) await sendReminderEmail(title, body);
+    if (isNew) await dispatchReminderAlert(title, body);
   }
 }
 

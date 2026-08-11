@@ -203,6 +203,8 @@ interface Settings {
   cloudBackup?: StoredCloudBackup;
   backupSchedule?: StoredBackupSchedule;
   changeBackup?: StoredChangeBackup;
+  vapidPublicKey?: string;
+  vapidPrivateKey?: string;
 }
 
 export const DEFAULT_TRANSLATION_LANGUAGE = "French";
@@ -214,6 +216,7 @@ const SECRET_FIELDS = [
   "canliiApiKey",
   "cronSecret",
   "calendarFeedSecret",
+  "vapidPrivateKey",
 ] as const;
 
 // Settings secrets are encrypted at rest. Values written before this feature
@@ -876,5 +879,21 @@ export async function recordChangeBackupResult(status: "ok" | "error", error?: s
     lastStatus: status,
     lastError: status === "error" ? error : undefined,
   };
+  await writeSettings(settings);
+}
+
+// VAPID key pair for Web Push (see push.ts) — generated once on first use
+// rather than requiring the account owner to configure anything, since
+// unlike SMTP/AI keys there's no external account these come from.
+export async function getVapidKeys(): Promise<{ publicKey: string; privateKey: string } | undefined> {
+  const settings = await readSettings();
+  if (!settings.vapidPublicKey || !settings.vapidPrivateKey) return undefined;
+  return { publicKey: settings.vapidPublicKey, privateKey: await decryptText(settings.vapidPrivateKey) };
+}
+
+export async function setVapidKeys(keys: { publicKey: string; privateKey: string }): Promise<void> {
+  const settings = await readSettings();
+  settings.vapidPublicKey = keys.publicKey;
+  settings.vapidPrivateKey = await encryptText(keys.privateKey);
   await writeSettings(settings);
 }

@@ -1,6 +1,7 @@
 import { getCurrentUser, isTotpEnabled } from "@/lib/auth";
 import ChangePasswordForm from "@/components/ChangePasswordForm";
 import MfaSettingsForm from "@/components/MfaSettingsForm";
+import PushNotificationSettings from "@/components/PushNotificationSettings";
 import SettingsSection from "@/components/SettingsSection";
 import { SecurityIcon } from "@/components/icons";
 
@@ -13,6 +14,7 @@ export default async function SecuritySettingsPage() {
       <div className="flex flex-col gap-6">
         <ChangePasswordForm />
         <MfaSettingsForm initialEnabled={mfaEnabled} />
+        <PushNotificationSettings />
       </div>
     </SettingsSection>
   );

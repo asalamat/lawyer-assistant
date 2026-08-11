@@ -158,6 +158,19 @@ execWithRetry(`
   CREATE INDEX IF NOT EXISTS idx_notifications_readAt ON notifications(readAt);
   CREATE INDEX IF NOT EXISTS idx_notifications_createdAt ON notifications(createdAt);
 
+  -- A browser's Web Push subscription (see push.ts) — per-user and
+  -- per-device/browser, unlike notifications which are firm-wide.
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id TEXT PRIMARY KEY,
+    userId TEXT NOT NULL,
+    endpoint TEXT NOT NULL UNIQUE,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (userId) REFERENCES users(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_push_subscriptions_userId ON push_subscriptions(userId);
+
   CREATE TABLE IF NOT EXISTS drafts (
     id TEXT PRIMARY KEY,
     matterId TEXT NOT NULL,
