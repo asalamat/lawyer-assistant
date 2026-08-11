@@ -1400,6 +1400,27 @@ server, not just build/lint.
       real penetration test, vendor security assessments, or a formal data
       residency attestation — those need an external party or a contractual
       answer this codebase can't produce on its own.
+- [x] **Two more audit-chain re-anchors, one of them corrected after the
+      fact.** First (2026-08-08): rows created by a throwaway test admin
+      account (live-verifying DLP-lite export rate limiting/alerting) were
+      deleted as part of test cleanup, breaking the chain again the same
+      way the 2026-08-05 incident above did — re-anchored with a reason
+      documenting exactly that. Second, more involved case (gap reported
+      2026-08-08, investigated and fixed 2026-08-11): `audit_log` rowids
+      1275–1276 were found missing entirely (entry `f18b1110-...` sits
+      right after the gap). Ruled out the already-fixed `deleteMatter()`
+      bug (no matching pattern, no orphaned child-table rows) and any
+      currently-active delete path (grepped the codebase — nothing deletes
+      from `audit_log` anymore); the gap's timestamp window matches commit
+      `b6dcb6a`'s performance-tuning work and the same benign
+      test-cleanup pattern as the first case above, just never re-anchored
+      that time. Can't be proven conclusively — the deleted rows'
+      content is gone — but nothing pointed toward tampering either. A
+      re-anchor had already run for this gap on 2026-08-10, but with the
+      reason left as the placeholder `"test"` rather than an actual
+      explanation, defeating the point of requiring a reason at all;
+      corrected with a second re-anchor recording the real investigation
+      above (chain confirmed valid again afterward, 1334 entries).
 
 ## Decisions that need the account owner, not a default
 
