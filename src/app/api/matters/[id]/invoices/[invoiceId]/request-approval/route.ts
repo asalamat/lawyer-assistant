@@ -3,14 +3,15 @@ import { getCurrentUser } from "@/lib/auth";
 import { requestInvoiceApproval } from "@/lib/matters";
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string; invoiceId: string }> },
 ) {
   const { id, invoiceId } = await params;
   const user = await getCurrentUser();
   try {
-    const { invoice, signUrl } = await requestInvoiceApproval(id, invoiceId, user?.id ?? null);
-    return NextResponse.json({ invoice, signUrl });
+    const origin = new URL(request.url).origin;
+    const { invoice, signUrl, emailedTo } = await requestInvoiceApproval(id, invoiceId, user?.id ?? null, origin);
+    return NextResponse.json({ invoice, signUrl, emailedTo });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed to request approval" },

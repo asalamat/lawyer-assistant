@@ -59,6 +59,7 @@ export default function ConsentPanel({
   // they live in component state — reloading the page shows the status
   // without re-exposing the token. "Resend" mints a fresh link on demand.
   const [signUrls, setSignUrls] = useState<Record<string, string>>({});
+  const [emailedTo, setEmailedTo] = useState<Record<string, string>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmingVoidId, setConfirmingVoidId] = useState<string | null>(null);
@@ -102,6 +103,12 @@ export default function ConsentPanel({
       );
       if (body.signUrl) {
         setSignUrls((prev) => ({ ...prev, [docId]: body.signUrl }));
+        setEmailedTo((prev) => {
+          const next = { ...prev };
+          if (body.emailedTo) next[docId] = body.emailedTo;
+          else delete next[docId];
+          return next;
+        });
       } else {
         setSignUrls((prev) => {
           const next = { ...prev };
@@ -127,8 +134,10 @@ export default function ConsentPanel({
       <div className="surface-card flex flex-col gap-3">
         <h2 className="font-display text-lg">New signable document</h2>
         <p className="text-sm text-muted">
-          Prepare a retainer, waiver or consent for this client to sign, then send them a
-          single-use link. No login is needed at their end and the link expires on its own.
+          Prepare a retainer, waiver or consent for this client to sign. If they have an email on
+          file and SMTP is configured, the signing link is emailed to them automatically —
+          otherwise (or as a backup) copy the link yourself. No login is needed at their end and
+          the link expires on its own.
         </p>
         <form onSubmit={handleCreate} className="flex flex-col gap-2">
           <label className="flex flex-col gap-1 text-sm">
@@ -265,14 +274,21 @@ export default function ConsentPanel({
                     </div>
                   )}
                   {signUrl && (
-                    <div className="flex flex-wrap items-center gap-2 rounded-lg bg-black/[0.03] px-3 py-2 dark:bg-white/[0.05]">
-                      <code className="min-w-0 flex-1 truncate font-mono text-xs">{signUrl}</code>
-                      <button
-                        onClick={() => copyLink(row.id, signUrl)}
-                        className="text-xs text-accent hover:underline"
-                      >
-                        {copiedId === row.id ? "Copied" : "Copy link"}
-                      </button>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex flex-wrap items-center gap-2 rounded-lg bg-black/[0.03] px-3 py-2 dark:bg-white/[0.05]">
+                        <code className="min-w-0 flex-1 truncate font-mono text-xs">{signUrl}</code>
+                        <button
+                          onClick={() => copyLink(row.id, signUrl)}
+                          className="text-xs text-accent hover:underline"
+                        >
+                          {copiedId === row.id ? "Copied" : "Copy link"}
+                        </button>
+                      </div>
+                      <p className="text-xs text-muted">
+                        {emailedTo[row.id]
+                          ? `Emailed to ${emailedTo[row.id]}. Also copy the link above if you'd rather send it another way.`
+                          : "No client email on file (or email isn't configured) — copy the link above and send it yourself."}
+                      </p>
                     </div>
                   )}
                   {row.status === "sent" && !signUrl && (

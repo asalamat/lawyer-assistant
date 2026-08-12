@@ -6,6 +6,7 @@ import {
   revokeAccessTokensForResource,
 } from "./clientAccess";
 import db, { toPlain } from "./db";
+import { isEmailConfigured, sendEmail } from "./email";
 
 // Retainer agreements, conflict waivers and privacy consents that need a
 // client signature. A basic electronic signature (typed legal name plus an
@@ -142,15 +143,57 @@ export async function createSignableDocument(
   return document;
 }
 
+// Raw query rather than importing matters.ts — that module already imports
+// this one (createSignableDocument, sendForSignature for invoice approval),
+// so importing back would be circular.
+function getMatterContactInfo(matterId: string): { clientEmail: string | null; clientName: string; title: string } | undefined {
+  return db
+    .prepare("SELECT clientEmail, clientName, title FROM matters WHERE id = ?")
+    .get(matterId) as { clientEmail: string | null; clientName: string; title: string } | undefined;
+}
+
+// Sends the signing link straight to the client's email on file, if one
+// exists and SMTP is configured — best-effort: a failed/skipped email never
+// blocks issuing the link, since the copy-link fallback (every caller still
+// shows it) covers both "no email configured" and "the send itself failed."
+async function emailSigningLink(
+  matterId: string,
+  title: string,
+  signUrl: string,
+): Promise<string | null> {
+  if (!(await isEmailConfigured())) return null;
+  const matter = getMatterContactInfo(matterId);
+  if (!matter?.clientEmail) return null;
+
+  try {
+    await sendEmail({
+      to: matter.clientEmail,
+      subject: `Please review and sign: ${title}`,
+      text: `Hello ${matter.clientName},\n\n${title} is ready for your review and signature.\n\nOpen this link to review and sign:\n${signUrl}\n\nIf you weren't expecting this, contact your lawyer before clicking the link.`,
+      html: `<p>Hello ${matter.clientName},</p><p><strong>${title}</strong> is ready for your review and signature.</p><p><a href="${signUrl}">Click here to review and sign</a></p><p style="color:#666;font-size:13px;">If you weren't expecting this, contact your lawyer before clicking the link.</p>`,
+    });
+    return matter.clientEmail;
+  } catch {
+    // Swallowed deliberately — the caller still gets a working signUrl to
+    // copy and send manually, so a bad SMTP config here isn't fatal to the
+    // actual goal (get a link to the client).
+    return null;
+  }
+}
+
 // Returns the freshly-issued token alongside the updated document — the
 // caller turns it into a /sign/<token> link. Tokens are deliberately never
 // served back on a subsequent read: a lost link is re-issued here (which
 // revokes the old one), rather than the same secret being handed out again
-// on every page load.
+// on every page load. baseUrl (the app's own origin, e.g. from
+// `new URL(request.url).origin` in the calling route) is required to
+// actually email the link — without it there's no absolute URL to send, so
+// the caller falls back to copy-link-only.
 export async function sendForSignature(
   id: string,
   createdByUserId: string | null,
-): Promise<{ document: SignableDocument; token: string }> {
+  baseUrl?: string,
+): Promise<{ document: SignableDocument; token: string; emailedTo: string | null }> {
   const document = await getSignableDocument(id);
   if (!document) {
     throw new Error("Signable document not found.");
@@ -169,14 +212,19 @@ export async function sendForSignature(
     "UPDATE signable_documents SET status = 'sent', sentAt = ?, declinedAt = NULL WHERE id = ?",
   ).run(sentAt, id);
 
+  const emailedTo = baseUrl
+    ? await emailSigningLink(document.matterId, document.title, `${baseUrl}/sign/${token}`)
+    : null;
+
   await recordAuditEvent(
     "signable_document_sent",
     document.matterId,
-    `Issued a signing link for "${document.title}"`,
+    `Issued a signing link for "${document.title}"${emailedTo ? ` and emailed it to ${emailedTo}` : ""}`,
   );
   return {
     document: { ...document, status: "sent", sentAt, declinedAt: null },
     token,
+    emailedTo,
   };
 }
 

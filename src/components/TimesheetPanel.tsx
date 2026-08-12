@@ -64,6 +64,7 @@ export default function TimesheetPanel({
   const [approvalRequestingId, setApprovalRequestingId] = useState<string | null>(null);
   const [approvalError, setApprovalError] = useState<{ id: string; message: string } | null>(null);
   const [approvalLinks, setApprovalLinks] = useState<Record<string, string>>({});
+  const [approvalEmailedTo, setApprovalEmailedTo] = useState<Record<string, string>>({});
   const [copiedApprovalId, setCopiedApprovalId] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sendResult, setSendResult] = useState<{ id: string; ok: boolean; message: string } | null>(
@@ -282,6 +283,12 @@ export default function TimesheetPanel({
       setInvoices((prev) => prev.map((inv) => (inv.id === invoice.id ? body.invoice : inv)));
       setApprovalStatuses((prev) => ({ ...prev, [body.invoice.signableDocumentId]: "sent" }));
       setApprovalLinks((prev) => ({ ...prev, [invoice.id]: body.signUrl }));
+      setApprovalEmailedTo((prev) => {
+        const next = { ...prev };
+        if (body.emailedTo) next[invoice.id] = body.emailedTo;
+        else delete next[invoice.id];
+        return next;
+      });
     } catch (err) {
       setApprovalError({
         id: invoice.id,
@@ -542,14 +549,21 @@ export default function TimesheetPanel({
                   <p className="text-xs text-red-600">{approvalError.message}</p>
                 )}
                 {approvalLinks[invoice.id] && (
-                  <div className="flex flex-wrap items-center gap-2 rounded-lg bg-black/[0.03] px-3 py-2 dark:bg-white/[0.05]">
-                    <code className="min-w-0 flex-1 truncate font-mono text-xs">{approvalLinks[invoice.id]}</code>
-                    <button
-                      onClick={() => copyApprovalLink(invoice.id, approvalLinks[invoice.id])}
-                      className="text-xs text-accent hover:underline"
-                    >
-                      {copiedApprovalId === invoice.id ? "Copied" : "Copy link"}
-                    </button>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex flex-wrap items-center gap-2 rounded-lg bg-black/[0.03] px-3 py-2 dark:bg-white/[0.05]">
+                      <code className="min-w-0 flex-1 truncate font-mono text-xs">{approvalLinks[invoice.id]}</code>
+                      <button
+                        onClick={() => copyApprovalLink(invoice.id, approvalLinks[invoice.id])}
+                        className="text-xs text-accent hover:underline"
+                      >
+                        {copiedApprovalId === invoice.id ? "Copied" : "Copy link"}
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted">
+                      {approvalEmailedTo[invoice.id]
+                        ? `Emailed to ${approvalEmailedTo[invoice.id]}.`
+                        : "No client email on file (or email isn't configured) — copy the link above and send it yourself."}
+                    </p>
                   </div>
                 )}
                 {sendResult?.id === invoice.id && (

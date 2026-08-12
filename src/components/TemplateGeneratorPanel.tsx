@@ -11,6 +11,7 @@ type TemplateWithFields = DocumentTemplate & { fields: { autoFill: string[]; cus
 interface SignatureRequestState {
   status: "sending" | "sent" | "error";
   signUrl?: string;
+  emailedTo?: string | null;
   error?: string;
 }
 
@@ -101,7 +102,10 @@ export default function TemplateGeneratorPanel({
       const sent = await sendRes.json();
       if (!sendRes.ok) throw new Error(sent.error ?? "Failed to send for signature");
 
-      setSignatureRequests((prev) => ({ ...prev, [doc.id]: { status: "sent", signUrl: sent.signUrl } }));
+      setSignatureRequests((prev) => ({
+        ...prev,
+        [doc.id]: { status: "sent", signUrl: sent.signUrl, emailedTo: sent.emailedTo },
+      }));
     } catch (err) {
       setSignatureRequests((prev) => ({
         ...prev,
@@ -186,11 +190,13 @@ export default function TemplateGeneratorPanel({
               </div>
               {signatureRequests[doc.id]?.status === "sent" && (
                 <p className="text-sm text-muted">
-                  Signing link ready —{" "}
+                  {signatureRequests[doc.id]?.emailedTo
+                    ? `Emailed to ${signatureRequests[doc.id]?.emailedTo} for signature.`
+                    : "Signing link ready (no client email on file, or email isn't configured)."}{" "}
                   <a href={signatureRequests[doc.id]?.signUrl} className="text-accent hover:underline" target="_blank" rel="noreferrer">
-                    open it
+                    Open it
                   </a>{" "}
-                  to copy and send to the client, or manage it from the matter&apos;s Consent tab.
+                  to copy and send it another way, or manage it from the matter&apos;s Consent tab.
                 </p>
               )}
               {signatureRequests[doc.id]?.status === "error" && (
