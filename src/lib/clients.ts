@@ -101,6 +101,15 @@ export async function updateClient(
   db.prepare(
     "UPDATE clients SET name = ?, type = ?, contactPerson = ?, registrationNumber = ?, email = ?, phone = ?, notes = ? WHERE id = ?",
   ).run(name, type, contactPerson, registrationNumber, email, phone, notes, id);
+
+  // matters.clientName/clientEmail are denormalized copies every existing
+  // feature (invoice sending, e-signature, compose email) reads directly —
+  // without this, editing a client's email here would silently leave every
+  // one of their matters pointing at the old address.
+  if (name !== existing.name || email !== existing.email) {
+    db.prepare("UPDATE matters SET clientName = ?, clientEmail = ? WHERE clientId = ?").run(name, email, id);
+  }
+
   await recordAuditEvent("client_updated", null, `Updated client "${name}"`);
   return getClient(id);
 }
