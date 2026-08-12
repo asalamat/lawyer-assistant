@@ -14,6 +14,30 @@ function base64url(input: Buffer | string): string {
   return Buffer.from(input).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
+// DocuSign returns JSON for normal API errors, but a misconfigured URL,
+// a proxy in front of it, or certain auth failures can return an HTML
+// error page instead — calling res.json() on that throws a useless
+// "Unexpected token '<'" that buries whatever actually went wrong. Read
+// as text first and only parse if it looks like JSON, so a real failure
+// surfaces the actual status code and a snippet of the real response.
+// No explicit return type — callers expect the same loosely-typed shape
+// `Response.json()` itself returns, since the real shape varies per
+// DocuSign endpoint (token/userinfo/envelope/status).
+async function readJsonOrThrow(res: Response, context: string) {
+  const text = await res.text();
+  const trimmed = text.trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+    throw new Error(
+      `${context} — DocuSign returned a non-JSON response (HTTP ${res.status}): ${trimmed.slice(0, 200) || "(empty body)"}`,
+    );
+  }
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    throw new Error(`${context} — DocuSign's response wasn't valid JSON (HTTP ${res.status}): ${trimmed.slice(0, 200)}`);
+  }
+}
+
 // Built by hand with node:crypto's RSA-SHA256 signer rather than pulling in
 // the `jsonwebtoken` package for one call site — a JWT is just two base64url
 // JSON blobs and a signature over them, and Node's crypto already covers
@@ -64,7 +88,7 @@ async function getAuthBundle(config: DocuSignConfig): Promise<AuthBundle> {
       assertion,
     }),
   });
-  const tokenBody = await tokenRes.json();
+  const tokenBody = await readJsonOrThrow(tokenRes, "DocuSign authentication failed");
   if (!tokenRes.ok) {
     // consent_required means the one-time admin-consent step (see Settings
     // > DocuSign) hasn't been done yet for this integration key/user pair.
@@ -74,7 +98,7 @@ async function getAuthBundle(config: DocuSignConfig): Promise<AuthBundle> {
   const userInfoRes = await fetch(`https://${authHost}/oauth/userinfo`, {
     headers: { Authorization: `Bearer ${tokenBody.access_token}` },
   });
-  const userInfo = await userInfoRes.json();
+  const userInfo = await readJsonOrThrow(userInfoRes, "Failed to look up the DocuSign account");
   if (!userInfoRes.ok) {
     throw new Error("Failed to look up the DocuSign account (userinfo request failed).");
   }
@@ -87,7 +111,11 @@ async function getAuthBundle(config: DocuSignConfig): Promise<AuthBundle> {
   cached = {
     accessToken: tokenBody.access_token,
     expiresAt: Date.now() + tokenBody.expires_in * 1000,
-    baseUri: account.base_uri,
+    // DocuSign's userinfo endpoint returns base_uri as just the account's
+    // server host (e.g. "https://demo.docusign.net") — the actual REST API
+    // lives under a /restapi path that isn't included and has to be added
+    // by hand, per DocuSign's own JWT integration guide.
+    baseUri: `${account.base_uri}/restapi`,
     accountId: account.account_id,
   };
   return cached;
@@ -167,7 +195,7 @@ export async function createDocuSignEnvelope(params: CreateEnvelopeParams): Prom
       },
     }),
   });
-  const body = await res.json();
+  const body = await readJsonOrThrow(res, "Failed to create the DocuSign envelope");
   if (!res.ok) throw new Error(body.message || "Failed to create the DocuSign envelope.");
   return { envelopeId: body.envelopeId, status: body.status };
 }
@@ -182,7 +210,7 @@ export interface DocuSignEnvelopeStatus {
 
 export async function getDocuSignEnvelopeStatus(envelopeId: string): Promise<DocuSignEnvelopeStatus> {
   const res = await docusignFetch(`/v2.1/accounts/{accountId}/envelopes/${envelopeId}?include=recipients`);
-  const body = await res.json();
+  const body = await readJsonOrThrow(res, "Failed to check the envelope's status");
   if (!res.ok) throw new Error(body.message || "Failed to check the envelope's status.");
   const signer = body.recipients?.signers?.[0];
   return {
