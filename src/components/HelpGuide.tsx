@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { HELP_SECTIONS } from "@/lib/helpContent";
 import type { AppVersion } from "@/lib/systemInfo";
 import FeatureRequestsPanel from "@/components/FeatureRequestsPanel";
+import MarkdownContent from "@/components/MarkdownContent";
 import UploadProcessDiagram from "@/components/UploadProcessDiagram";
 
 // Renders extra, non-text content inline after a specific help item's
@@ -134,7 +135,9 @@ export default function HelpGuide({ version, isAdmin }: { version: AppVersion; i
                       </span>
                       <div className="min-w-0">
                         <h3 className="font-display text-lg">{item.name}</h3>
-                        <p className="mt-1 max-w-3xl text-sm text-muted">{item.detail}</p>
+                        <div className="mt-1 max-w-3xl text-muted">
+                          <MarkdownContent content={item.detail} />
+                        </div>
                         {EXTRAS[item.slug]}
                       </div>
                     </div>
