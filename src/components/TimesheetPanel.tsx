@@ -2,7 +2,17 @@
 
 import { useState } from "react";
 import { formatDateOnly } from "@/lib/formatDate";
+import type { SignableDocument, SignableDocumentStatus } from "@/lib/signableDocuments";
 import type { Invoice, TimeEntry } from "@/lib/types";
+
+const APPROVAL_STATUS_LABELS: Record<SignableDocumentStatus, string> = {
+  draft: "Approval prepared",
+  sent: "Awaiting client approval",
+  signed: "Approved by client",
+  declined: "Client declined",
+  voided: "Approval voided",
+  expired: "Approval link expired",
+};
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -36,6 +46,7 @@ export default function TimesheetPanel({
   clientEmail,
   emailConfigured,
   initialHourlyRate,
+  initialSignableDocuments,
 }: {
   matterId: string;
   initialEntries: TimeEntry[];
@@ -43,9 +54,17 @@ export default function TimesheetPanel({
   clientEmail: string | null;
   emailConfigured: boolean;
   initialHourlyRate: number | null;
+  initialSignableDocuments: SignableDocument[];
 }) {
   const [entries, setEntries] = useState(initialEntries);
   const [invoices, setInvoices] = useState(initialInvoices);
+  const [approvalStatuses, setApprovalStatuses] = useState<Record<string, SignableDocumentStatus>>(() =>
+    Object.fromEntries(initialSignableDocuments.map((d) => [d.id, d.status])),
+  );
+  const [approvalRequestingId, setApprovalRequestingId] = useState<string | null>(null);
+  const [approvalResult, setApprovalResult] = useState<{ id: string; ok: boolean; message: string } | null>(
+    null,
+  );
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sendResult, setSendResult] = useState<{ id: string; ok: boolean; message: string } | null>(
     null,
@@ -248,6 +267,29 @@ export default function TimesheetPanel({
       });
     } finally {
       setSendingId(null);
+    }
+  }
+
+  async function handleRequestApproval(invoice: Invoice) {
+    setApprovalRequestingId(invoice.id);
+    setApprovalResult(null);
+    try {
+      const res = await fetch(`/api/matters/${matterId}/invoices/${invoice.id}/request-approval`, {
+        method: "POST",
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Failed to request approval");
+      setInvoices((prev) => prev.map((inv) => (inv.id === invoice.id ? body.invoice : inv)));
+      setApprovalStatuses((prev) => ({ ...prev, [body.invoice.signableDocumentId]: "sent" }));
+      setApprovalResult({ id: invoice.id, ok: true, message: `Approval link ready: ${body.signUrl}` });
+    } catch (err) {
+      setApprovalResult({
+        id: invoice.id,
+        ok: false,
+        message: err instanceof Error ? err.message : "Failed to request approval",
+      });
+    } finally {
+      setApprovalRequestingId(null);
     }
   }
 
@@ -464,6 +506,35 @@ export default function TimesheetPanel({
                     </button>
                   </div>
                 </div>
+                <div className="flex items-center gap-2">
+                  {invoice.signableDocumentId && approvalStatuses[invoice.signableDocumentId] && (
+                    <span
+                      className={
+                        approvalStatuses[invoice.signableDocumentId] === "signed" ? "badge-accent" : "badge"
+                      }
+                    >
+                      {APPROVAL_STATUS_LABELS[approvalStatuses[invoice.signableDocumentId]]}
+                    </span>
+                  )}
+                  {approvalStatuses[invoice.signableDocumentId ?? ""] !== "signed" && (
+                    <button
+                      onClick={() => handleRequestApproval(invoice)}
+                      disabled={approvalRequestingId === invoice.id}
+                      className="text-xs text-accent hover:underline"
+                    >
+                      {approvalRequestingId === invoice.id
+                        ? "Requesting…"
+                        : invoice.signableDocumentId
+                          ? "Resend approval link"
+                          : "Request client approval"}
+                    </button>
+                  )}
+                </div>
+                {approvalResult?.id === invoice.id && (
+                  <p className={`text-xs ${approvalResult.ok ? "text-green-600" : "text-red-600"}`}>
+                    {approvalResult.message}
+                  </p>
+                )}
                 {sendResult?.id === invoice.id && (
                   <p className={`text-xs ${sendResult.ok ? "text-green-600" : "text-red-600"}`}>
                     {sendResult.message}

@@ -10,5 +10,9 @@ export default async function SignPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  return <SignDocumentForm token={token} />;
+  return (
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-12">
+      <SignDocumentForm fetchUrl={`/api/sign/${token}`} submitUrl={`/api/sign/${token}`} />
+    </main>
+  );
 }

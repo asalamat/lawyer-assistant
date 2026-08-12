@@ -1043,6 +1043,12 @@ db.prepare("UPDATE email_accounts SET authMethod = 'app_password' WHERE provider
 // a tier in mind.
 ensureColumn("reference_documents", "category", "TEXT NOT NULL DEFAULT 'firm_knowledge'");
 
+// Links an invoice to a signable_documents row when a lawyer requests the
+// client's explicit approval of it (see requestInvoiceApproval in
+// matters.ts) — reuses the existing e-signature mechanism rather than a
+// separate invoice-specific approval flow.
+ensureColumn("invoices", "signableDocumentId", "TEXT");
+
 // One-time migration: matters used to store client identity only as free
 // text (clientName/clientEmail), with no real entity linking one client's
 // several matters together. Backfill a clients row per distinct

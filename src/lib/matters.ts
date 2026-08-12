@@ -14,6 +14,7 @@ import { extractTextTracked } from "./extractionStatus";
 import { scanBuffer } from "./malwareScan";
 import { maskForAI } from "./piiMask";
 import { listAttachedReferenceDocuments } from "./referenceLibrary";
+import { createSignableDocument, getSignableDocument, sendForSignature } from "./signableDocuments";
 import {
   buildContextFromChunks,
   buildRetrievalConfidenceNote,
@@ -1318,6 +1319,7 @@ export async function createInvoice(
     status: "unpaid",
     paidAt: null,
     createdAt,
+    signableDocumentId: null,
   };
 
   db.prepare(
@@ -1356,6 +1358,44 @@ export async function getInvoice(matterId: string, invoiceId: string): Promise<I
     .prepare("SELECT * FROM invoices WHERE id = ? AND matterId = ?")
     .get(invoiceId, matterId);
   return row ? toPlain<Invoice>(row) : null;
+}
+
+// Requests explicit client approval of an invoice via the same e-signature
+// mechanism used for consent documents, rather than a separate approval
+// flow. Reissues a fresh link on repeat calls (safe — sendForSignature
+// revokes the prior token); throws if the client has already approved it,
+// since re-sending a signed document makes no sense.
+export async function requestInvoiceApproval(
+  matterId: string,
+  invoiceId: string,
+  createdByUserId: string | null,
+): Promise<{ invoice: Invoice; signUrl: string }> {
+  const invoice = await getInvoice(matterId, invoiceId);
+  if (!invoice) {
+    throw new Error("Invoice not found.");
+  }
+
+  let signableDocumentId = invoice.signableDocumentId;
+  if (!signableDocumentId) {
+    const signable = await createSignableDocument(
+      matterId,
+      "custom",
+      `Invoice ${invoice.invoiceNumber} approval`,
+      null,
+      createdByUserId,
+    );
+    signableDocumentId = signable.id;
+    db.prepare("UPDATE invoices SET signableDocumentId = ? WHERE id = ?").run(signableDocumentId, invoiceId);
+  } else {
+    const existing = await getSignableDocument(signableDocumentId);
+    if (existing?.status === "signed") {
+      throw new Error("The client has already approved this invoice.");
+    }
+  }
+
+  const { token } = await sendForSignature(signableDocumentId, createdByUserId);
+  const updated = await getInvoice(matterId, invoiceId);
+  return { invoice: updated!, signUrl: `/sign/${token}` };
 }
 
 export async function recordInvoiceSent(matterId: string, invoiceNumber: string, to: string): Promise<void> {

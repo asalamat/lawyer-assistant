@@ -1,5 +1,6 @@
 import { getMatter, listInvoices, listTimeEntries } from "@/lib/matters";
 import { isEmailConfigured } from "@/lib/email";
+import { listSignableDocuments } from "@/lib/signableDocuments";
 import TimesheetPanel from "@/components/TimesheetPanel";
 
 export default async function MatterTimesheetPage({
@@ -8,11 +9,12 @@ export default async function MatterTimesheetPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [matter, timeEntries, invoices, emailConfigured] = await Promise.all([
+  const [matter, timeEntries, invoices, emailConfigured, signableDocuments] = await Promise.all([
     getMatter(id),
     listTimeEntries(id),
     listInvoices(id),
     isEmailConfigured(),
+    listSignableDocuments(id),
   ]);
 
   return (
@@ -23,6 +25,7 @@ export default async function MatterTimesheetPage({
       clientEmail={matter?.clientEmail ?? null}
       emailConfigured={emailConfigured}
       initialHourlyRate={matter?.hourlyRate ?? null}
+      initialSignableDocuments={signableDocuments}
     />
   );
 }

@@ -8,6 +8,12 @@ import TranslateButton from "./TranslateButton";
 
 type TemplateWithFields = DocumentTemplate & { fields: { autoFill: string[]; custom: string[] } };
 
+interface SignatureRequestState {
+  status: "sending" | "sent" | "error";
+  signUrl?: string;
+  error?: string;
+}
+
 export default function TemplateGeneratorPanel({
   matterId,
   initialDocuments,
@@ -23,6 +29,7 @@ export default function TemplateGeneratorPanel({
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [signatureRequests, setSignatureRequests] = useState<Record<string, SignatureRequestState>>({});
 
   const selectedTemplate = templates.find((t) => t.id === templateId);
 
@@ -51,11 +58,56 @@ export default function TemplateGeneratorPanel({
     }
   }
 
-  async function handleSaveAsDocument(docId: string) {
+  async function saveAsDocument(docId: string): Promise<string> {
     const res = await fetch(`/api/matters/${matterId}/assembled-documents/${docId}/save-as-document`, {
       method: "POST",
     });
-    if (res.ok) setSavedIds((prev) => new Set(prev).add(docId));
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error ?? "Failed to save as a document");
+    setSavedIds((prev) => new Set(prev).add(docId));
+    return body.id as string;
+  }
+
+  async function handleSaveAsDocument(docId: string) {
+    await saveAsDocument(docId).catch(() => {});
+  }
+
+  // Saves the generated document (if not already saved) and immediately
+  // prepares + sends it for signature — folds what would otherwise be two
+  // separate trips (Save as document, then Consent tab > pick it as the
+  // source) into one button, since "send this generated letter for
+  // signature" is the actual thing being asked for here, not "save a file."
+  async function handleSendForSignature(doc: AssembledDocument, templateName: string) {
+    setSignatureRequests((prev) => ({ ...prev, [doc.id]: { status: "sending" } }));
+    try {
+      const sourceDocumentId = await saveAsDocument(doc.id);
+      const createRes = await fetch(`/api/matters/${matterId}/signable-documents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "custom",
+          title: `${templateName} — ${doc.createdAt.slice(0, 10)}`,
+          sourceDocumentId,
+        }),
+      });
+      const created = await createRes.json();
+      if (!createRes.ok) throw new Error(created.error ?? "Failed to prepare document for signature");
+
+      const sendRes = await fetch(`/api/matters/${matterId}/signable-documents/${created.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "resend" }),
+      });
+      const sent = await sendRes.json();
+      if (!sendRes.ok) throw new Error(sent.error ?? "Failed to send for signature");
+
+      setSignatureRequests((prev) => ({ ...prev, [doc.id]: { status: "sent", signUrl: sent.signUrl } }));
+    } catch (err) {
+      setSignatureRequests((prev) => ({
+        ...prev,
+        [doc.id]: { status: "error", error: err instanceof Error ? err.message : "Something went wrong" },
+      }));
+    }
   }
 
   return (
@@ -115,7 +167,35 @@ export default function TemplateGeneratorPanel({
                 >
                   {savedIds.has(doc.id) ? "Saved as document" : "Save as document"}
                 </button>
+                <button
+                  onClick={() =>
+                    handleSendForSignature(
+                      doc,
+                      templates.find((t) => t.id === doc.templateId)?.name ?? "Generated document",
+                    )
+                  }
+                  disabled={signatureRequests[doc.id]?.status === "sending" || signatureRequests[doc.id]?.status === "sent"}
+                  className="btn-secondary px-3 py-1.5 text-sm"
+                >
+                  {signatureRequests[doc.id]?.status === "sending"
+                    ? "Preparing…"
+                    : signatureRequests[doc.id]?.status === "sent"
+                      ? "Sent for signature"
+                      : "Send for signature"}
+                </button>
               </div>
+              {signatureRequests[doc.id]?.status === "sent" && (
+                <p className="text-sm text-muted">
+                  Signing link ready —{" "}
+                  <a href={signatureRequests[doc.id]?.signUrl} className="text-accent hover:underline" target="_blank" rel="noreferrer">
+                    open it
+                  </a>{" "}
+                  to copy and send to the client, or manage it from the matter&apos;s Consent tab.
+                </p>
+              )}
+              {signatureRequests[doc.id]?.status === "error" && (
+                <p className="text-sm text-red-600">{signatureRequests[doc.id]?.error}</p>
+              )}
               <MarkdownContent content={doc.content} />
               <TranslateButton content={doc.content} />
             </div>

@@ -13,7 +13,19 @@ interface SignableDocumentView {
 const CANVAS_WIDTH = 640;
 const CANVAS_HEIGHT = 180;
 
-export default function SignDocumentForm({ token }: { token: string }) {
+// fetchUrl/submitUrl rather than a hardcoded token — this is reused as-is
+// by the public, unauthenticated /sign/[token] page AND by the logged-in
+// client portal (see PortalSignableDocumentsPanel.tsx), which authorizes
+// via the portal session instead of a token and hits a different route.
+export default function SignDocumentForm({
+  fetchUrl,
+  submitUrl,
+  onSigned,
+}: {
+  fetchUrl: string;
+  submitUrl: string;
+  onSigned?: () => void;
+}) {
   const [doc, setDoc] = useState<SignableDocumentView | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,7 +45,7 @@ export default function SignDocumentForm({ token }: { token: string }) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/sign/${token}`);
+        const res = await fetch(fetchUrl);
         const body = await res.json();
         if (cancelled) return;
         if (!res.ok) {
@@ -52,7 +64,7 @@ export default function SignDocumentForm({ token }: { token: string }) {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [fetchUrl]);
 
   // Drawn onto a white fill rather than transparency, so the exported PNG
   // stays legible wherever it's later displayed or printed.
@@ -111,7 +123,7 @@ export default function SignDocumentForm({ token }: { token: string }) {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const res = await fetch(`/api/sign/${token}`, {
+      const res = await fetch(submitUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -125,6 +137,7 @@ export default function SignDocumentForm({ token }: { token: string }) {
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Failed to record your signature");
       setSignedAt(body.signedAt);
+      onSigned?.();
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -133,7 +146,7 @@ export default function SignDocumentForm({ token }: { token: string }) {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-12">
+    <div className="flex w-full flex-col gap-6">
       {loading && <p className="text-sm text-muted">Loading document…</p>}
 
       {!loading && loadError && (
@@ -242,6 +255,6 @@ export default function SignDocumentForm({ token }: { token: string }) {
           )}
         </div>
       )}
-    </main>
+    </div>
   );
 }

@@ -199,7 +199,10 @@ function computeDocumentHash(document: SignableDocument): string {
 }
 
 export interface SignatureSubmission {
-  token: string;
+  // Only set for the token-link signing path (/sign/[token]) — a portal
+  // session has nothing to mark used, since it never had a token to begin
+  // with (see PortalSignableDocumentsPanel.tsx).
+  token?: string | null;
   signerName: string;
   signerEmail?: string | null;
   signatureText: string;
@@ -267,7 +270,7 @@ export async function submitSignature(
     signature.signedAt,
     id,
   );
-  markAccessTokenUsed(input.token);
+  if (input.token) markAccessTokenUsed(input.token);
 
   await recordAuditEvent(
     "signable_document_signed",

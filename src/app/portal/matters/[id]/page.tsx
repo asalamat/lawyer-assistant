@@ -4,8 +4,10 @@ import { notFound, redirect } from "next/navigation";
 import { getClientSessionUser } from "@/lib/clientAuth";
 import { getMatter, listDocuments } from "@/lib/matters";
 import { listPortalMessages } from "@/lib/portalMessages";
+import { listSignableDocuments, SIGNABLE_KIND_LABELS } from "@/lib/signableDocuments";
 import PortalLogoutButton from "@/components/PortalLogoutButton";
 import PortalMessagesPanel from "@/components/PortalMessagesPanel";
+import PortalSignableDocumentsPanel from "@/components/PortalSignableDocumentsPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +33,9 @@ export default async function PortalMatterPage({
 
   const documents = (await listDocuments(id)).filter((doc) => doc.sharedWithClient);
   const messages = await listPortalMessages(id);
+  const pendingSignatures = (await listSignableDocuments(id))
+    .filter((doc) => doc.status === "sent")
+    .map((doc) => ({ id: doc.id, title: doc.title, kindLabel: SIGNABLE_KIND_LABELS[doc.kind] ?? doc.kind }));
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-10">
@@ -43,6 +48,8 @@ export default async function PortalMatterPage({
         </div>
         <PortalLogoutButton />
       </div>
+
+      <PortalSignableDocumentsPanel matterId={id} initialPending={pendingSignatures} />
 
       <div>
         <h2 className="mb-2 font-display text-lg">Shared documents</h2>

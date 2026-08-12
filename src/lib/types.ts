@@ -565,6 +565,9 @@ export interface Invoice {
   status: "unpaid" | "paid";
   paidAt: string | null;
   createdAt: string;
+  // Set once a client approval has been requested — see requestInvoiceApproval
+  // in matters.ts and signableDocuments.ts for what this points at.
+  signableDocumentId: string | null;
 }
 
 export const EMAIL_PROVIDERS = ["google", "microsoft", "yahoo"] as const;
