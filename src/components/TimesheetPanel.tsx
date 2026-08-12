@@ -62,9 +62,9 @@ export default function TimesheetPanel({
     Object.fromEntries(initialSignableDocuments.map((d) => [d.id, d.status])),
   );
   const [approvalRequestingId, setApprovalRequestingId] = useState<string | null>(null);
-  const [approvalResult, setApprovalResult] = useState<{ id: string; ok: boolean; message: string } | null>(
-    null,
-  );
+  const [approvalError, setApprovalError] = useState<{ id: string; message: string } | null>(null);
+  const [approvalLinks, setApprovalLinks] = useState<Record<string, string>>({});
+  const [copiedApprovalId, setCopiedApprovalId] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sendResult, setSendResult] = useState<{ id: string; ok: boolean; message: string } | null>(
     null,
@@ -272,7 +272,7 @@ export default function TimesheetPanel({
 
   async function handleRequestApproval(invoice: Invoice) {
     setApprovalRequestingId(invoice.id);
-    setApprovalResult(null);
+    setApprovalError(null);
     try {
       const res = await fetch(`/api/matters/${matterId}/invoices/${invoice.id}/request-approval`, {
         method: "POST",
@@ -281,16 +281,24 @@ export default function TimesheetPanel({
       if (!res.ok) throw new Error(body.error ?? "Failed to request approval");
       setInvoices((prev) => prev.map((inv) => (inv.id === invoice.id ? body.invoice : inv)));
       setApprovalStatuses((prev) => ({ ...prev, [body.invoice.signableDocumentId]: "sent" }));
-      setApprovalResult({ id: invoice.id, ok: true, message: `Approval link ready: ${body.signUrl}` });
+      setApprovalLinks((prev) => ({ ...prev, [invoice.id]: body.signUrl }));
     } catch (err) {
-      setApprovalResult({
+      setApprovalError({
         id: invoice.id,
-        ok: false,
         message: err instanceof Error ? err.message : "Failed to request approval",
       });
     } finally {
       setApprovalRequestingId(null);
     }
+  }
+
+  // Matches ConsentPanel.tsx's copy-link pattern — no email is ever sent
+  // automatically for a signing link anywhere in this app; the lawyer
+  // copies it and delivers it themselves (email, text, in person).
+  async function copyApprovalLink(invoiceId: string, signUrl: string) {
+    await navigator.clipboard.writeText(`${window.location.origin}${signUrl}`);
+    setCopiedApprovalId(invoiceId);
+    setTimeout(() => setCopiedApprovalId((current) => (current === invoiceId ? null : current)), 2000);
   }
 
   return (
@@ -530,10 +538,19 @@ export default function TimesheetPanel({
                     </button>
                   )}
                 </div>
-                {approvalResult?.id === invoice.id && (
-                  <p className={`text-xs ${approvalResult.ok ? "text-green-600" : "text-red-600"}`}>
-                    {approvalResult.message}
-                  </p>
+                {approvalError?.id === invoice.id && (
+                  <p className="text-xs text-red-600">{approvalError.message}</p>
+                )}
+                {approvalLinks[invoice.id] && (
+                  <div className="flex flex-wrap items-center gap-2 rounded-lg bg-black/[0.03] px-3 py-2 dark:bg-white/[0.05]">
+                    <code className="min-w-0 flex-1 truncate font-mono text-xs">{approvalLinks[invoice.id]}</code>
+                    <button
+                      onClick={() => copyApprovalLink(invoice.id, approvalLinks[invoice.id])}
+                      className="text-xs text-accent hover:underline"
+                    >
+                      {copiedApprovalId === invoice.id ? "Copied" : "Copy link"}
+                    </button>
+                  </div>
                 )}
                 {sendResult?.id === invoice.id && (
                   <p className={`text-xs ${sendResult.ok ? "text-green-600" : "text-red-600"}`}>
