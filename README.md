@@ -272,6 +272,59 @@ Windows-specific notes, two-factor authentication, how to add more user
 accounts, and how to uninstall cleanly, in
 [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
+## DocuSign setup (optional — for real client e-signatures)
+
+This app already ships its own e-signature system (Consent tab, Document
+templates, invoice approval) that works immediately with zero setup — typed
+name, optional drawn signature, IP/hash audit trail. **DocuSign is only
+needed if you specifically want to use the real DocuSign service instead**,
+which matters if this app runs on a single local computer with no public
+URL: DocuSign's **remote signing** emails the client directly and hosts
+the entire signing ceremony on its own servers, so the client never needs
+to reach this app at all. This app only ever makes *outbound* calls to
+DocuSign's API (create envelope, check status, download the signed
+result) — no inbound access needed.
+
+1. Sign in to your DocuSign developer/sandbox account and go to
+   **`https://admindemo.docusign.com/api-integrator-key`** — use this exact
+   demo-environment URL. `account.docusign.com` / `admin.docusign.com`
+   manage a *separate* production app registration that won't match a
+   sandbox integration key.
+2. Find (or create) an app there and copy its **Integration Key**.
+3. Click **"Generate RSA"**. This produces a public/private keypair — copy
+   the **private key** (starts with `-----BEGIN RSA PRIVATE KEY-----`), not
+   the public key (`-----BEGIN PUBLIC KEY-----`), which won't work here.
+4. Under **"Additional settings"** on the same page, click **"Add URI"**
+   — a button that creates a new, empty box specifically for a redirect
+   URI. Don't type into the nearby "Link to Privacy Policy" or "Link to
+   Terms of Use" fields; those are unrelated. Enter:
+   ```
+   https://www.docusign.com
+   ```
+   into that new box, then click the page's own **Save**/**Update**
+   button, and **reload the page** to confirm the URI is still listed
+   afterward — some DocuSign UIs need the entry committed (e.g. pressing
+   Enter) before the page-level Save actually persists it.
+5. Copy the **User ID** and **Account ID** shown under "My Account
+   Information" in the same DocuSign account.
+6. In this app: **Settings > DocuSign** — enter the Integration Key, User
+   ID, Account ID, and the private key, check **"Route e-signature
+   requests through DocuSign,"** and Save.
+7. That settings page then shows a one-time **admin-consent URL** — open
+   it in a browser while logged into the same DocuSign account and click
+   **Allow**. This is a one-time step per integration key. (`"There are no
+   redirect URIs registered with DocuSign"` at this step means step 4
+   didn't actually save — go back and confirm it's really there.)
+8. Click **"Test connection"** on the settings page to confirm everything
+   resolves correctly.
+
+Once enabled, every existing "Send for signature" / "Request client
+approval" action routes through DocuSign automatically — no per-document
+choice needed, and native signing is used automatically again if DocuSign
+is ever turned back off. Since there's no inbound URL for DocuSign to
+notify directly, a background check every 5 minutes (not instant) looks
+for newly completed envelopes and pulls the signed document back in.
+
 ## Stack
 
 Next.js 16 (App Router, Turbopack) · TypeScript · Tailwind CSS v4 ·
@@ -283,6 +336,16 @@ Windows, and Linux.
 
 ## Recent changes
 
+- 🆕✍️ **E-signature everywhere it's needed, plus a real DocuSign option**
+  — the existing signature mechanism (Consent tab) is now also reachable
+  from Document templates ("Send for signature" on a generated document)
+  and invoice approval ("Request client approval"), all auto-emailing the
+  signing link to the client when possible. For firms that specifically
+  want DocuSign instead — the only path that actually works when this app
+  has no public URL of its own — `Settings > DocuSign` adds a real
+  integration (JWT Grant + remote signing, see the setup guide above)
+  that every one of those actions routes through automatically once
+  configured.
 - 🆕📅🔔 **Native calendar + reminders, no external calendar account
   needed** — deadlines and ad-hoc events now live entirely in the app
   itself: a firm-wide calendar (`/calendar`) and a per-matter calendar tab,
@@ -460,6 +523,28 @@ reasoning behind each decision, is in
 
 ## Known bugs found & fixed
 
+- **Editing a client's email/name didn't update any of their existing
+  matters.** Every matter keeps its own copy of `clientName`/`clientEmail`
+  (what invoice sending, e-signature, and compose-email actually read) —
+  `updateClient()` only wrote to the `clients` table, so changing a
+  client's email there silently left every one of their matters pointing
+  at the old address. Found live (a real invoice would have gone to a
+  stale address), fixed by having `updateClient()` also push the new
+  name/email down to every linked matter.
+- **Every DocuSign API call after authentication 404'd.** DocuSign's
+  `userinfo` endpoint returns an account's `base_uri` without the
+  `/restapi` path segment — using it as-is hit a 404 HTML page instead of
+  the real API, and calling `.json()` on that threw a confusing
+  `"Unexpected token '<'"` instead of a real error. Fixed by appending
+  `/restapi` (per DocuSign's own JWT integration guide) and by reading
+  every DocuSign response as text first, only parsing as JSON if it looks
+  like JSON, so a future non-JSON response surfaces the real HTTP status
+  and body instead of a raw parse error. Also discovered along the way: a
+  long-running background scheduler (the DocuSign envelope-status poller)
+  doesn't pick up a code fix via hot-reload the way a page or API route
+  does, since its `setInterval` closure was created once at server
+  startup — a full restart was needed for the fix to actually take effect
+  on the next poll, not just a file save.
 - **Re-extracting AI deadlines would have wiped every rule-computed or
   manually-added deadline on the same matter.** The delete-and-reinsert
   step behind "Re-extract" had no filter, so it cleared the whole
