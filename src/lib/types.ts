@@ -279,7 +279,7 @@ export interface CalendarItem {
   matterTitle: string | null;
 }
 
-export type NotificationType = "deadline_reminder" | "event_reminder" | "deadline_overdue";
+export type NotificationType = "deadline_reminder" | "event_reminder" | "deadline_overdue" | "document_signed";
 
 export interface AppNotification {
   id: string;
@@ -287,7 +287,7 @@ export interface AppNotification {
   title: string;
   body: string;
   matterId: string | null;
-  relatedType: "deadline" | "calendar_event" | null;
+  relatedType: "deadline" | "calendar_event" | "signable_document" | null;
   relatedId: string | null;
   readAt: string | null;
   createdAt: string;

@@ -48,8 +48,17 @@ export async function PATCH(
     if (action === "resend") {
       const user = await getCurrentUser();
       const origin = new URL(request.url).origin;
-      const { document: updated, token, emailedTo } = await sendForSignature(docId, user?.id ?? null, origin);
-      return NextResponse.json({ document: updated, signUrl: `/sign/${token}`, emailedTo });
+      const { document: updated, token, emailedTo, docusignEnvelopeId } = await sendForSignature(
+        docId,
+        user?.id ?? null,
+        origin,
+      );
+      return NextResponse.json({
+        document: updated,
+        signUrl: token ? `/sign/${token}` : null,
+        emailedTo,
+        docusignEnvelopeId,
+      });
     }
     if (action === "decline") {
       const reason = typeof body?.reason === "string" ? body.reason : undefined;

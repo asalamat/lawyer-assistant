@@ -10,8 +10,13 @@ export async function POST(
   const user = await getCurrentUser();
   try {
     const origin = new URL(request.url).origin;
-    const { invoice, signUrl, emailedTo } = await requestInvoiceApproval(id, invoiceId, user?.id ?? null, origin);
-    return NextResponse.json({ invoice, signUrl, emailedTo });
+    const { invoice, signUrl, emailedTo, docusignEnvelopeId } = await requestInvoiceApproval(
+      id,
+      invoiceId,
+      user?.id ?? null,
+      origin,
+    );
+    return NextResponse.json({ invoice, signUrl, emailedTo, docusignEnvelopeId });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed to request approval" },

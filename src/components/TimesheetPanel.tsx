@@ -65,6 +65,7 @@ export default function TimesheetPanel({
   const [approvalError, setApprovalError] = useState<{ id: string; message: string } | null>(null);
   const [approvalLinks, setApprovalLinks] = useState<Record<string, string>>({});
   const [approvalEmailedTo, setApprovalEmailedTo] = useState<Record<string, string>>({});
+  const [approvalViaDocuSign, setApprovalViaDocuSign] = useState<Record<string, boolean>>({});
   const [copiedApprovalId, setCopiedApprovalId] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sendResult, setSendResult] = useState<{ id: string; ok: boolean; message: string } | null>(
@@ -282,7 +283,13 @@ export default function TimesheetPanel({
       if (!res.ok) throw new Error(body.error ?? "Failed to request approval");
       setInvoices((prev) => prev.map((inv) => (inv.id === invoice.id ? body.invoice : inv)));
       setApprovalStatuses((prev) => ({ ...prev, [body.invoice.signableDocumentId]: "sent" }));
-      setApprovalLinks((prev) => ({ ...prev, [invoice.id]: body.signUrl }));
+      setApprovalLinks((prev) => {
+        const next = { ...prev };
+        if (body.signUrl) next[invoice.id] = body.signUrl;
+        else delete next[invoice.id];
+        return next;
+      });
+      setApprovalViaDocuSign((prev) => ({ ...prev, [invoice.id]: Boolean(body.docusignEnvelopeId) }));
       setApprovalEmailedTo((prev) => {
         const next = { ...prev };
         if (body.emailedTo) next[invoice.id] = body.emailedTo;
@@ -547,6 +554,12 @@ export default function TimesheetPanel({
                 </div>
                 {approvalError?.id === invoice.id && (
                   <p className="text-xs text-red-600">{approvalError.message}</p>
+                )}
+                {approvalViaDocuSign[invoice.id] && (
+                  <p className="text-xs text-muted">
+                    Sent via DocuSign{approvalEmailedTo[invoice.id] ? ` to ${approvalEmailedTo[invoice.id]}` : ""}{" "}
+                    — the client approves on DocuSign&apos;s own site, nothing further to send.
+                  </p>
                 )}
                 {approvalLinks[invoice.id] && (
                   <div className="flex flex-col gap-1">

@@ -1370,7 +1370,7 @@ export async function requestInvoiceApproval(
   invoiceId: string,
   createdByUserId: string | null,
   baseUrl?: string,
-): Promise<{ invoice: Invoice; signUrl: string; emailedTo: string | null }> {
+): Promise<{ invoice: Invoice; signUrl: string | null; emailedTo: string | null; docusignEnvelopeId: string | null }> {
   const invoice = await getInvoice(matterId, invoiceId);
   if (!invoice) {
     throw new Error("Invoice not found.");
@@ -1394,9 +1394,9 @@ export async function requestInvoiceApproval(
     }
   }
 
-  const { token, emailedTo } = await sendForSignature(signableDocumentId, createdByUserId, baseUrl);
+  const { token, emailedTo, docusignEnvelopeId } = await sendForSignature(signableDocumentId, createdByUserId, baseUrl);
   const updated = await getInvoice(matterId, invoiceId);
-  return { invoice: updated!, signUrl: `/sign/${token}`, emailedTo };
+  return { invoice: updated!, signUrl: token ? `/sign/${token}` : null, emailedTo, docusignEnvelopeId };
 }
 
 export async function recordInvoiceSent(matterId: string, invoiceNumber: string, to: string): Promise<void> {

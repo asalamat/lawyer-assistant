@@ -10,8 +10,9 @@ type TemplateWithFields = DocumentTemplate & { fields: { autoFill: string[]; cus
 
 interface SignatureRequestState {
   status: "sending" | "sent" | "error";
-  signUrl?: string;
+  signUrl?: string | null;
   emailedTo?: string | null;
+  docusignEnvelopeId?: string | null;
   error?: string;
 }
 
@@ -104,7 +105,12 @@ export default function TemplateGeneratorPanel({
 
       setSignatureRequests((prev) => ({
         ...prev,
-        [doc.id]: { status: "sent", signUrl: sent.signUrl, emailedTo: sent.emailedTo },
+        [doc.id]: {
+          status: "sent",
+          signUrl: sent.signUrl,
+          emailedTo: sent.emailedTo,
+          docusignEnvelopeId: sent.docusignEnvelopeId,
+        },
       }));
     } catch (err) {
       setSignatureRequests((prev) => ({
@@ -188,12 +194,18 @@ export default function TemplateGeneratorPanel({
                       : "Send for signature"}
                 </button>
               </div>
-              {signatureRequests[doc.id]?.status === "sent" && (
+              {signatureRequests[doc.id]?.status === "sent" && signatureRequests[doc.id]?.docusignEnvelopeId && (
+                <p className="text-sm text-muted">
+                  Sent via DocuSign{signatureRequests[doc.id]?.emailedTo ? ` to ${signatureRequests[doc.id]?.emailedTo}` : ""}{" "}
+                  — the client signs on DocuSign&apos;s own site, nothing further to send.
+                </p>
+              )}
+              {signatureRequests[doc.id]?.status === "sent" && signatureRequests[doc.id]?.signUrl && (
                 <p className="text-sm text-muted">
                   {signatureRequests[doc.id]?.emailedTo
                     ? `Emailed to ${signatureRequests[doc.id]?.emailedTo} for signature.`
                     : "Signing link ready (no client email on file, or email isn't configured)."}{" "}
-                  <a href={signatureRequests[doc.id]?.signUrl} className="text-accent hover:underline" target="_blank" rel="noreferrer">
+                  <a href={signatureRequests[doc.id]?.signUrl ?? undefined} className="text-accent hover:underline" target="_blank" rel="noreferrer">
                     Open it
                   </a>{" "}
                   to copy and send it another way, or manage it from the matter&apos;s Consent tab.

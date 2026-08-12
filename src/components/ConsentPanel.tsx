@@ -101,14 +101,14 @@ export default function ConsentPanel({
       setRows((prev) =>
         prev.map((row) => (row.id === docId ? { ...row, ...body.document } : row)),
       );
+      setEmailedTo((prev) => {
+        const next = { ...prev };
+        if (body.emailedTo) next[docId] = body.emailedTo;
+        else delete next[docId];
+        return next;
+      });
       if (body.signUrl) {
         setSignUrls((prev) => ({ ...prev, [docId]: body.signUrl }));
-        setEmailedTo((prev) => {
-          const next = { ...prev };
-          if (body.emailedTo) next[docId] = body.emailedTo;
-          else delete next[docId];
-          return next;
-        });
       } else {
         setSignUrls((prev) => {
           const next = { ...prev };
@@ -291,7 +291,14 @@ export default function ConsentPanel({
                       </p>
                     </div>
                   )}
-                  {row.status === "sent" && !signUrl && (
+                  {row.status === "sent" && !signUrl && row.docusignEnvelopeId && (
+                    <p className="text-xs text-muted">
+                      Sent via DocuSign{emailedTo[row.id] ? ` to ${emailedTo[row.id]}` : ""} — the client
+                      signs on DocuSign&apos;s own site, nothing further to send. This updates automatically
+                      once they&apos;ve signed.
+                    </p>
+                  )}
+                  {row.status === "sent" && !signUrl && !row.docusignEnvelopeId && (
                     <p className="text-xs text-muted">
                       A link was issued for this document. Use &ldquo;Resend link&rdquo; to get a
                       fresh one — the previous link stops working when you do.

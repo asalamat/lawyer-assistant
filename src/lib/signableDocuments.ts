@@ -6,7 +6,10 @@ import {
   revokeAccessTokensForResource,
 } from "./clientAccess";
 import db, { toPlain } from "./db";
+import { createDocuSignEnvelope, type EnvelopeDocument } from "./docusign";
 import { isEmailConfigured, sendEmail } from "./email";
+import { readPlaintextFile } from "./textExtraction";
+import { getDocuSignConfig } from "./settings";
 
 // Retainer agreements, conflict waivers and privacy consents that need a
 // client signature. A basic electronic signature (typed legal name plus an
@@ -36,6 +39,9 @@ export interface SignableDocument {
   sentAt: string | null;
   signedAt: string | null;
   declinedAt: string | null;
+  // Set once routed through DocuSign instead of this app's own native
+  // /sign/<token> link — see docusign.ts and docusignScheduler.ts.
+  docusignEnvelopeId: string | null;
 }
 
 export interface Signature {
@@ -119,6 +125,7 @@ export async function createSignableDocument(
     sentAt: null,
     signedAt: null,
     declinedAt: null,
+    docusignEnvelopeId: null,
   };
   db.prepare(
     "INSERT INTO signable_documents (id, matterId, kind, title, sourceDocumentId, status, createdAt, createdByUserId, sentAt, signedAt, declinedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -152,6 +159,12 @@ function getMatterContactInfo(matterId: string): { clientEmail: string | null; c
     .get(matterId) as { clientEmail: string | null; clientName: string; title: string } | undefined;
 }
 
+function getSourceDocumentFile(documentId: string): { storagePath: string; fileName: string } | undefined {
+  return db
+    .prepare("SELECT storagePath, fileName FROM documents WHERE id = ?")
+    .get(documentId) as { storagePath: string; fileName: string } | undefined;
+}
+
 // Sends the signing link straight to the client's email on file, if one
 // exists and SMTP is configured — best-effort: a failed/skipped email never
 // blocks issuing the link, since the copy-link fallback (every caller still
@@ -181,19 +194,76 @@ async function emailSigningLink(
   }
 }
 
-// Returns the freshly-issued token alongside the updated document — the
-// caller turns it into a /sign/<token> link. Tokens are deliberately never
-// served back on a subsequent read: a lost link is re-issued here (which
-// revokes the old one), rather than the same secret being handed out again
-// on every page load. baseUrl (the app's own origin, e.g. from
-// `new URL(request.url).origin` in the calling route) is required to
-// actually email the link — without it there's no absolute URL to send, so
-// the caller falls back to copy-link-only.
+// Builds a one-page cover sheet carrying the "/sig/" anchor DocuSign uses to
+// place the signature tab — needed regardless of whether a real source
+// document is attached, since anchor placement (not a fixed x/y position)
+// is what makes this work no matter how many pages the attached document
+// has. The real document, if any, rides alongside as a second, unsigned
+// page the client can review inline.
+function buildDocuSignDocuments(document: SignableDocument): EnvelopeDocument[] {
+  const coverSheetText = [
+    document.title,
+    "",
+    document.sourceDocumentId
+      ? "Please review the attached document and sign below to confirm."
+      : "Please review and sign below to confirm.",
+    "",
+    "By signing below, I confirm I have reviewed this and agree to it with the same legal effect as a signature on paper.",
+    "",
+    "Sign here: /sig/",
+  ].join("\n");
+
+  const documents: EnvelopeDocument[] = [
+    { content: Buffer.from(coverSheetText).toString("base64"), name: "Signature page", fileExtension: "txt" },
+  ];
+  return documents;
+}
+
+async function attachSourceDocument(documents: EnvelopeDocument[], sourceDocumentId: string): Promise<void> {
+  const file = getSourceDocumentFile(sourceDocumentId);
+  if (!file) return;
+  const bytes = await readPlaintextFile(file.storagePath);
+  const extension = file.fileName.split(".").pop()?.toLowerCase() || "pdf";
+  documents.push({ content: bytes.toString("base64"), name: file.fileName, fileExtension: extension });
+}
+
+async function sendViaDocuSign(document: SignableDocument): Promise<{ envelopeId: string; emailedTo: string }> {
+  const matter = getMatterContactInfo(document.matterId);
+  if (!matter?.clientEmail) {
+    throw new Error("This matter has no client email on file — add one before sending via DocuSign.");
+  }
+
+  const documents = buildDocuSignDocuments(document);
+  if (document.sourceDocumentId) {
+    await attachSourceDocument(documents, document.sourceDocumentId);
+  }
+
+  const { envelopeId } = await createDocuSignEnvelope({
+    recipientEmail: matter.clientEmail,
+    recipientName: matter.clientName,
+    emailSubject: `Please sign: ${document.title}`,
+    documents,
+  });
+  return { envelopeId, emailedTo: matter.clientEmail };
+}
+
+// Returns the freshly-issued token (native path) or a DocuSign envelope id
+// (DocuSign path) alongside the updated document. For the native path, the
+// caller turns the token into a /sign/<token> link; tokens are deliberately
+// never served back on a subsequent read — a lost link is re-issued here
+// (which revokes the old one), rather than the same secret being handed out
+// again on every page load. baseUrl (the app's own origin, e.g. from
+// `new URL(request.url).origin` in the calling route) is required to email
+// a native link — without it there's no absolute URL to send, so the
+// caller falls back to copy-link-only. DocuSign is used automatically
+// instead of the native link whenever it's configured and enabled
+// (Settings > DocuSign) — DocuSign emails the recipient itself either way,
+// so baseUrl is irrelevant on that path.
 export async function sendForSignature(
   id: string,
   createdByUserId: string | null,
   baseUrl?: string,
-): Promise<{ document: SignableDocument; token: string; emailedTo: string | null }> {
+): Promise<{ document: SignableDocument; token: string | null; emailedTo: string | null; docusignEnvelopeId: string | null }> {
   const document = await getSignableDocument(id);
   if (!document) {
     throw new Error("Signable document not found.");
@@ -205,9 +275,30 @@ export async function sendForSignature(
     throw new Error("This document has been voided. Prepare a new one instead.");
   }
 
+  const docusignConfig = await getDocuSignConfig();
+  const sentAt = new Date().toISOString();
+
+  if (docusignConfig?.enabled) {
+    const { envelopeId, emailedTo } = await sendViaDocuSign(document);
+    revokeAccessTokensForResource(id);
+    db.prepare(
+      "UPDATE signable_documents SET status = 'sent', sentAt = ?, declinedAt = NULL, docusignEnvelopeId = ? WHERE id = ?",
+    ).run(sentAt, envelopeId, id);
+    await recordAuditEvent(
+      "signable_document_sent",
+      document.matterId,
+      `Sent "${document.title}" for signature via DocuSign, to ${emailedTo}`,
+    );
+    return {
+      document: { ...document, status: "sent", sentAt, declinedAt: null, docusignEnvelopeId: envelopeId },
+      token: null,
+      emailedTo,
+      docusignEnvelopeId: envelopeId,
+    };
+  }
+
   revokeAccessTokensForResource(id);
   const token = createAccessToken("signature", document.matterId, id, createdByUserId);
-  const sentAt = new Date().toISOString();
   db.prepare(
     "UPDATE signable_documents SET status = 'sent', sentAt = ?, declinedAt = NULL WHERE id = ?",
   ).run(sentAt, id);
@@ -225,6 +316,7 @@ export async function sendForSignature(
     document: { ...document, status: "sent", sentAt, declinedAt: null },
     token,
     emailedTo,
+    docusignEnvelopeId: null,
   };
 }
 

@@ -14,6 +14,19 @@ export interface SmtpConfig {
   fromEmail: string;
 }
 
+// JWT Grant (server-to-server, no interactive login) + remote signing
+// (DocuSign emails the recipient and hosts the whole signing ceremony on
+// its own site) — the only combination that works for an app with no
+// public URL of its own. See src/lib/docusign.ts.
+export interface DocuSignConfig {
+  integrationKey: string;
+  userId: string;
+  accountId: string;
+  privateKey: string;
+  demo: boolean;
+  enabled: boolean;
+}
+
 export interface WeatherLocation {
   name: string;
   country: string | null;
@@ -192,6 +205,7 @@ interface Settings {
   geminiApiKey?: string;
   canliiApiKey?: string;
   smtp?: SmtpConfig;
+  docusign?: DocuSignConfig;
   location?: WeatherLocation;
   aiProviderOrder?: AiProvider[];
   cronSecret?: string;
@@ -234,6 +248,10 @@ async function readSettings(): Promise<Settings> {
   }
   if (settings.smtp?.password && !isEncryptedText(settings.smtp.password)) {
     settings.smtp.password = await encryptText(settings.smtp.password);
+    migrated = true;
+  }
+  if (settings.docusign?.privateKey && !isEncryptedText(settings.docusign.privateKey)) {
+    settings.docusign.privateKey = await encryptText(settings.docusign.privateKey);
     migrated = true;
   }
   if (settings.cloudBackup?.accessKeyId && !isEncryptedText(settings.cloudBackup.accessKeyId)) {
@@ -359,6 +377,42 @@ export async function getSmtpStatus(): Promise<{
     username: smtp.username,
     fromName: smtp.fromName,
     fromEmail: smtp.fromEmail,
+  };
+}
+
+export async function getDocuSignConfig(): Promise<DocuSignConfig | undefined> {
+  const settings = await readSettings();
+  if (!settings.docusign) return undefined;
+  return { ...settings.docusign, privateKey: await decryptText(settings.docusign.privateKey) };
+}
+
+export async function setDocuSignConfig(config: DocuSignConfig): Promise<void> {
+  const settings = await readSettings();
+  settings.docusign = { ...config, privateKey: await encryptText(config.privateKey) };
+  await writeSettings(settings);
+}
+
+// Returns the config with the private key redacted, for display in the UI.
+export async function getDocuSignStatus(): Promise<{
+  configured: boolean;
+  enabled: boolean;
+  integrationKey: string | null;
+  userId: string | null;
+  accountId: string | null;
+  demo: boolean;
+}> {
+  const settings = await readSettings();
+  const docusign = settings.docusign;
+  if (!docusign) {
+    return { configured: false, enabled: false, integrationKey: null, userId: null, accountId: null, demo: true };
+  }
+  return {
+    configured: true,
+    enabled: docusign.enabled,
+    integrationKey: docusign.integrationKey,
+    userId: docusign.userId,
+    accountId: docusign.accountId,
+    demo: docusign.demo,
   };
 }
 

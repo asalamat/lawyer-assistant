@@ -1043,6 +1043,12 @@ db.prepare("UPDATE email_accounts SET authMethod = 'app_password' WHERE provider
 // a tier in mind.
 ensureColumn("reference_documents", "category", "TEXT NOT NULL DEFAULT 'firm_knowledge'");
 
+// Set when a signable document was routed through DocuSign (see
+// docusign.ts) instead of this app's own native link — a polling scheduler
+// checks the envelope's status periodically rather than a webhook, since
+// this app has no public URL for DocuSign to call back to.
+ensureColumn("signable_documents", "docusignEnvelopeId", "TEXT");
+
 // Links an invoice to a signable_documents row when a lawyer requests the
 // client's explicit approval of it (see requestInvoiceApproval in
 // matters.ts) — reuses the existing e-signature mechanism rather than a
