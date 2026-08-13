@@ -23,6 +23,12 @@ interface UserRow extends User {
 // Matches the existing session cookie's maxAge.
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
+// A sliding window, not a one-time deadline like SESSION_TTL_MS above — a
+// session dies here after 2 minutes with no authenticated request at all,
+// even if it's nowhere near its 30-day absolute expiry. Client data on a
+// screen someone walked away from shouldn't stay open indefinitely.
+const IDLE_TIMEOUT_MS = 2 * 60 * 1000;
+
 function hashPassword(password: string, salt: string): string {
   return scryptSync(password, salt, 64).toString("hex");
 }
@@ -162,34 +168,50 @@ export async function verifyLogin(email: string, password: string): Promise<User
 export async function createSession(userId: string): Promise<string> {
   const token = randomBytes(32).toString("hex");
   const now = Date.now();
-  db.prepare("INSERT INTO sessions (tokenHash, userId, createdAt, expiresAt) VALUES (?, ?, ?, ?)").run(
+  db.prepare(
+    "INSERT INTO sessions (tokenHash, userId, createdAt, expiresAt, lastActivityAt) VALUES (?, ?, ?, ?, ?)",
+  ).run(
     hashToken(token),
     userId,
     new Date(now).toISOString(),
     new Date(now + SESSION_TTL_MS).toISOString(),
+    new Date(now).toISOString(),
   );
   return token;
 }
 
 export async function getSessionUser(token: string | undefined): Promise<User | null> {
   if (!token) return null;
+  const tokenHash = hashToken(token);
   const row = db
     .prepare(
-      `SELECT u.id, u.email, u.name, u.role, u.active, u.mustChangePassword, u.createdAt, s.expiresAt as expiresAt
+      `SELECT u.id, u.email, u.name, u.role, u.active, u.mustChangePassword, u.createdAt,
+              s.expiresAt as expiresAt, s.lastActivityAt as lastActivityAt
        FROM sessions s JOIN users u ON u.id = s.userId
        WHERE s.tokenHash = ?`,
     )
-    .get(hashToken(token)) as (User & { expiresAt: string }) | undefined;
+    .get(tokenHash) as (User & { expiresAt: string; lastActivityAt: string | null }) | undefined;
   if (!row) return null;
 
-  if (new Date(row.expiresAt).getTime() < Date.now()) {
-    db.prepare("DELETE FROM sessions WHERE tokenHash = ?").run(hashToken(token));
+  const now = Date.now();
+  if (new Date(row.expiresAt).getTime() < now) {
+    db.prepare("DELETE FROM sessions WHERE tokenHash = ?").run(tokenHash);
+    return null;
+  }
+  // lastActivityAt is only ever null for a session created before this
+  // column existed — treat that the same as "just touched" rather than
+  // force-expiring every pre-existing session on upgrade.
+  if (row.lastActivityAt && now - new Date(row.lastActivityAt).getTime() > IDLE_TIMEOUT_MS) {
+    db.prepare("DELETE FROM sessions WHERE tokenHash = ?").run(tokenHash);
     return null;
   }
   if (!row.active) return null;
 
-  const { expiresAt, ...user } = row;
+  db.prepare("UPDATE sessions SET lastActivityAt = ? WHERE tokenHash = ?").run(new Date(now).toISOString(), tokenHash);
+
+  const { expiresAt, lastActivityAt, ...user } = row;
   void expiresAt;
+  void lastActivityAt;
   return user;
 }
 

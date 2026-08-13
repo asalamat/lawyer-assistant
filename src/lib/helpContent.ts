@@ -542,7 +542,8 @@ export const HELP_SECTIONS: HelpSection[] = [
           "- Login is rate-limited per account after repeated failed attempts\n" +
           "- **Two-factor authentication (2FA)**: enabling it shows a QR code — scan it with an authenticator app (Google Authenticator, 1Password, Authy, etc.), or use the \"can't scan\" link for manual entry — then confirm with the 6-digit code it generates\n" +
           "- From then on, logging in requires that code (or one of the 8 one-time backup codes shown right after setup — save them somewhere safe, they're not shown again) in addition to your password\n" +
-          "- Disabling 2FA requires your current password",
+          "- Disabling 2FA requires your current password\n" +
+          "- **Idle session timeout**: any session (staff or client portal) is signed out automatically after 2 minutes with no activity at all — not a countdown from login, a rolling window that resets on every page/request. Logging back in picks up right where you left off; nothing is lost, since this only ends the session, not anything unsaved on the page itself",
       },
       {
         slug: "users",

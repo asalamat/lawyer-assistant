@@ -336,6 +336,11 @@ Windows, and Linux.
 
 ## Recent changes
 
+- 🆕🔒 **2-minute idle session timeout** (staff and client portal alike) —
+  a rolling window, not a countdown from login: any authenticated request
+  resets it, and 2 minutes with none at all signs the session out. Backed
+  by a `lastActivityAt` column touched on every request through `proxy.ts`,
+  separate from the existing 30-day absolute session expiry.
 - 🆕✍️ **E-signature everywhere it's needed, plus a real DocuSign option**
   — the existing signature mechanism (Consent tab) is now also reachable
   from Document templates ("Send for signature" on a generated document)

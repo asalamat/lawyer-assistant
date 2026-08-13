@@ -1055,6 +1055,12 @@ ensureColumn("signable_documents", "docusignEnvelopeId", "TEXT");
 // separate invoice-specific approval flow.
 ensureColumn("invoices", "signableDocumentId", "TEXT");
 
+// Backs the idle-timeout check in auth.ts/clientAuth.ts — separate from
+// expiresAt (a fixed absolute deadline set at login) because idle timeout
+// is a sliding window that resets on every request, not a one-time expiry.
+ensureColumn("sessions", "lastActivityAt", "TEXT");
+ensureColumn("client_sessions", "lastActivityAt", "TEXT");
+
 // One-time migration: matters used to store client identity only as free
 // text (clientName/clientEmail), with no real entity linking one client's
 // several matters together. Backfill a clients row per distinct

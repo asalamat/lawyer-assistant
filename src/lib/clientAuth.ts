@@ -16,6 +16,11 @@ interface ClientUserRow extends ClientUser {
 
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
+// Same sliding-window idle timeout as the staff session (auth.ts) — a
+// portal client walking away from a shared/public computer shouldn't leave
+// their matter documents open indefinitely either.
+const IDLE_TIMEOUT_MS = 2 * 60 * 1000;
+
 function hashPassword(password: string, salt: string): string {
   return scryptSync(password, salt, 64).toString("hex");
 }
@@ -119,30 +124,49 @@ export async function createClientSession(clientUserId: string): Promise<string>
   const token = randomBytes(32).toString("hex");
   const now = Date.now();
   db.prepare(
-    "INSERT INTO client_sessions (tokenHash, clientUserId, createdAt, expiresAt) VALUES (?, ?, ?, ?)",
-  ).run(hashToken(token), clientUserId, new Date(now).toISOString(), new Date(now + SESSION_TTL_MS).toISOString());
+    "INSERT INTO client_sessions (tokenHash, clientUserId, createdAt, expiresAt, lastActivityAt) VALUES (?, ?, ?, ?, ?)",
+  ).run(
+    hashToken(token),
+    clientUserId,
+    new Date(now).toISOString(),
+    new Date(now + SESSION_TTL_MS).toISOString(),
+    new Date(now).toISOString(),
+  );
   return token;
 }
 
 export async function getClientSessionUser(token: string | undefined): Promise<ClientUser | null> {
   if (!token) return null;
+  const tokenHash = hashToken(token);
   const row = db
     .prepare(
-      `SELECT cu.id, cu.clientId, cu.email, cu.mustChangePassword, cu.active, cu.createdAt, cs.expiresAt as expiresAt
+      `SELECT cu.id, cu.clientId, cu.email, cu.mustChangePassword, cu.active, cu.createdAt,
+              cs.expiresAt as expiresAt, cs.lastActivityAt as lastActivityAt
        FROM client_sessions cs JOIN client_users cu ON cu.id = cs.clientUserId
        WHERE cs.tokenHash = ?`,
     )
-    .get(hashToken(token)) as (ClientUser & { expiresAt: string }) | undefined;
+    .get(tokenHash) as (ClientUser & { expiresAt: string; lastActivityAt: string | null }) | undefined;
   if (!row) return null;
 
-  if (new Date(row.expiresAt).getTime() < Date.now()) {
-    db.prepare("DELETE FROM client_sessions WHERE tokenHash = ?").run(hashToken(token));
+  const now = Date.now();
+  if (new Date(row.expiresAt).getTime() < now) {
+    db.prepare("DELETE FROM client_sessions WHERE tokenHash = ?").run(tokenHash);
+    return null;
+  }
+  if (row.lastActivityAt && now - new Date(row.lastActivityAt).getTime() > IDLE_TIMEOUT_MS) {
+    db.prepare("DELETE FROM client_sessions WHERE tokenHash = ?").run(tokenHash);
     return null;
   }
   if (!row.active) return null;
 
-  const { expiresAt, ...user } = row;
+  db.prepare("UPDATE client_sessions SET lastActivityAt = ? WHERE tokenHash = ?").run(
+    new Date(now).toISOString(),
+    tokenHash,
+  );
+
+  const { expiresAt, lastActivityAt, ...user } = row;
   void expiresAt;
+  void lastActivityAt;
   return user;
 }
 
