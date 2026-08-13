@@ -3,13 +3,16 @@ import { getCurrentUser } from "@/lib/auth";
 import { formatDateOnly } from "@/lib/formatDate";
 import { filterAccessibleMatterIds } from "@/lib/matterAccess";
 import { listMatters, listUpcomingDeadlines } from "@/lib/matters";
-import { getAiProviderOrder, getIndependentReviewProvider } from "@/lib/settings";
+import { getAiProviderOrder, getIndependentReviewProviderOrder } from "@/lib/settings";
 import { listTasksForUser } from "@/lib/tasks";
 
 export const dynamic = "force-dynamic";
 
 const PROVIDER_LABELS: Record<string, string> = {
+  anthropic: "Anthropic (Claude)",
   openai: "OpenAI",
+  gemini: "Google (Gemini)",
+  ollama: "Ollama (local)",
   deepseek: "DeepSeek",
   moonshot: "Moonshot AI (Kimi)",
 };
@@ -32,12 +35,12 @@ export default async function Home() {
   // page they can't reach.
   let sameProviderWarning: string | null = null;
   if (user?.role === "admin") {
-    const [primaryOrder, independentReviewProvider] = await Promise.all([
+    const [primaryOrder, independentOrder] = await Promise.all([
       getAiProviderOrder(),
-      getIndependentReviewProvider(),
+      getIndependentReviewProviderOrder(),
     ]);
-    if (primaryOrder[0] === independentReviewProvider) {
-      sameProviderWarning = PROVIDER_LABELS[independentReviewProvider] ?? independentReviewProvider;
+    if (primaryOrder[0] === independentOrder[0]) {
+      sameProviderWarning = PROVIDER_LABELS[independentOrder[0]] ?? independentOrder[0];
     }
   }
 

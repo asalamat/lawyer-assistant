@@ -1,26 +1,41 @@
 import { NextResponse } from "next/server";
 import {
   getAiProviderOrder,
-  getIndependentReviewProvider,
-  setIndependentReviewProvider,
+  getIndependentReviewProviderOrder,
+  setIndependentReviewProviderOrder,
   type IndependentReviewProvider,
 } from "@/lib/settings";
 
-const VALID_PROVIDERS: IndependentReviewProvider[] = ["openai", "deepseek", "moonshot"];
+const VALID_PROVIDERS: IndependentReviewProvider[] = [
+  "anthropic",
+  "openai",
+  "gemini",
+  "ollama",
+  "deepseek",
+  "moonshot",
+];
 
 export async function GET() {
-  const [provider, primaryOrder] = await Promise.all([getIndependentReviewProvider(), getAiProviderOrder()]);
-  return NextResponse.json({ provider, samePrimaryProvider: primaryOrder[0] === provider });
+  const [order, primaryOrder] = await Promise.all([getIndependentReviewProviderOrder(), getAiProviderOrder()]);
+  return NextResponse.json({ order, samePrimaryProvider: primaryOrder[0] === order[0] });
 }
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const provider = body?.provider;
-  if (!VALID_PROVIDERS.includes(provider)) {
-    return NextResponse.json({ error: `provider must be one of ${VALID_PROVIDERS.join(", ")}` }, { status: 400 });
+  const order = body?.order;
+  if (
+    !Array.isArray(order) ||
+    order.length === 0 ||
+    !order.every((p) => VALID_PROVIDERS.includes(p)) ||
+    new Set(order).size !== order.length
+  ) {
+    return NextResponse.json(
+      { error: `order must be a non-empty list of unique values from ${VALID_PROVIDERS.join(", ")}` },
+      { status: 400 },
+    );
   }
 
-  await setIndependentReviewProvider(provider);
+  await setIndependentReviewProviderOrder(order);
   const primaryOrder = await getAiProviderOrder();
-  return NextResponse.json({ provider, samePrimaryProvider: primaryOrder[0] === provider });
+  return NextResponse.json({ order, samePrimaryProvider: primaryOrder[0] === order[0] });
 }

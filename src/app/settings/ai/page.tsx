@@ -4,14 +4,12 @@ import {
   getAnthropicApiKeyStatus,
   getDeepseekApiKeyStatus,
   getGeminiApiKeyStatus,
-  getIndependentReviewProvider,
+  getIndependentReviewProviderOrder,
   getMoonshotApiKeyStatus,
   getOllamaConfig,
   getOpenaiApiKeyStatus,
-  type IndependentReviewProvider,
 } from "@/lib/settings";
-import AiProviderOrder from "@/components/AiProviderOrder";
-import IndependentReviewProviderForm from "@/components/IndependentReviewProviderForm";
+import AiProviderMatrix from "@/components/AiProviderMatrix";
 import OllamaSettingsForm from "@/components/OllamaSettingsForm";
 import SettingsForm from "@/components/SettingsForm";
 import SettingsSection from "@/components/SettingsSection";
@@ -26,14 +24,8 @@ export default async function AiSettingsPage() {
   const deepseekStatus = await getDeepseekApiKeyStatus();
   const moonshotStatus = await getMoonshotApiKeyStatus();
   const ollamaConfig = await getOllamaConfig();
-  const providerOrder = await getAiProviderOrder();
-  const independentReviewProvider = await getIndependentReviewProvider();
-
-  const configuredProviders: IndependentReviewProvider[] = [
-    ...(openaiStatus.configured ? (["openai"] as const) : []),
-    ...(deepseekStatus.configured ? (["deepseek"] as const) : []),
-    ...(moonshotStatus.configured ? (["moonshot"] as const) : []),
-  ];
+  const primaryOrder = await getAiProviderOrder();
+  const independentOrder = await getIndependentReviewProviderOrder();
 
   return (
     <SettingsSection
@@ -77,11 +69,10 @@ export default async function AiSettingsPage() {
           model: ollamaConfig?.model ?? "",
         }}
       />
-      <AiProviderOrder initialOrder={providerOrder} />
-      <IndependentReviewProviderForm
-        initialProvider={independentReviewProvider}
-        initialSamePrimaryProvider={providerOrder[0] === independentReviewProvider}
-        configuredProviders={configuredProviders}
+      <AiProviderMatrix
+        initialPrimaryOrder={primaryOrder}
+        initialIndependentOrder={independentOrder}
+        initialSamePrimaryProvider={primaryOrder[0] === independentOrder[0]}
       />
     </SettingsSection>
   );

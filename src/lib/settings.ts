@@ -36,12 +36,14 @@ export interface WeatherLocation {
 
 export type AiProvider = "anthropic" | "openai" | "gemini" | "ollama";
 
-// Independent review is deliberately a separate provider choice from the
-// primary fallback chain above, not folded into AiProvider — DeepSeek and
-// Moonshot exist here specifically so a lawyer can pick a genuinely
-// different model family to critique the primary model's own analysis,
-// not as general-purpose backups for chat/digests/drafting.
-export type IndependentReviewProvider = "openai" | "deepseek" | "moonshot";
+// Independent review draws from a wider provider universe than the primary
+// chain above — DeepSeek and Moonshot are review-only (see the AI model
+// settings page for why: most primary features need strict structured-JSON
+// output, which those two aren't verified to support as reliably as the
+// four primary providers; a review is always plain text, so that risk
+// doesn't apply here). A fallback SEQUENCE, not a single pick — same
+// failover behavior as the primary chain, just a separate order.
+export type IndependentReviewProvider = "anthropic" | "openai" | "gemini" | "ollama" | "deepseek" | "moonshot";
 // ollama last by default — it's the only provider that runs entirely on
 // this machine (no account, no cost, no data ever leaving it), which also
 // means its output quality depends entirely on which local model the
@@ -212,7 +214,7 @@ interface Settings {
   geminiApiKey?: string;
   deepseekApiKey?: string;
   moonshotApiKey?: string;
-  independentReviewProvider?: IndependentReviewProvider;
+  independentReviewProviderOrder?: IndependentReviewProvider[];
   canliiApiKey?: string;
   smtp?: SmtpConfig;
   docusign?: DocuSignConfig;
@@ -398,14 +400,14 @@ export async function getMoonshotApiKeyStatus(): Promise<{
   };
 }
 
-export async function getIndependentReviewProvider(): Promise<IndependentReviewProvider> {
+export async function getIndependentReviewProviderOrder(): Promise<IndependentReviewProvider[]> {
   const settings = await readSettings();
-  return settings.independentReviewProvider ?? "openai";
+  return settings.independentReviewProviderOrder ?? ["openai"];
 }
 
-export async function setIndependentReviewProvider(provider: IndependentReviewProvider): Promise<void> {
+export async function setIndependentReviewProviderOrder(order: IndependentReviewProvider[]): Promise<void> {
   const settings = await readSettings();
-  settings.independentReviewProvider = provider;
+  settings.independentReviewProviderOrder = order;
   await writeSettings(settings);
 }
 

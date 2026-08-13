@@ -28,7 +28,10 @@ async function getClient(): Promise<Anthropic> {
   return cachedClient;
 }
 
-async function completeAnthropic(params: {
+// Exported for independentReview.ts, which needs a single-provider text
+// completion (not the fallback-chain complete() below) since independent
+// review picks its own provider order, separate from the primary chain.
+export async function completeAnthropic(params: {
   system: string;
   messages: { role: "user" | "assistant"; content: string }[];
   maxTokens?: number;
