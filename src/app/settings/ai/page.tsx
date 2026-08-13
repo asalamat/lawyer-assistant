@@ -2,11 +2,16 @@ import {
   DEFAULT_OLLAMA_BASE_URL,
   getAiProviderOrder,
   getAnthropicApiKeyStatus,
+  getDeepseekApiKeyStatus,
   getGeminiApiKeyStatus,
+  getIndependentReviewProvider,
+  getMoonshotApiKeyStatus,
   getOllamaConfig,
   getOpenaiApiKeyStatus,
+  type IndependentReviewProvider,
 } from "@/lib/settings";
 import AiProviderOrder from "@/components/AiProviderOrder";
+import IndependentReviewProviderForm from "@/components/IndependentReviewProviderForm";
 import OllamaSettingsForm from "@/components/OllamaSettingsForm";
 import SettingsForm from "@/components/SettingsForm";
 import SettingsSection from "@/components/SettingsSection";
@@ -18,8 +23,17 @@ export default async function AiSettingsPage() {
   const status = await getAnthropicApiKeyStatus();
   const openaiStatus = await getOpenaiApiKeyStatus();
   const geminiStatus = await getGeminiApiKeyStatus();
+  const deepseekStatus = await getDeepseekApiKeyStatus();
+  const moonshotStatus = await getMoonshotApiKeyStatus();
   const ollamaConfig = await getOllamaConfig();
   const providerOrder = await getAiProviderOrder();
+  const independentReviewProvider = await getIndependentReviewProvider();
+
+  const configuredProviders: IndependentReviewProvider[] = [
+    ...(openaiStatus.configured ? (["openai"] as const) : []),
+    ...(deepseekStatus.configured ? (["deepseek"] as const) : []),
+    ...(moonshotStatus.configured ? (["moonshot"] as const) : []),
+  ];
 
   return (
     <SettingsSection
@@ -42,6 +56,20 @@ export default async function AiSettingsPage() {
         apiPath="/api/settings/gemini"
         bodyKey="geminiApiKey"
       />
+      <SettingsForm
+        initialStatus={deepseekStatus}
+        title="DeepSeek API key (independent review)"
+        placeholder="sk-..."
+        apiPath="/api/settings/deepseek"
+        bodyKey="deepseekApiKey"
+      />
+      <SettingsForm
+        initialStatus={moonshotStatus}
+        title="Moonshot AI / Kimi API key (independent review)"
+        placeholder="sk-..."
+        apiPath="/api/settings/moonshot"
+        bodyKey="moonshotApiKey"
+      />
       <OllamaSettingsForm
         initialStatus={{
           configured: Boolean(ollamaConfig),
@@ -50,6 +78,11 @@ export default async function AiSettingsPage() {
         }}
       />
       <AiProviderOrder initialOrder={providerOrder} />
+      <IndependentReviewProviderForm
+        initialProvider={independentReviewProvider}
+        initialSamePrimaryProvider={providerOrder[0] === independentReviewProvider}
+        configuredProviders={configuredProviders}
+      />
     </SettingsSection>
   );
 }

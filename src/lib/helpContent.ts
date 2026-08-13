@@ -251,7 +251,10 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "independent-review",
         name: "Independent review",
         detail:
-          "Get a second opinion from OpenAI on a generated digest, evidence matrix, or any individual chat answer, to catch blind spots a single model might share with itself. Requires an OpenAI key in Settings.",
+          "Get a second opinion on a generated digest, evidence matrix, or any individual chat answer, to catch blind spots a single model might share with itself.\n\n" +
+          "- Choose which provider does the reviewing in **Settings > AI model** — OpenAI, DeepSeek, or Moonshot AI (Kimi) — needs that provider's API key configured there\n" +
+          "- Deliberately a separate choice from your primary AI provider order, not another backup in that chain — the whole point is a genuinely different model checking the first one's work\n" +
+          "- If your primary provider and independent review provider end up being the same, a warning banner shows on the Dashboard and in Settings > AI model until you change one of them",
       },
       {
         slug: "case-noteup",

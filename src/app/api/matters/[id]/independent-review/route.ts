@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { aiErrorResponse } from "@/lib/aiErrorResponse";
 import { buildMatterContext } from "@/lib/claude";
-import { getIndependentReview } from "@/lib/openaiText";
+import { getIndependentReview } from "@/lib/independentReview";
 import {
   addIndependentReview,
   getMatter,

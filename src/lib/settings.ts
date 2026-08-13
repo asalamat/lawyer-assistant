@@ -35,6 +35,13 @@ export interface WeatherLocation {
 }
 
 export type AiProvider = "anthropic" | "openai" | "gemini" | "ollama";
+
+// Independent review is deliberately a separate provider choice from the
+// primary fallback chain above, not folded into AiProvider — DeepSeek and
+// Moonshot exist here specifically so a lawyer can pick a genuinely
+// different model family to critique the primary model's own analysis,
+// not as general-purpose backups for chat/digests/drafting.
+export type IndependentReviewProvider = "openai" | "deepseek" | "moonshot";
 // ollama last by default — it's the only provider that runs entirely on
 // this machine (no account, no cost, no data ever leaving it), which also
 // means its output quality depends entirely on which local model the
@@ -203,6 +210,9 @@ interface Settings {
   anthropicApiKey?: string;
   openaiApiKey?: string;
   geminiApiKey?: string;
+  deepseekApiKey?: string;
+  moonshotApiKey?: string;
+  independentReviewProvider?: IndependentReviewProvider;
   canliiApiKey?: string;
   smtp?: SmtpConfig;
   docusign?: DocuSignConfig;
@@ -227,6 +237,8 @@ const SECRET_FIELDS = [
   "anthropicApiKey",
   "openaiApiKey",
   "geminiApiKey",
+  "deepseekApiKey",
+  "moonshotApiKey",
   "canliiApiKey",
   "cronSecret",
   "calendarFeedSecret",
@@ -332,6 +344,69 @@ export async function getGeminiApiKeyStatus(): Promise<{
     source: settings.geminiApiKey ? "settings" : "env",
     preview: `••••${key.slice(-4)}`,
   };
+}
+
+export async function getDeepseekApiKey(): Promise<string | undefined> {
+  const settings = await readSettings();
+  return (await decryptSecret(settings.deepseekApiKey)) || process.env.DEEPSEEK_API_KEY;
+}
+
+export async function setDeepseekApiKey(key: string): Promise<void> {
+  const settings = await readSettings();
+  settings.deepseekApiKey = await encryptText(key);
+  await writeSettings(settings);
+}
+
+export async function getDeepseekApiKeyStatus(): Promise<{
+  configured: boolean;
+  source: "settings" | "env" | "none";
+  preview: string | null;
+}> {
+  const settings = await readSettings();
+  const key = (await decryptSecret(settings.deepseekApiKey)) || process.env.DEEPSEEK_API_KEY;
+  if (!key) return { configured: false, source: "none", preview: null };
+  return {
+    configured: true,
+    source: settings.deepseekApiKey ? "settings" : "env",
+    preview: `••••${key.slice(-4)}`,
+  };
+}
+
+export async function getMoonshotApiKey(): Promise<string | undefined> {
+  const settings = await readSettings();
+  return (await decryptSecret(settings.moonshotApiKey)) || process.env.MOONSHOT_API_KEY;
+}
+
+export async function setMoonshotApiKey(key: string): Promise<void> {
+  const settings = await readSettings();
+  settings.moonshotApiKey = await encryptText(key);
+  await writeSettings(settings);
+}
+
+export async function getMoonshotApiKeyStatus(): Promise<{
+  configured: boolean;
+  source: "settings" | "env" | "none";
+  preview: string | null;
+}> {
+  const settings = await readSettings();
+  const key = (await decryptSecret(settings.moonshotApiKey)) || process.env.MOONSHOT_API_KEY;
+  if (!key) return { configured: false, source: "none", preview: null };
+  return {
+    configured: true,
+    source: settings.moonshotApiKey ? "settings" : "env",
+    preview: `••••${key.slice(-4)}`,
+  };
+}
+
+export async function getIndependentReviewProvider(): Promise<IndependentReviewProvider> {
+  const settings = await readSettings();
+  return settings.independentReviewProvider ?? "openai";
+}
+
+export async function setIndependentReviewProvider(provider: IndependentReviewProvider): Promise<void> {
+  const settings = await readSettings();
+  settings.independentReviewProvider = provider;
+  await writeSettings(settings);
 }
 
 export async function getSmtpConfig(): Promise<SmtpConfig | undefined> {
