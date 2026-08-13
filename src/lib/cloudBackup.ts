@@ -14,7 +14,6 @@ import {
   uploadToGoogleDrive,
   uploadToOneDrive,
 } from "./cloudDriveBackup";
-import { pruneRcloneBackups, testRcloneConnection, uploadViaRclone } from "./rcloneBackup";
 import type { CloudBackupConfig, S3BackupConfig } from "./settings";
 
 // S3-compatible is deliberately generic, not AWS-specific — a custom
@@ -94,28 +93,19 @@ async function pruneS3Backups(config: S3BackupConfig, keep: number): Promise<voi
 // `if` statements.
 export async function uploadBackupToCloud(config: CloudBackupConfig, filePath: string, fileName: string): Promise<void> {
   if (config.provider === "s3") return uploadToS3(config, filePath, fileName);
-  if (config.provider === "google-drive" || config.provider === "onedrive") {
-    return config.provider === "google-drive"
-      ? uploadToGoogleDrive(config, filePath, fileName)
-      : uploadToOneDrive(config, filePath, fileName);
-  }
-  return uploadViaRclone(config, filePath, fileName);
+  return config.provider === "google-drive"
+    ? uploadToGoogleDrive(config, filePath, fileName)
+    : uploadToOneDrive(config, filePath, fileName);
 }
 
 export async function testCloudBackupConnection(config: CloudBackupConfig): Promise<void> {
   if (config.provider === "s3") return testS3Connection(config);
-  if (config.provider === "google-drive" || config.provider === "onedrive") {
-    return config.provider === "google-drive" ? testGoogleDriveConnection(config) : testOneDriveConnection(config);
-  }
-  return testRcloneConnection(config);
+  return config.provider === "google-drive" ? testGoogleDriveConnection(config) : testOneDriveConnection(config);
 }
 
 export async function pruneCloudBackups(config: CloudBackupConfig, keep = 10): Promise<void> {
   if (config.provider === "s3") return pruneS3Backups(config, keep);
-  if (config.provider === "google-drive" || config.provider === "onedrive") {
-    return config.provider === "google-drive"
-      ? pruneGoogleDriveBackups(config, keep)
-      : pruneOneDriveBackups(config, keep);
-  }
-  return pruneRcloneBackups(config, keep);
+  return config.provider === "google-drive"
+    ? pruneGoogleDriveBackups(config, keep)
+    : pruneOneDriveBackups(config, keep);
 }

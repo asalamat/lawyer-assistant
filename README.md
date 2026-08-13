@@ -77,7 +77,7 @@ licensing: add as many lawyers and staff as your office needs.
 **☁️ Backup & Infrastructure**
 - 🆕⏱️ **Two automatic backup triggers, no OS cron needed** — a fixed interval (hourly by default) *and* a debounced trigger that backs up shortly after real activity settles down, each independently configurable
 - 🆕☁️ **Direct sign-in for OneDrive/Google Drive** — a one-time admin app registration (its own, separate from any email integration), then every staff member just clicks Connect and signs in with their own Microsoft/Google account, nothing to paste
-- ☁️ **Cloud backup, any provider you like** — S3-compatible (AWS S3, Cloudflare R2, Backblaze B2, Wasabi, MinIO), Google Drive, OneDrive, or `rclone` (the zero-app-registration option, with its own one-click install + setup wizard)
+- ☁️ **Cloud backup, any provider you like** — S3-compatible (AWS S3, Cloudflare R2, Backblaze B2, Wasabi, MinIO), Google Drive, or OneDrive
 - 🔌 Public versioned API (`/api/v1`) with API-key auth, outbound webhooks
 - 💡 System health dashboard, update checker, feature-request tracking, weather widget, sticky notes, dark mode
 
@@ -240,13 +240,11 @@ for anyone who prefers wiring it into their own cron/Task Scheduler:
 
 Optional off-site copy to cloud storage of your choice — **any S3-compatible
 bucket** (AWS S3, Cloudflare R2, Backblaze B2, Wasabi, MinIO…), **Google
-Drive**, **OneDrive**, or **`rclone`** (the only option needing zero cloud
-app registration, since rclone ships its own — complete with a setup wizard
-that installs `rclone` itself if it's missing and drives its OAuth handshake
-end to end).
+Drive**, or **OneDrive**.
 
-Google Drive and OneDrive connect directly instead — no rclone involved.
-This needs a one-time admin step (registering a free Google Cloud / Azure AD
+Google Drive and OneDrive connect directly — a real OAuth sign-in, no
+third-party CLI tool involved. This needs a one-time admin step (registering
+a free Google Cloud / Azure AD
 app, done once in Settings > Backup — a dedicated app just for backup,
 separate from any email integration), documented right there in the setup
 box. After that, every staff member just clicks Connect and signs in with
@@ -343,16 +341,19 @@ Windows, and Linux.
 
 ## Recent changes
 
-- 🆕☁️ **Google Drive/OneDrive now connect directly, no rclone needed for
-  either** — previously the direct-OAuth path for these two reused the
-  email integration's app registration and redirect URI, disambiguated by
-  which of two in-memory state maps a callback's `state` param matched; a
-  server restart mid-flow silently dropped a pending connection. Now each
-  gets its own dedicated OAuth app registration (own encrypted credential
-  store, not shared with email) and its own callback route — no
-  disambiguation needed. Also added PKCE to the flow, which means
-  OneDrive's app registration doesn't need a client secret at all (Azure's
-  own recommended setup for this kind of app — a public client). Once the
+- 🆕☁️ **`rclone` removed; Google Drive/OneDrive connect directly** — the
+  rclone-based path (its own CLI install, non-interactive config wizard,
+  and a real recurring bug where an ambiguous "drive picker" prompt could
+  resolve to the wrong Microsoft-managed storage resource) is gone
+  entirely. Direct OAuth for these two previously reused the email
+  integration's app registration and redirect URI, disambiguated by which
+  of two in-memory state maps a callback's `state` param matched; a server
+  restart mid-flow silently dropped a pending connection. Now each gets its
+  own dedicated OAuth app registration (own encrypted credential store, not
+  shared with email) and its own callback route — no disambiguation
+  needed. Also added PKCE to the flow, which means OneDrive's app
+  registration doesn't need a client secret at all (Azure's own
+  recommended setup for this kind of app — a public client). Once the
   one-time admin app registration is done (Settings > Backup walks through
   it), staff just click Connect and sign in with their own account.
 - 🆕🤖 **Unified AI provider matrix** (`Settings > AI model`) — one table
@@ -403,18 +404,9 @@ Windows, and Linux.
   stretch can't fire off backups back to back. They run independently and
   can both be on at once.
 - 🆕☁️ **Cloud backup, any provider** — any S3-compatible bucket (AWS S3,
-  Cloudflare R2, Backblaze B2, Wasabi, MinIO), Google Drive, OneDrive, or
-  **`rclone`** — the only option needing zero cloud app registration at
-  all, since rclone ships its own already-registered Microsoft/Google app.
-- 🆕🧙 **One-click cloud-backup setup wizard** — installs `rclone` itself
-  (via Homebrew/winget) if it's missing, then drives rclone's own
-  non-interactive OAuth protocol end to end: picking account type,
-  resolving the right drive, all of it — the only step left for a human is
-  approving access in the Microsoft/Google sign-in page that opens
-  automatically. Falls back to a plain question (never a silent guess) for
-  anything it doesn't recognize — caught a real bug live where an account
-  with multiple Microsoft-managed storage resources needed exactly this
-  fallback to pick the actual OneDrive instead of an unrelated one.
+  Cloudflare R2, Backblaze B2, Wasabi, MinIO), Google Drive, or OneDrive
+  (superseded by the direct-OAuth redesign above — this originally shipped
+  with an `rclone`-based option too, since removed).
 - In-app Help rebuilt as a single, filterable reference guide (`/help`) —
   every entry numbered and grouped the same way as the app's own
   navigation, a live filter box, and scroll-aware active-section

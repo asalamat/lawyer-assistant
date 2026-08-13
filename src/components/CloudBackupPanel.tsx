@@ -1,12 +1,10 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { formatDateTime } from "@/lib/formatDate";
-import type { InstallPlan } from "@/lib/rcloneInstall";
 import type { BackupScheduleStatus, ChangeBackupStatus, CloudBackupProvider, CloudBackupStatus } from "@/lib/settings";
 import ChangeBackupPanel from "./ChangeBackupPanel";
-import RcloneWizard from "./RcloneWizard";
 
 function formatWhen(iso: string | null): string {
   if (!iso) return "Never";
@@ -17,24 +15,17 @@ const PROVIDER_LABELS: Record<CloudBackupProvider, string> = {
   s3: "S3-compatible (AWS S3, R2, B2, Wasabi, MinIO…)",
   "google-drive": "Google Drive",
   onedrive: "OneDrive",
-  rclone: "rclone (no app registration needed)",
 };
 
 export default function CloudBackupPanel({
   initialSchedule,
   initialCloud,
   initialDriveAppConfigured,
-  initialRcloneRemotes,
-  initialRcloneInstalled,
-  initialRcloneInstallPlan,
   initialChangeBackup,
 }: {
   initialSchedule: BackupScheduleStatus;
   initialCloud: CloudBackupStatus;
   initialDriveAppConfigured: Record<"google-drive" | "onedrive", boolean>;
-  initialRcloneRemotes: string[];
-  initialRcloneInstalled: boolean;
-  initialRcloneInstallPlan: InstallPlan;
   initialChangeBackup: ChangeBackupStatus;
 }) {
   const searchParams = useSearchParams();
@@ -75,65 +66,6 @@ export default function CloudBackupPanel({
   const [oauthClientSecret, setOAuthClientSecret] = useState("");
   const [savingOAuth, setSavingOAuth] = useState(false);
   const [oauthError, setOAuthError] = useState<string | null>(null);
-
-  const [rcloneRemotes, setRcloneRemotes] = useState(initialRcloneRemotes);
-  const [rcloneRemote, setRcloneRemote] = useState(initialCloud.rcloneRemote ?? initialRcloneRemotes[0] ?? "");
-  const [rclonePath, setRclonePath] = useState(initialCloud.rclonePath ?? "LawyerAssistantBackups");
-  const [savingRclone, setSavingRclone] = useState(false);
-  const [rcloneError, setRcloneError] = useState<string | null>(null);
-  const [rcloneSaved, setRcloneSaved] = useState(false);
-
-  const [rcloneInstalled, setRcloneInstalled] = useState(initialRcloneInstalled);
-  const [installPlan, setInstallPlan] = useState(initialRcloneInstallPlan);
-  const [installing, setInstalling] = useState(false);
-  const [installLog, setInstallLog] = useState<string | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, []);
-
-  function pollInstallStatus() {
-    pollRef.current = setInterval(() => {
-      fetch("/api/settings/cloud-backup/rclone/install")
-        .then((res) => res.json())
-        .then((body) => {
-          setInstallPlan(body);
-          if (body.status?.state === "success") {
-            if (pollRef.current) clearInterval(pollRef.current);
-            setInstalling(false);
-            setRcloneInstalled(true);
-            setInstallLog(null);
-            return fetch("/api/settings/cloud-backup/rclone")
-              .then((r) => r.json())
-              .then((r) => setRcloneRemotes(r.remotes ?? []));
-          }
-          if (body.status?.state === "error") {
-            if (pollRef.current) clearInterval(pollRef.current);
-            setInstalling(false);
-            setInstallLog(body.status.log);
-          }
-        })
-        .catch(() => {
-          if (pollRef.current) clearInterval(pollRef.current);
-          setInstalling(false);
-        });
-    }, 3000);
-  }
-
-  async function installRclone() {
-    setInstalling(true);
-    setInstallLog(null);
-    try {
-      await fetch("/api/settings/cloud-backup/rclone/install", { method: "POST" });
-      pollInstallStatus();
-    } catch {
-      setInstalling(false);
-      setInstallLog("Something went wrong starting the install.");
-    }
-  }
 
   const isDriveProvider = selectedProvider === "google-drive" || selectedProvider === "onedrive";
   const driveConnectedHere = isDriveProvider && cloud.provider === selectedProvider && cloud.configured;
@@ -215,28 +147,6 @@ export default function CloudBackupPanel({
       setOAuthError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setSavingOAuth(false);
-    }
-  }
-
-  async function saveRclone() {
-    setSavingRclone(true);
-    setRcloneError(null);
-    setRcloneSaved(false);
-    setTestResult(null);
-    try {
-      const res = await fetch("/api/settings/cloud-backup/rclone", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ remote: rcloneRemote, path: rclonePath }),
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? "Failed to save");
-      setCloud(body);
-      setRcloneSaved(true);
-    } catch (err) {
-      setRcloneError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setSavingRclone(false);
     }
   }
 
@@ -323,124 +233,7 @@ export default function CloudBackupPanel({
           ))}
         </div>
 
-        {selectedProvider === "rclone" ? (
-          <>
-            <p className="text-muted">
-              Uses <span className="font-mono text-xs">rclone</span> — a free command-line sync
-              tool that ships its own already-registered Microsoft/Google app, so there&apos;s
-              nothing to register yourself. One-time setup, done once in a terminal on this
-              machine (not something every user needs to repeat):
-            </p>
-            {!rcloneInstalled && (
-              <div className="flex flex-col gap-2 text-xs text-muted">
-                <span>rclone isn&apos;t installed on this machine yet.</span>
-                {installPlan.canAutoInstall ? (
-                  <div className="flex items-center gap-2">
-                    <button onClick={installRclone} disabled={installing} className="btn-primary px-3 py-1.5 text-xs">
-                      {installing ? "Installing…" : "Install rclone"}
-                    </button>
-                    <span className="font-mono">({installPlan.command})</span>
-                  </div>
-                ) : (
-                  <span>
-                    Can&apos;t install it automatically here ({installPlan.reason}) — download it directly instead:{" "}
-                    <a href={installPlan.manualUrl} target="_blank" rel="noreferrer" className="text-accent hover:underline">
-                      rclone.org/downloads
-                    </a>{" "}
-                    (pick the installer for your operating system, no command line needed).
-                  </span>
-                )}
-                {installLog && <p className="text-red-600">{installLog}</p>}
-              </div>
-            )}
-
-            {rcloneInstalled && (
-              <RcloneWizard
-                onComplete={(newRemote) => {
-                  setRcloneRemote(newRemote);
-                  fetch("/api/settings/cloud-backup/rclone")
-                    .then((r) => r.json())
-                    .then((r) => setRcloneRemotes(r.remotes ?? []));
-                }}
-              />
-            )}
-
-            {rcloneInstalled && (
-              <details className="text-xs text-muted">
-                <summary className="cursor-pointer select-none">
-                  Prefer to set it up yourself in a terminal instead?
-                </summary>
-                <p className="mt-2">
-                  Run <code className="rounded bg-black/[0.04] px-1 dark:bg-white/[0.06]">rclone config</code> → {" "}
-                  <span className="font-mono">n</span> (new remote) → name it → pick{" "}
-                  <span className="font-mono">onedrive</span> or <span className="font-mono">drive</span> from the
-                  list → accept the defaults → it opens your browser to sign in and approve access, then come back
-                  here and pick the remote you named below.
-                </p>
-              </details>
-            )}
-
-            <div className="grid gap-2 sm:grid-cols-2">
-              <label className="flex flex-col gap-1">
-                <span className="text-xs text-muted">Remote name</span>
-                {rcloneRemotes.length > 0 ? (
-                  <select
-                    value={rcloneRemote}
-                    onChange={(e) => setRcloneRemote(e.target.value)}
-                    className="surface-input"
-                  >
-                    <option value="">Select a remote…</option>
-                    {rcloneRemotes.map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    value={rcloneRemote}
-                    onChange={(e) => setRcloneRemote(e.target.value)}
-                    placeholder="onedrive"
-                    className="surface-input"
-                  />
-                )}
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-xs text-muted">Folder path on the remote</span>
-                <input
-                  value={rclonePath}
-                  onChange={(e) => setRclonePath(e.target.value)}
-                  placeholder="LawyerAssistantBackups"
-                  className="surface-input"
-                />
-              </label>
-            </div>
-            {rcloneRemotes.length === 0 && (
-              <p className="text-xs text-muted">
-                No remotes found yet — run <span className="font-mono">rclone config</span> first, then reload this
-                page to pick from a list instead of typing the name.
-              </p>
-            )}
-
-            {rcloneError && <p className="text-red-600">{rcloneError}</p>}
-            {rcloneSaved && <p className="text-emerald-600">Saved.</p>}
-
-            <div className="flex gap-2">
-              <button
-                onClick={saveRclone}
-                disabled={savingRclone || !rcloneRemote.trim()}
-                className="btn-primary px-3 py-1.5 text-xs"
-              >
-                {savingRclone ? "Saving…" : "Save"}
-              </button>
-              {cloud.provider === "rclone" && cloud.configured && (
-                <button onClick={disconnect} disabled={disconnecting} className="btn-secondary px-3 py-1.5 text-xs">
-                  {disconnecting ? "Clearing…" : "Clear"}
-                </button>
-              )}
-            </div>
-          </>
-        ) : selectedProvider === "s3" ? (
+        {selectedProvider === "s3" ? (
           <>
             <p className="text-muted">
               Works with AWS S3, Cloudflare R2, Backblaze B2, Wasabi, MinIO, DigitalOcean Spaces —
@@ -625,9 +418,7 @@ export default function CloudBackupPanel({
             {testResult.ok ? "Connection works." : `Failed: ${testResult.error}`}
           </p>
         )}
-        {driveConnectedHere ||
-        (cloud.provider === "s3" && cloud.configured) ||
-        (cloud.provider === "rclone" && cloud.configured) ? (
+        {driveConnectedHere || (cloud.provider === "s3" && cloud.configured) ? (
           <button onClick={testConnection} disabled={testing} className="btn-secondary self-start px-3 py-1.5 text-xs">
             {testing ? "Testing…" : "Test connection"}
           </button>
@@ -637,7 +428,7 @@ export default function CloudBackupPanel({
           {cloud.configured
             ? `Active: ${PROVIDER_LABELS[cloud.provider as CloudBackupProvider]}${
                 cloud.provider === "s3" ? ` — bucket "${cloud.bucket}"` : ""
-              }${cloud.provider === "rclone" ? ` — remote "${cloud.rcloneRemote}"` : ""}.`
+              }.`
             : "Not configured yet."}{" "}
           Last upload: {formatWhen(cloud.lastRunAt)}
           {cloud.lastStatus === "error" && cloud.lastError ? (
