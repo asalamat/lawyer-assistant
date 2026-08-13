@@ -19,7 +19,10 @@ export default async function RootTemplate({ children }: { children: React.React
       getAiProviderOrder(),
       getIndependentReviewProviderOrder(),
     ]);
-    if (primaryOrder[0] === independentOrder[0]) {
+    // Enabled as primary at all, not just the top of its fallback sequence
+    // — still not an independent second opinion once primary fails over to
+    // it, so this checks the whole enabled set rather than just position 0.
+    if ((primaryOrder as string[]).includes(independentOrder[0])) {
       sameProviderLabel = AI_PROVIDER_LABELS[independentOrder[0]] ?? independentOrder[0];
     }
   }

@@ -15,11 +15,12 @@ export async function POST(request: Request) {
 
   if (
     !Array.isArray(order) ||
-    order.length !== VALID_PROVIDERS.length ||
-    !VALID_PROVIDERS.every((p) => order.includes(p))
+    order.length === 0 ||
+    !order.every((p) => VALID_PROVIDERS.includes(p)) ||
+    new Set(order).size !== order.length
   ) {
     return NextResponse.json(
-      { error: `order must include exactly: ${VALID_PROVIDERS.join(", ")}` },
+      { error: `order must be a non-empty list of unique values from ${VALID_PROVIDERS.join(", ")}` },
       { status: 400 },
     );
   }

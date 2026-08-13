@@ -15,9 +15,17 @@ const VALID_PROVIDERS: IndependentReviewProvider[] = [
   "moonshot",
 ];
 
+// A provider that's enabled as primary at all — not just the top of the
+// fallback sequence — still isn't an independent second opinion the moment
+// primary fails over to it, so this checks the whole enabled set rather
+// than just position 0 of each list.
+function isSameProviderEnabled(primaryOrder: string[], independentTop: IndependentReviewProvider): boolean {
+  return primaryOrder.includes(independentTop);
+}
+
 export async function GET() {
   const [order, primaryOrder] = await Promise.all([getIndependentReviewProviderOrder(), getAiProviderOrder()]);
-  return NextResponse.json({ order, samePrimaryProvider: primaryOrder[0] === order[0] });
+  return NextResponse.json({ order, samePrimaryProvider: isSameProviderEnabled(primaryOrder, order[0]) });
 }
 
 export async function POST(request: Request) {
@@ -37,5 +45,5 @@ export async function POST(request: Request) {
 
   await setIndependentReviewProviderOrder(order);
   const primaryOrder = await getAiProviderOrder();
-  return NextResponse.json({ order, samePrimaryProvider: primaryOrder[0] === order[0] });
+  return NextResponse.json({ order, samePrimaryProvider: isSameProviderEnabled(primaryOrder, order[0]) });
 }

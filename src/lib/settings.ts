@@ -576,12 +576,7 @@ export async function getAiProviderOrder(): Promise<AiProvider[]> {
   if (!settings.aiProviderOrder || settings.aiProviderOrder.length === 0) {
     return DEFAULT_AI_PROVIDER_ORDER;
   }
-  // A provider added after the user already saved a custom order (e.g.
-  // Gemini joining what used to be a 2-provider anthropic/openai order)
-  // would otherwise never be tried at all, not just deprioritized — append
-  // anything missing to the end rather than dropping it.
-  const missing = DEFAULT_AI_PROVIDER_ORDER.filter((p) => !settings.aiProviderOrder!.includes(p));
-  return [...settings.aiProviderOrder, ...missing];
+  return settings.aiProviderOrder;
 }
 
 export async function setAiProviderOrder(order: AiProvider[]): Promise<void> {

@@ -66,7 +66,11 @@ export default function AiProviderMatrix({
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Failed to save");
-      setSamePrimaryProvider(next[0] === independentOrder[0]);
+      // A provider enabled as primary at all — not just the top of its
+      // fallback sequence — still isn't an independent second opinion the
+      // moment primary fails over to it, so this checks the whole enabled
+      // set rather than just position 0 of each list.
+      setSamePrimaryProvider((next as string[]).includes(independentOrder[0]));
     } catch (err) {
       // Roll back the optimistic update — otherwise a failed save (e.g. the
       // session idle-timed out) leaves a checkbox showing checked while the
@@ -245,10 +249,10 @@ export default function AiProviderMatrix({
 
       {samePrimaryProvider && (
         <p className="text-sm text-amber-700 dark:text-amber-400">
-          Your first primary provider and first independent-review provider are both{" "}
-          {LABELS[primaryOrder[0] as IndependentReviewProvider]} — a review from the same model
-          family can share the same blind spots it&apos;s meant to catch. Reorder one of the
-          sequences above so they don&apos;t match.
+          {LABELS[independentOrder[0]]} is your active independent-review provider, but it&apos;s
+          also enabled as a primary provider — a review from the same model family can share the
+          same blind spots it&apos;s meant to catch, including whenever primary fails over to it.
+          Uncheck it from Primary, or pick a different independent-review provider.
         </p>
       )}
     </div>
