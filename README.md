@@ -39,7 +39,7 @@ licensing: add as many lawyers and staff as your office needs.
 - 🔍 Self-checking drafting agent (verifies its own citations)
 - 📜 Contract clause library + AI redlining
 - ⚖️ Case-citation checking against CanLII
-- 🧠 Independent second-model review (Gemini) for blind spots
+- 🧠 Independent second-model review (choose from 6 providers, own fallback sequence) for blind spots, with a warning if it overlaps your primary provider
 - 🎙️ Voice dictation on every free-text field
 - 🌍 Translation of any AI output + clean PDF export
 - 🕸️ Evidence graph, defence graph, evidence-connections graph (visual node maps)
@@ -336,6 +336,21 @@ Windows, and Linux.
 
 ## Recent changes
 
+- 🆕🤖 **Unified AI provider matrix** (`Settings > AI model`) — one table
+  for all 6 providers (Anthropic, OpenAI, Gemini, Ollama, DeepSeek,
+  Moonshot AI/Kimi), each with independent checkboxes for **Primary** and
+  **Independent review** — a provider can be in both, either, or neither.
+  Below the table, two separately reorderable fallback sequences (one per
+  role) control failover order. DeepSeek and Moonshot are independent-
+  review-only for now — most primary features need strict structured-JSON
+  output that those two aren't yet verified to support as reliably as the
+  other four; a review is always plain text, so that risk doesn't apply
+  there. A warning banner (on every page, and inline on the settings page
+  itself) fires whenever your independent-review provider is *also*
+  enabled anywhere in the primary fallback chain — not just when it's the
+  top choice in both — since primary failing over to it mid-chain still
+  means the "second opinion" shares the same blind spots it's meant to
+  catch.
 - 🆕🔒 **2-minute idle session timeout** (staff and client portal alike) —
   a rolling window, not a countdown from login: any authenticated request
   resets it, and 2 minutes with none at all signs the session out. Backed

@@ -254,7 +254,7 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Get a second opinion on a generated digest, evidence matrix, or any individual chat answer, to catch blind spots a single model might share with itself.\n\n" +
           "- Choose which provider(s) do the reviewing in **Settings > AI model** — check any provider into the Independent review column and reorder its fallback sequence there; needs that provider's API key configured\n" +
           "- Deliberately a separate choice from your primary AI provider order, not another backup in that chain — the whole point is a genuinely different model checking the first one's work\n" +
-          "- If your primary provider and independent review provider end up being the same, a warning banner shows on the Dashboard and in Settings > AI model until you change one of them",
+          "- If your independent-review provider is also enabled anywhere in the Primary sequence, a warning banner shows on every page (and inline in Settings > AI model) until you change one of them — primary failing over to it mid-chain would still mean the review isn't independent",
       },
       {
         slug: "case-noteup",
@@ -382,8 +382,8 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "ai-redundancy",
         name: "AI provider redundancy",
         detail:
-          "Configure additional AI providers as backups in Settings > AI model — OpenAI, Google Gemini, and Ollama (a local model running entirely on this machine, no account or cost).\n\n" +
-          "- If your primary provider fails for a request (billing, rate limit, outage), the app automatically falls through to the next configured one in the order you set\n" +
+          "Check additional providers into the Primary column in Settings > AI model — OpenAI, Google Gemini, and Ollama (a local model running entirely on this machine, no account or cost) — as backups alongside Anthropic.\n\n" +
+          "- If your primary provider fails for a request (billing, rate limit, outage), the app automatically falls through to the next one enabled in the Primary sequence you set\n" +
           "- If all configured providers fail, the error shows every provider's real reason, not just the last one tried\n" +
           "- Simple extraction/classification tasks (deadline extraction, sensitivity screening, per-document summarization) automatically use a faster, lower-cost model where a provider offers one — tasks needing real legal reasoning (digests, evidence matrices, drafts, chat) always use the flagship model",
       },
@@ -431,7 +431,12 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "ai-model",
         name: "AI model",
         detail:
-          "Configure the Anthropic API key used for all AI features, plus an optional OpenAI backup key and provider order. Takes effect immediately, no restart needed.",
+          "Configure API keys for all 6 supported providers (Anthropic, OpenAI, Gemini, Ollama, DeepSeek, Moonshot AI/Kimi), then use the provider table below the key forms to decide what each one does.\n\n" +
+          "- Each row has two checkboxes — **Primary** (chat, digests, drafting, deadline extraction) and **Independent review** (a second opinion on already-generated analysis) — check a provider into either, both, or neither\n" +
+          "- DeepSeek and Moonshot can't be checked into Primary yet — their Primary checkbox is grayed out — since most primary features need strict structured-JSON output those two aren't verified to support as reliably as the other four\n" +
+          "- Below the table, two separately reorderable sequences (one per role) set fallback order — if the first configured provider in a role fails, the app falls through to the next\n" +
+          "- A warning shows if your independent-review provider is also enabled anywhere in the Primary sequence, since primary failing over to it mid-chain still means the review isn't really independent\n" +
+          "- Takes effect immediately, no restart needed",
       },
       {
         slug: "transcription",
