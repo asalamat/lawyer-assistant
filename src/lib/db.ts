@@ -453,6 +453,26 @@ execWithRetry(`
   );
   CREATE INDEX IF NOT EXISTS idx_client_sessions_clientUserId ON client_sessions(clientUserId);
 
+  -- A registered passkey (WebAuthn public-key credential) for a staff
+  -- user — optional alternative to password login, see webauthn.ts.
+  -- Never stores anything secret: publicKey is exactly that, public: the
+  -- private key never leaves the authenticator (device/security key).
+  CREATE TABLE IF NOT EXISTS webauthn_credentials (
+    id TEXT PRIMARY KEY,
+    userId TEXT NOT NULL,
+    credentialId TEXT NOT NULL UNIQUE,
+    publicKey TEXT NOT NULL,
+    counter INTEGER NOT NULL DEFAULT 0,
+    deviceType TEXT,
+    backedUp INTEGER NOT NULL DEFAULT 0,
+    transports TEXT,
+    label TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    lastUsedAt TEXT,
+    FOREIGN KEY (userId) REFERENCES users(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_webauthn_credentials_userId ON webauthn_credentials(userId);
+
   -- A personal, freeform note pinned to a specific page (keyed by its raw
   -- pathname, e.g. "/matters/abc123/digest") — private to the user who
   -- wrote it, never shown to anyone else. Multiple notes per page, like

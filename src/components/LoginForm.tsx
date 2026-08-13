@@ -1,5 +1,6 @@
 "use client";
 
+import { startAuthentication } from "@simplewebauthn/browser";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -13,6 +14,7 @@ export default function LoginForm({ mode }: { mode: "login" | "create" }) {
   const [submitting, setSubmitting] = useState(false);
   const [pendingToken, setPendingToken] = useState<string | null>(null);
   const [code, setCode] = useState("");
+  const [passkeyPending, setPasskeyPending] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -63,6 +65,32 @@ export default function LoginForm({ mode }: { mode: "login" | "create" }) {
       setPassword("");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handlePasskeyLogin() {
+    setPasskeyPending(true);
+    setError(null);
+    try {
+      const optionsRes = await fetch("/api/auth/passkey/login-options", { method: "POST" });
+      const optionsJSON = await optionsRes.json();
+      if (!optionsRes.ok) throw new Error(optionsJSON.error ?? "Could not start passkey sign-in");
+
+      const response = await startAuthentication({ optionsJSON });
+
+      const verifyRes = await fetch("/api/auth/passkey/login-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ response }),
+      });
+      const verifyBody = await verifyRes.json();
+      if (!verifyRes.ok) throw new Error(verifyBody.error ?? "Passkey sign-in failed");
+      router.push("/");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setPasskeyPending(false);
     }
   }
 
@@ -141,6 +169,16 @@ export default function LoginForm({ mode }: { mode: "login" | "create" }) {
       <button type="submit" disabled={submitting} className="btn-primary">
         {submitting ? "…" : mode === "create" ? "Create account" : "Log in"}
       </button>
+      {mode === "login" && (
+        <button
+          type="button"
+          onClick={handlePasskeyLogin}
+          disabled={passkeyPending}
+          className="btn-secondary"
+        >
+          {passkeyPending ? "…" : "Sign in with a passkey"}
+        </button>
+      )}
     </form>
   );
 }

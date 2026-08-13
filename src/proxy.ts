@@ -45,6 +45,10 @@ const PUBLIC_PATHS = [
   "/login",
   "/api/auth/login",
   "/api/auth/mfa",
+  // Passkey sign-in — the login step itself, reached before any session
+  // exists, same as /api/auth/login above.
+  "/api/auth/passkey/login-options",
+  "/api/auth/passkey/login-verify",
   "/api/legislation-watches/check-all",
   "/api/backup/scheduled",
   "/api/campaigns/run-due",

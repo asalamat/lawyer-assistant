@@ -540,6 +540,7 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Available to every user, not just admins.\n\n" +
           "- Change your own login password here (or reset a forgotten one from the terminal with `npm run reset-password -- you@example.com`)\n" +
           "- Login is rate-limited per account after repeated failed attempts\n" +
+          "- **Passkeys**: add one to sign in with your device's fingerprint/face recognition/screen lock or a security key instead of typing your password — click **\"Add a passkey\"**, name it, and follow your browser's own prompt. A passkey is tied to the exact address you registered it from (e.g. `localhost`) and won't work from a different one. Remove any passkey at any time; this never removes your password as a fallback\n" +
           "- **Two-factor authentication (2FA)**: enabling it shows a QR code — scan it with an authenticator app (Google Authenticator, 1Password, Authy, etc.), or use the \"can't scan\" link for manual entry — then confirm with the 6-digit code it generates\n" +
           "- From then on, logging in requires that code (or one of the 8 one-time backup codes shown right after setup — save them somewhere safe, they're not shown again) in addition to your password\n" +
           "- Disabling 2FA requires your current password\n" +
