@@ -44,6 +44,15 @@ export type AiProvider = "anthropic" | "openai" | "gemini" | "ollama";
 // doesn't apply here). A fallback SEQUENCE, not a single pick — same
 // failover behavior as the primary chain, just a separate order.
 export type IndependentReviewProvider = "anthropic" | "openai" | "gemini" | "ollama" | "deepseek" | "moonshot";
+
+export const AI_PROVIDER_LABELS: Record<IndependentReviewProvider, string> = {
+  anthropic: "Anthropic (Claude)",
+  openai: "OpenAI",
+  gemini: "Google (Gemini)",
+  ollama: "Ollama (local)",
+  deepseek: "DeepSeek",
+  moonshot: "Moonshot AI (Kimi)",
+};
 // ollama last by default — it's the only provider that runs entirely on
 // this machine (no account, no cost, no data ever leaving it), which also
 // means its output quality depends entirely on which local model the

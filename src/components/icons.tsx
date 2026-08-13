@@ -316,15 +316,6 @@ export const NoteIcon = (props: IconProps) =>
     props,
   );
 
-export const ReviewIcon = (props: IconProps) =>
-  base(
-    <>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M8.5 12.5l2.5 2.5 4.5-5" />
-    </>,
-    props,
-  );
-
 export const LibraryIcon = (props: IconProps) =>
   base(
     <>

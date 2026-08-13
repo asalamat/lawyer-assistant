@@ -234,7 +234,7 @@ export const HELP_SECTIONS: HelpSection[] = [
           "- Retrieves the most relevant passages from your documents (rather than dumping every document into every question), so it stays accurate and fast even on matters with a large volume of material\n" +
           "- Citations include a page number when the source is a PDF, e.g. \"(file.pdf, p. 4)\"\n" +
           "- Any filename cited is checked against the matter's real documents — an unverified citation is flagged in the answer\n" +
-          "- Rate answers with a thumbs up/down, translate an answer (or its independent review), export it as PDF, or request an independent second-opinion review from OpenAI (requires an OpenAI key in Settings)",
+          "- Rate answers with a thumbs up/down, translate an answer (or its independent review), export it as PDF, or request an independent second-opinion review (provider configured in Settings > AI model)",
       },
       {
         slug: "matter-digest",
@@ -252,7 +252,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         name: "Independent review",
         detail:
           "Get a second opinion on a generated digest, evidence matrix, or any individual chat answer, to catch blind spots a single model might share with itself.\n\n" +
-          "- Choose which provider does the reviewing in **Settings > AI model** — OpenAI, DeepSeek, or Moonshot AI (Kimi) — needs that provider's API key configured there\n" +
+          "- Choose which provider(s) do the reviewing in **Settings > AI model** — check any provider into the Independent review column and reorder its fallback sequence there; needs that provider's API key configured\n" +
           "- Deliberately a separate choice from your primary AI provider order, not another backup in that chain — the whole point is a genuinely different model checking the first one's work\n" +
           "- If your primary provider and independent review provider end up being the same, a warning banner shows on the Dashboard and in Settings > AI model until you change one of them",
       },

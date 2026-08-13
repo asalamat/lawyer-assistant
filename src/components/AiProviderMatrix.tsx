@@ -5,6 +5,10 @@ import type { AiProvider, IndependentReviewProvider } from "@/lib/settings";
 
 const ALL_PROVIDERS: IndependentReviewProvider[] = ["anthropic", "openai", "gemini", "ollama", "deepseek", "moonshot"];
 
+// Duplicated from settings.ts's AI_PROVIDER_LABELS rather than imported —
+// this is a client component, and importing a runtime value (not just a
+// type) from settings.ts would pull that whole server-only module (fs,
+// secureStore, etc.) into the browser bundle.
 const LABELS: Record<IndependentReviewProvider, string> = {
   anthropic: "Anthropic (Claude)",
   openai: "OpenAI",
@@ -36,10 +40,12 @@ export default function AiProviderMatrix({
   initialPrimaryOrder,
   initialIndependentOrder,
   initialSamePrimaryProvider,
+  configured,
 }: {
   initialPrimaryOrder: AiProvider[];
   initialIndependentOrder: IndependentReviewProvider[];
   initialSamePrimaryProvider: boolean;
+  configured: Record<IndependentReviewProvider, boolean>;
 }) {
   const [primaryOrder, setPrimaryOrder] = useState<AiProvider[]>(initialPrimaryOrder);
   const [independentOrder, setIndependentOrder] = useState<IndependentReviewProvider[]>(initialIndependentOrder);
@@ -139,7 +145,18 @@ export default function AiProviderMatrix({
           <tbody>
             {ALL_PROVIDERS.map((provider) => (
               <tr key={provider} className="border-b border-border last:border-b-0">
-                <td className="py-2">{LABELS[provider]}</td>
+                <td className="py-2">
+                  {LABELS[provider]}
+                  {configured[provider] ? (
+                    <span className="ml-2 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                      API key configured
+                    </span>
+                  ) : (
+                    <span className="ml-2 rounded-full bg-black/5 px-2 py-0.5 text-xs text-muted dark:bg-white/10">
+                      No API key
+                    </span>
+                  )}
+                </td>
                 <td className="py-2 text-center">
                   <input
                     type="checkbox"

@@ -8,6 +8,7 @@ import {
   getMoonshotApiKeyStatus,
   getOllamaConfig,
   getOpenaiApiKeyStatus,
+  type IndependentReviewProvider,
 } from "@/lib/settings";
 import AiProviderMatrix from "@/components/AiProviderMatrix";
 import OllamaSettingsForm from "@/components/OllamaSettingsForm";
@@ -26,6 +27,14 @@ export default async function AiSettingsPage() {
   const ollamaConfig = await getOllamaConfig();
   const primaryOrder = await getAiProviderOrder();
   const independentOrder = await getIndependentReviewProviderOrder();
+  const configured: Record<IndependentReviewProvider, boolean> = {
+    anthropic: status.configured,
+    openai: openaiStatus.configured,
+    gemini: geminiStatus.configured,
+    ollama: Boolean(ollamaConfig),
+    deepseek: deepseekStatus.configured,
+    moonshot: moonshotStatus.configured,
+  };
 
   return (
     <SettingsSection
@@ -73,6 +82,7 @@ export default async function AiSettingsPage() {
         initialPrimaryOrder={primaryOrder}
         initialIndependentOrder={independentOrder}
         initialSamePrimaryProvider={primaryOrder[0] === independentOrder[0]}
+        configured={configured}
       />
     </SettingsSection>
   );

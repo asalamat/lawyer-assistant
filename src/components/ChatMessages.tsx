@@ -260,7 +260,7 @@ export default function ChatMessages({
                 )}
                 {message.role === "assistant" && review && (
                   <div className="surface-row mt-2 flex flex-col gap-2 text-xs">
-                    <p className="mb-1 font-medium text-muted">Independent review (OpenAI)</p>
+                    <p className="mb-1 font-medium text-muted">Independent review</p>
                     <MarkdownContent content={review.content} />
                     <TranslateButton content={review.content} />
                   </div>

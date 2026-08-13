@@ -1,10 +1,25 @@
 import {
   getAnthropicApiKeyStatus,
   getCanliiApiKeyStatus,
+  getDeepseekApiKeyStatus,
+  getGeminiApiKeyStatus,
+  getIndependentReviewProviderOrder,
+  getMoonshotApiKeyStatus,
+  getOllamaConfig,
   getOpenaiApiKeyStatus,
   getSmtpStatus,
   getWeatherLocation,
+  type IndependentReviewProvider,
 } from "./settings";
+
+const INDEPENDENT_REVIEW_LABELS: Record<IndependentReviewProvider, string> = {
+  anthropic: "Anthropic",
+  openai: "OpenAI",
+  gemini: "Gemini",
+  ollama: "Ollama",
+  deepseek: "DeepSeek",
+  moonshot: "Moonshot AI",
+};
 
 export interface HealthCheck {
   name: string;
@@ -19,15 +34,32 @@ export interface HealthStatus {
 }
 
 export async function getHealthStatus(): Promise<HealthStatus> {
-  const [anthropic, openai, canlii, smtp, location] = await Promise.all([
-    getAnthropicApiKeyStatus(),
-    getOpenaiApiKeyStatus(),
-    getCanliiApiKeyStatus(),
-    getSmtpStatus(),
-    getWeatherLocation(),
-  ]);
+  const [anthropic, openai, gemini, deepseek, moonshot, ollama, canlii, smtp, location, independentReviewOrder] =
+    await Promise.all([
+      getAnthropicApiKeyStatus(),
+      getOpenaiApiKeyStatus(),
+      getGeminiApiKeyStatus(),
+      getDeepseekApiKeyStatus(),
+      getMoonshotApiKeyStatus(),
+      getOllamaConfig(),
+      getCanliiApiKeyStatus(),
+      getSmtpStatus(),
+      getWeatherLocation(),
+      getIndependentReviewProviderOrder(),
+    ]);
 
   const anyAiConfigured = anthropic.configured || openai.configured;
+
+  const providerConfigured: Record<IndependentReviewProvider, boolean> = {
+    anthropic: anthropic.configured,
+    openai: openai.configured,
+    gemini: gemini.configured,
+    ollama: Boolean(ollama),
+    deepseek: deepseek.configured,
+    moonshot: moonshot.configured,
+  };
+  const independentReviewProvider =
+    independentReviewOrder.find((provider) => providerConfigured[provider]) ?? independentReviewOrder[0];
 
   const checks: HealthCheck[] = [
     {
@@ -43,10 +75,10 @@ export async function getHealthStatus(): Promise<HealthStatus> {
       settingsHref: "/settings/ai",
     },
     {
-      name: "Independent review (OpenAI)",
-      configured: openai.configured,
-      detail: openai.configured ? "Configured" : "Not configured — optional",
-      settingsHref: "/settings/review",
+      name: `Independent review (${INDEPENDENT_REVIEW_LABELS[independentReviewProvider]})`,
+      configured: providerConfigured[independentReviewProvider],
+      detail: providerConfigured[independentReviewProvider] ? "Configured" : "Not configured — optional",
+      settingsHref: "/settings/ai",
     },
     {
       name: "Transcription (OpenAI Whisper)",
