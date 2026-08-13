@@ -44,8 +44,8 @@ export default async function MatterOverviewPage({
         ) : (
           <ul className="flex flex-col gap-2">
             {documents.map((doc) => (
-              <li key={doc.id} className="surface-row flex items-center justify-between text-sm">
-                <span>
+              <li key={doc.id} className="surface-row flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="min-w-0 break-all">
                   {doc.fileName}
                   {doc.duplicateOfFileName && (
                     <span className="ml-2 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-400">

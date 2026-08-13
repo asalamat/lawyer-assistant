@@ -54,6 +54,7 @@ export default function AiProviderMatrix({
   const [saving, setSaving] = useState(false);
 
   async function savePrimary(next: AiProvider[]) {
+    const previous = primaryOrder;
     setPrimaryOrder(next);
     setSaving(true);
     setError(null);
@@ -67,6 +68,10 @@ export default function AiProviderMatrix({
       if (!res.ok) throw new Error(body.error ?? "Failed to save");
       setSamePrimaryProvider(next[0] === independentOrder[0]);
     } catch (err) {
+      // Roll back the optimistic update — otherwise a failed save (e.g. the
+      // session idle-timed out) leaves a checkbox showing checked while the
+      // same-provider flag was never recomputed, silently out of sync.
+      setPrimaryOrder(previous);
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setSaving(false);
@@ -74,6 +79,7 @@ export default function AiProviderMatrix({
   }
 
   async function saveIndependent(next: IndependentReviewProvider[]) {
+    const previous = independentOrder;
     setIndependentOrder(next);
     setSaving(true);
     setError(null);
@@ -87,6 +93,7 @@ export default function AiProviderMatrix({
       if (!res.ok) throw new Error(body.error ?? "Failed to save");
       setSamePrimaryProvider(body.samePrimaryProvider);
     } catch (err) {
+      setIndependentOrder(previous);
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setSaving(false);
