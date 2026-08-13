@@ -20,14 +20,10 @@ const PROVIDER_LABELS: Record<CloudBackupProvider, string> = {
   rclone: "rclone (no app registration needed)",
 };
 
-function emailProviderKeyFor(provider: "google-drive" | "onedrive"): "google" | "microsoft" {
-  return provider === "google-drive" ? "google" : "microsoft";
-}
-
 export default function CloudBackupPanel({
   initialSchedule,
   initialCloud,
-  initialOAuthConfigured,
+  initialDriveAppConfigured,
   initialRcloneRemotes,
   initialRcloneInstalled,
   initialRcloneInstallPlan,
@@ -35,7 +31,7 @@ export default function CloudBackupPanel({
 }: {
   initialSchedule: BackupScheduleStatus;
   initialCloud: CloudBackupStatus;
-  initialOAuthConfigured: { google: boolean; microsoft: boolean };
+  initialDriveAppConfigured: Record<"google-drive" | "onedrive", boolean>;
   initialRcloneRemotes: string[];
   initialRcloneInstalled: boolean;
   initialRcloneInstallPlan: InstallPlan;
@@ -70,7 +66,11 @@ export default function CloudBackupPanel({
   const [testResult, setTestResult] = useState<{ ok: boolean; error?: string } | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
 
-  const [oauthConfigured, setOAuthConfigured] = useState(initialOAuthConfigured);
+  const [driveAppConfiguredMap, setDriveAppConfiguredMap] = useState(initialDriveAppConfigured);
+  const [origin, setOrigin] = useState("");
+  useEffect(() => {
+    Promise.resolve().then(() => setOrigin(window.location.origin));
+  }, []);
   const [oauthClientId, setOAuthClientId] = useState("");
   const [oauthClientSecret, setOAuthClientSecret] = useState("");
   const [savingOAuth, setSavingOAuth] = useState(false);
@@ -137,8 +137,7 @@ export default function CloudBackupPanel({
 
   const isDriveProvider = selectedProvider === "google-drive" || selectedProvider === "onedrive";
   const driveConnectedHere = isDriveProvider && cloud.provider === selectedProvider && cloud.configured;
-  const emailProviderKey = isDriveProvider ? emailProviderKeyFor(selectedProvider) : null;
-  const driveAppConfigured = selectedProvider === "google-drive" ? oauthConfigured.google : oauthConfigured.microsoft;
+  const driveAppConfigured = isDriveProvider ? driveAppConfiguredMap[selectedProvider] : false;
 
   async function saveSchedule() {
     setSavingSchedule(true);
@@ -198,18 +197,18 @@ export default function CloudBackupPanel({
   }
 
   async function saveOAuthCredentials() {
-    if (!emailProviderKey) return;
+    if (!isDriveProvider) return;
     setSavingOAuth(true);
     setOAuthError(null);
     try {
-      const res = await fetch(`/api/integrations/${emailProviderKey}/credentials`, {
+      const res = await fetch(`/api/settings/cloud-backup/oauth-app/${selectedProvider}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId: oauthClientId, clientSecret: oauthClientSecret }),
+        body: JSON.stringify({ clientId: oauthClientId, clientSecret: oauthClientSecret || undefined }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Failed to save");
-      setOAuthConfigured((prev) => ({ ...prev, [emailProviderKey]: true }));
+      setDriveAppConfiguredMap((prev) => ({ ...prev, [selectedProvider]: true }));
       setOAuthClientId("");
       setOAuthClientSecret("");
     } catch (err) {
@@ -534,28 +533,35 @@ export default function CloudBackupPanel({
                   One-time setup: register a free {selectedProvider === "google-drive" ? "Google Cloud" : "Azure AD"} app
                 </p>
                 <p className="text-xs text-muted">
-                  This is the same app registration the {selectedProvider === "google-drive" ? "Gmail" : "Outlook/O365"} email
-                  integration uses (Settings &gt; Integrations) — if you&apos;ve already registered one for
-                  email, reuse it: just add the permission below and enter the same Client ID/Secret here.
+                  A dedicated app just for cloud backup, separate from anything used for email — do
+                  this once and every staff member afterward just clicks &ldquo;Connect&rdquo; and signs in with
+                  their own {selectedProvider === "google-drive" ? "Google" : "Microsoft"} account,
+                  no credentials to paste.
                   {selectedProvider === "google-drive" ? (
                     <>
                       {" "}In Google Cloud Console: APIs &amp; Services &gt; Credentials — create an OAuth
                       Client ID (type: Web application), add authorized redirect URI{" "}
                       <code className="rounded bg-black/[0.04] px-1 dark:bg-white/[0.06]">
-                        https://YOUR-APP-URL/api/integrations/google/callback
+                        {origin || "https://YOUR-APP-URL"}/api/settings/cloud-backup/oauth/google-drive/callback
                       </code>
-                      , then under APIs &amp; Services &gt; Enabled APIs, enable the Google Drive API.
+                      , then under APIs &amp; Services &gt; Enabled APIs, enable the Google Drive API. Google
+                      still issues a client secret for this app type — enter it below alongside the Client ID.
                     </>
                   ) : (
                     <>
                       {" "}In the Azure Portal: Microsoft Entra ID &gt; App registrations — new
-                      registration, add redirect URI (platform: Web){" "}
+                      registration, platform type <span className="font-mono">Mobile and desktop
+                      applications</span>, redirect URI{" "}
                       <code className="rounded bg-black/[0.04] px-1 dark:bg-white/[0.06]">
-                        https://YOUR-APP-URL/api/integrations/microsoft/callback
+                        http://localhost/api/settings/cloud-backup/oauth/onedrive/callback
                       </code>
-                      , then under API permissions &gt; Add a permission &gt; Microsoft Graph &gt;
-                      Delegated permissions, add <span className="font-mono">Files.ReadWrite</span>.
-                      Create a client secret under Certificates &amp; secrets.
+                      {" "}(Microsoft ignores the port on localhost redirect URIs, so this works no
+                      matter which port the app is actually running on — register it exactly as
+                      shown, with the literal word &ldquo;localhost&rdquo;). Then under API permissions &gt; Add
+                      a permission &gt; Microsoft Graph &gt; Delegated permissions, add{" "}
+                      <span className="font-mono">Files.ReadWrite</span>. No client secret needed —
+                      this app type authenticates with PKCE instead, so leave the secret field below
+                      blank.
                     </>
                   )}
                 </p>
@@ -566,16 +572,22 @@ export default function CloudBackupPanel({
                     placeholder="Client ID"
                     className="surface-input flex-1"
                   />
-                  <input
-                    type="password"
-                    value={oauthClientSecret}
-                    onChange={(e) => setOAuthClientSecret(e.target.value)}
-                    placeholder="Client secret"
-                    className="surface-input flex-1"
-                  />
+                  {selectedProvider === "google-drive" && (
+                    <input
+                      type="password"
+                      value={oauthClientSecret}
+                      onChange={(e) => setOAuthClientSecret(e.target.value)}
+                      placeholder="Client secret"
+                      className="surface-input flex-1"
+                    />
+                  )}
                   <button
                     onClick={saveOAuthCredentials}
-                    disabled={savingOAuth || !oauthClientId.trim() || !oauthClientSecret.trim()}
+                    disabled={
+                      savingOAuth ||
+                      !oauthClientId.trim() ||
+                      (selectedProvider === "google-drive" && !oauthClientSecret.trim())
+                    }
                     className="btn-primary px-3 py-2 text-xs"
                   >
                     {savingOAuth ? "Saving…" : "Save"}

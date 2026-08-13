@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { listBackups } from "@/lib/backup";
-import { getOAuthCredentialStatus } from "@/lib/emailIntegration";
+import { getDriveAppCredentialStatus } from "@/lib/driveOAuthApp";
 import { listRcloneRemotes } from "@/lib/rcloneBackup";
 import { getInstallPlan, isRcloneInstalled } from "@/lib/rcloneInstall";
 import { getBackupScheduleStatus, getChangeBackupStatus, getCloudBackupStatus, getOrCreateCronSecret } from "@/lib/settings";
@@ -21,7 +21,7 @@ export default async function BackupSettingsPage() {
     cronSecret,
     schedule,
     cloud,
-    oauthCredentialStatus,
+    driveAppCredentialStatus,
     rcloneRemotes,
     rcloneInstalled,
     rcloneInstallPlan,
@@ -31,7 +31,7 @@ export default async function BackupSettingsPage() {
     getOrCreateCronSecret(),
     getBackupScheduleStatus(),
     getCloudBackupStatus(),
-    getOAuthCredentialStatus(),
+    getDriveAppCredentialStatus(),
     listRcloneRemotes(),
     isRcloneInstalled(),
     getInstallPlan(),
@@ -48,7 +48,7 @@ export default async function BackupSettingsPage() {
         <CloudBackupPanel
           initialSchedule={schedule}
           initialCloud={cloud}
-          initialOAuthConfigured={{ google: oauthCredentialStatus.google, microsoft: oauthCredentialStatus.microsoft }}
+          initialDriveAppConfigured={driveAppCredentialStatus}
           initialRcloneRemotes={rcloneRemotes}
           initialRcloneInstalled={rcloneInstalled}
           initialRcloneInstallPlan={rcloneInstallPlan}

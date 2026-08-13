@@ -1,7 +1,8 @@
 import { randomBytes } from "crypto";
 import { readFile, stat } from "fs/promises";
 import { recordAuditEvent } from "./auditLog";
-import { getOAuthCredentials } from "./emailIntegration";
+import { getDriveAppCredentials } from "./driveOAuthApp";
+import { generatePkcePair } from "./oauthPkce";
 import {
   saveDriveBackupConnection,
   setDriveBackupFolderId,
@@ -20,12 +21,6 @@ interface DriveProviderConfig {
   userInfoUrl: string;
   scope: string;
   extraAuthParams?: Record<string, string>;
-  // Reuses the SAME Azure AD / Google Cloud OAuth app already registered
-  // for the email integration (src/lib/emailIntegration.ts) — one app
-  // registration, requested with a different scope here (Drive/Files
-  // instead of Mail) and its own separate consent + token storage, not
-  // shared with whatever email account (if any) is connected.
-  emailProviderKey: "google" | "microsoft";
 }
 
 export const DRIVE_PROVIDER_CONFIG: Record<DriveProvider, DriveProviderConfig> = {
@@ -39,7 +34,6 @@ export const DRIVE_PROVIDER_CONFIG: Record<DriveProvider, DriveProviderConfig> =
     // Drive.
     scope: "https://www.googleapis.com/auth/drive.file openid email",
     extraAuthParams: { access_type: "offline", prompt: "consent" },
-    emailProviderKey: "google",
   },
   onedrive: {
     displayName: "OneDrive",
@@ -47,26 +41,35 @@ export const DRIVE_PROVIDER_CONFIG: Record<DriveProvider, DriveProviderConfig> =
     tokenUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
     userInfoUrl: "https://graph.microsoft.com/v1.0/me",
     scope: "offline_access Files.ReadWrite User.Read",
-    emailProviderKey: "microsoft",
   },
 };
 
-const pendingStates = new Map<string, DriveProvider>();
-
-export function createDriveOAuthState(provider: DriveProvider): string {
-  const state = randomBytes(16).toString("hex");
-  pendingStates.set(state, provider);
-  return state;
+interface PendingOAuth {
+  provider: DriveProvider;
+  verifier: string;
 }
 
-export function consumeDriveOAuthState(state: string): DriveProvider | null {
-  const provider = pendingStates.get(state);
-  if (provider) pendingStates.delete(state);
-  return provider ?? null;
+const pendingStates = new Map<string, PendingOAuth>();
+
+// Returns both the opaque `state` (round-tripped through the provider so the
+// callback knows which attempt this is) and the PKCE `challenge` to embed in
+// the authorize URL — the matching `verifier` stays server-side in
+// `pendingStates`, retrieved by `consumeDriveOAuthState` during the callback.
+export function createDriveOAuthState(provider: DriveProvider): { state: string; challenge: string } {
+  const { verifier, challenge } = generatePkcePair();
+  const state = randomBytes(16).toString("hex");
+  pendingStates.set(state, { provider, verifier });
+  return { state, challenge };
+}
+
+export function consumeDriveOAuthState(state: string): PendingOAuth | null {
+  const pending = pendingStates.get(state);
+  if (pending) pendingStates.delete(state);
+  return pending ?? null;
 }
 
 export async function getDriveOAuthClientCredentials(provider: DriveProvider) {
-  return getOAuthCredentials(DRIVE_PROVIDER_CONFIG[provider].emailProviderKey);
+  return getDriveAppCredentials(provider);
 }
 
 export function buildDriveAuthorizeUrl(
@@ -74,6 +77,7 @@ export function buildDriveAuthorizeUrl(
   clientId: string,
   redirectUri: string,
   state: string,
+  codeChallenge: string,
 ): string {
   const config = DRIVE_PROVIDER_CONFIG[provider];
   const url = new URL(config.authUrl);
@@ -82,6 +86,8 @@ export function buildDriveAuthorizeUrl(
   url.searchParams.set("response_type", "code");
   url.searchParams.set("scope", config.scope);
   url.searchParams.set("state", state);
+  url.searchParams.set("code_challenge", codeChallenge);
+  url.searchParams.set("code_challenge_method", "S256");
   for (const [key, value] of Object.entries(config.extraAuthParams ?? {})) url.searchParams.set(key, value);
   return url.toString();
 }
@@ -111,37 +117,35 @@ async function exchangeToken(provider: DriveProvider, body: URLSearchParams): Pr
 export async function exchangeDriveCode(
   provider: DriveProvider,
   clientId: string,
-  clientSecret: string,
+  clientSecret: string | undefined,
   code: string,
   redirectUri: string,
+  codeVerifier: string,
 ): Promise<TokenResult> {
-  return exchangeToken(
-    provider,
-    new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      code,
-      redirect_uri: redirectUri,
-      grant_type: "authorization_code",
-    }),
-  );
+  const params: Record<string, string> = {
+    client_id: clientId,
+    code,
+    redirect_uri: redirectUri,
+    grant_type: "authorization_code",
+    code_verifier: codeVerifier,
+  };
+  if (clientSecret) params.client_secret = clientSecret;
+  return exchangeToken(provider, new URLSearchParams(params));
 }
 
 async function refreshDriveToken(
   provider: DriveProvider,
   clientId: string,
-  clientSecret: string,
+  clientSecret: string | undefined,
   refreshToken: string,
 ): Promise<TokenResult> {
-  return exchangeToken(
-    provider,
-    new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
-      grant_type: "refresh_token",
-    }),
-  );
+  const params: Record<string, string> = {
+    client_id: clientId,
+    refresh_token: refreshToken,
+    grant_type: "refresh_token",
+  };
+  if (clientSecret) params.client_secret = clientSecret;
+  return exchangeToken(provider, new URLSearchParams(params));
 }
 
 export async function fetchDriveAccountEmail(provider: DriveProvider, accessToken: string): Promise<string | null> {
@@ -153,22 +157,27 @@ export async function fetchDriveAccountEmail(provider: DriveProvider, accessToke
   return profile.email || null;
 }
 
-// Called from the SHARED /api/integrations/[provider]/callback route (the
-// same redirect URI already registered for the email integration) once it
-// determines — via which in-memory state map the `state` param matches —
-// that this particular OAuth round trip was for a backup connection, not
-// an email one. Keeping this here (rather than duplicating it in the route
-// file) is what let the backup flow reuse that existing redirect URI: no
-// second URI needs registering in Azure/Google Cloud Console.
+// Called from the dedicated /api/settings/cloud-backup/oauth/[provider]/
+// callback route — its own redirect URI, not shared with the email
+// integration, so a pending backup connection can never be lost by
+// disambiguation logic living in a route file that also serves email.
 export async function completeDriveOAuthCallback(
   provider: DriveProvider,
   code: string,
   redirectUri: string,
+  codeVerifier: string,
 ): Promise<void> {
   const credentials = await getDriveOAuthClientCredentials(provider);
   if (!credentials) throw new Error("OAuth credentials not configured");
 
-  const tokens = await exchangeDriveCode(provider, credentials.clientId!, credentials.clientSecret!, code, redirectUri);
+  const tokens = await exchangeDriveCode(
+    provider,
+    credentials.clientId,
+    credentials.clientSecret,
+    code,
+    redirectUri,
+    codeVerifier,
+  );
   if (!tokens.refreshToken) {
     throw new Error(
       "No refresh token returned — if this account was connected before, disconnect it first and reconnect (the provider only issues a refresh token on first consent).",
@@ -195,10 +204,10 @@ async function refreshAndPersistDriveToken(provider: DriveProvider, config: Driv
   const credentials = await getDriveOAuthClientCredentials(provider);
   if (!credentials) {
     throw new Error(
-      `No OAuth Client ID/Secret configured for ${DRIVE_PROVIDER_CONFIG[provider].displayName} yet — add them in Settings > Integrations.`,
+      `No OAuth app configured for ${DRIVE_PROVIDER_CONFIG[provider].displayName} yet — set it up in Settings > Backup.`,
     );
   }
-  const refreshed = await refreshDriveToken(provider, credentials.clientId!, credentials.clientSecret!, config.refreshToken);
+  const refreshed = await refreshDriveToken(provider, credentials.clientId, credentials.clientSecret, config.refreshToken);
   await updateDriveBackupTokens(provider, refreshed.accessToken, refreshed.refreshToken, refreshed.expiresAt);
   return refreshed.accessToken;
 }

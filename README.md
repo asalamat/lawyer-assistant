@@ -76,8 +76,8 @@ licensing: add as many lawyers and staff as your office needs.
 
 **☁️ Backup & Infrastructure**
 - 🆕⏱️ **Two automatic backup triggers, no OS cron needed** — a fixed interval (hourly by default) *and* a debounced trigger that backs up shortly after real activity settles down, each independently configurable
-- 🆕🧙 **One-click setup wizard for cloud backup** — installs `rclone` itself if it's missing, then drives the whole OAuth sign-in for OneDrive/Google Drive end to end; the only manual step left is approving access in the browser that pops open
-- ☁️ **Cloud backup, any provider you like** — S3-compatible (AWS S3, Cloudflare R2, Backblaze B2, Wasabi, MinIO), Google Drive, OneDrive, or `rclone` (the zero-app-registration option)
+- 🆕☁️ **Direct sign-in for OneDrive/Google Drive** — a one-time admin app registration (its own, separate from any email integration), then every staff member just clicks Connect and signs in with their own Microsoft/Google account, nothing to paste
+- ☁️ **Cloud backup, any provider you like** — S3-compatible (AWS S3, Cloudflare R2, Backblaze B2, Wasabi, MinIO), Google Drive, OneDrive, or `rclone` (the zero-app-registration option, with its own one-click install + setup wizard)
 - 🔌 Public versioned API (`/api/v1`) with API-key auth, outbound webhooks
 - 💡 System health dashboard, update checker, feature-request tracking, weather widget, sticky notes, dark mode
 
@@ -241,14 +241,21 @@ for anyone who prefers wiring it into their own cron/Task Scheduler:
 Optional off-site copy to cloud storage of your choice — **any S3-compatible
 bucket** (AWS S3, Cloudflare R2, Backblaze B2, Wasabi, MinIO…), **Google
 Drive**, **OneDrive**, or **`rclone`** (the only option needing zero cloud
-app registration, since rclone ships its own). A **setup wizard** drives the
-whole thing for Drive/OneDrive-via-rclone: it installs `rclone` itself if
-it's missing, then walks the entire OAuth handshake automatically — the
-only step left for a human is clicking through the Microsoft/Google sign-in
-that opens in the browser. Every backup is encrypted the same way as
-everything else at rest, and Drive/OneDrive access is scoped to a single
-dedicated backups folder the app creates for itself, never the rest of your
-account.
+app registration, since rclone ships its own — complete with a setup wizard
+that installs `rclone` itself if it's missing and drives its OAuth handshake
+end to end).
+
+Google Drive and OneDrive connect directly instead — no rclone involved.
+This needs a one-time admin step (registering a free Google Cloud / Azure AD
+app, done once in Settings > Backup — a dedicated app just for backup,
+separate from any email integration), documented right there in the setup
+box. After that, every staff member just clicks Connect and signs in with
+their own Microsoft/Google account — nothing to paste, ever. OneDrive's app
+registration doesn't even need a client secret (PKCE, a public client, per
+Microsoft's own recommendation for exactly this kind of app). Every backup
+is encrypted the same way as everything else at rest, and Drive/OneDrive
+access is scoped to a single dedicated backups folder the app creates for
+itself, never the rest of your account.
 
 Full detail on every feature, including what's deliberately *not* built
 and why, is in [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -336,6 +343,18 @@ Windows, and Linux.
 
 ## Recent changes
 
+- 🆕☁️ **Google Drive/OneDrive now connect directly, no rclone needed for
+  either** — previously the direct-OAuth path for these two reused the
+  email integration's app registration and redirect URI, disambiguated by
+  which of two in-memory state maps a callback's `state` param matched; a
+  server restart mid-flow silently dropped a pending connection. Now each
+  gets its own dedicated OAuth app registration (own encrypted credential
+  store, not shared with email) and its own callback route — no
+  disambiguation needed. Also added PKCE to the flow, which means
+  OneDrive's app registration doesn't need a client secret at all (Azure's
+  own recommended setup for this kind of app — a public client). Once the
+  one-time admin app registration is done (Settings > Backup walks through
+  it), staff just click Connect and sign in with their own account.
 - 🆕🤖 **Unified AI provider matrix** (`Settings > AI model`) — one table
   for all 6 providers (Anthropic, OpenAI, Gemini, Ollama, DeepSeek,
   Moonshot AI/Kimi), each with independent checkboxes for **Primary** and

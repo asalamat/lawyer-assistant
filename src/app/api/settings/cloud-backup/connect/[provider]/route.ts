@@ -18,24 +18,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ prov
 
   const credentials = await getDriveOAuthClientCredentials(typedProvider);
   if (!credentials) {
-    const emailKey = DRIVE_PROVIDER_CONFIG[typedProvider].emailProviderKey;
     return NextResponse.json(
       {
-        error: `No OAuth Client ID/Secret configured yet. Add one in Settings > Integrations (the ${emailKey === "google" ? "Google" : "Microsoft"} entry) — the same app registration used for email works here too, as long as it also has the Drive/Files scope enabled.`,
+        error: `No ${DRIVE_PROVIDER_CONFIG[typedProvider].displayName} app registered yet — set it up once in Settings > Backup.`,
       },
       { status: 400 },
     );
   }
 
-  // Reuses the SAME redirect URI already registered for the email
-  // integration (see /api/integrations/[provider]/callback, which branches
-  // on whether `state` matches an email or a drive-backup OAuth attempt) —
-  // Azure AD/Google Cloud only need one redirect URI on file, not a second
-  // one just for backups.
   const origin = new URL(request.url).origin;
-  const emailProviderKey = DRIVE_PROVIDER_CONFIG[typedProvider].emailProviderKey;
-  const redirectUri = `${origin}/api/integrations/${emailProviderKey}/callback`;
-  const state = createDriveOAuthState(typedProvider);
-  const authorizeUrl = buildDriveAuthorizeUrl(typedProvider, credentials.clientId!, redirectUri, state);
+  const redirectUri = `${origin}/api/settings/cloud-backup/oauth/${typedProvider}/callback`;
+  const { state, challenge } = createDriveOAuthState(typedProvider);
+  const authorizeUrl = buildDriveAuthorizeUrl(typedProvider, credentials.clientId, redirectUri, state, challenge);
   return NextResponse.redirect(authorizeUrl);
 }

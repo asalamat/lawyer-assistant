@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { completeDriveOAuthCallback, consumeDriveOAuthState } from "@/lib/cloudDriveBackup";
 import {
   consumeOAuthState,
   getOAuthCredentials,
@@ -40,30 +39,6 @@ export async function GET(
   if (!code || !state) {
     settingsUrl.searchParams.set("integrationError", "Invalid or expired OAuth state");
     return NextResponse.redirect(settingsUrl);
-  }
-
-  // This one redirect URI is shared by two independent OAuth round trips —
-  // the email integration's and cloud backup's Google Drive/OneDrive
-  // connection (see /api/settings/cloud-backup/connect) — so Azure AD/
-  // Google Cloud only need a single registered redirect URI. `state` is
-  // how this route tells which flow a given callback belongs to: each
-  // flow's connect route stashes it in its own in-memory map, so trying
-  // the drive map first (a no-op if this state isn't actually one of
-  // its own) resolves it safely either way.
-  const driveProvider = consumeDriveOAuthState(state);
-  if (driveProvider) {
-    const backupSettingsUrl = new URL("/settings/backup", request.url);
-    try {
-      const redirectUri = `${url.origin}/api/integrations/${typedProvider}/callback`;
-      await completeDriveOAuthCallback(driveProvider, code, redirectUri);
-      backupSettingsUrl.searchParams.set("cloudBackupConnected", driveProvider);
-    } catch (err) {
-      backupSettingsUrl.searchParams.set(
-        "cloudBackupError",
-        err instanceof Error ? err.message : "Connection failed",
-      );
-    }
-    return NextResponse.redirect(backupSettingsUrl);
   }
 
   if (consumeOAuthState(state) !== typedProvider) {
