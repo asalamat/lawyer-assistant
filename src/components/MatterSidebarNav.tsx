@@ -122,7 +122,7 @@ export default function MatterSidebarNav({ matterId }: { matterId: string }) {
       {renderLink(overview)}
       {groups.map((group) => (
         <div key={group.label} className="flex flex-col gap-1">
-          <p className="px-3 text-xs font-medium uppercase tracking-wide text-muted">{group.label}</p>
+          <p className="px-3 text-xs font-bold uppercase tracking-wide text-accent">{group.label}</p>
           {group.links.map(renderLink)}
         </div>
       ))}
