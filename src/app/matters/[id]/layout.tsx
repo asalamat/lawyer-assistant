@@ -17,13 +17,13 @@ export default async function MatterLayout({
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-6 py-10">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="font-display text-3xl italic">{matter.title}</h1>
-            <span className="badge font-mono">{matter.fileNumber}</span>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="font-display text-3xl italic break-words">{matter.title}</h1>
+            <span className="badge font-mono shrink-0">{matter.fileNumber}</span>
           </div>
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted break-words">
             {matter.clientName} &middot; {matter.matterType}
           </p>
           <div className="mt-1 flex items-center gap-2">
@@ -38,7 +38,7 @@ export default async function MatterLayout({
             )}
           </div>
         </div>
-        <Link href={`/matters/${matter.id}/chat`} className="btn-primary">
+        <Link href={`/matters/${matter.id}/chat`} className="btn-primary shrink-0">
           Chat about this matter
         </Link>
       </div>

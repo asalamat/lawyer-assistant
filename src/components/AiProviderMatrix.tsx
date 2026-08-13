@@ -93,12 +93,19 @@ export default function AiProviderMatrix({
     }
   }
 
+  // Newly checked providers go to the FRONT of the sequence, not the back —
+  // checking a box means "use this one," so it becomes the active choice for
+  // that role immediately, matching the same-provider warning below (which
+  // only compares position 0 of each sequence). Appending to the back would
+  // leave it an unreachable low-priority fallback until manually moved up,
+  // so checking the same provider into both columns wouldn't visibly do
+  // anything — exactly the bug this fixes.
   function togglePrimary(provider: IndependentReviewProvider, checked: boolean) {
     if (!PRIMARY_ELIGIBLE.has(provider)) return;
     const asAiProvider = provider as AiProvider;
     if (checked) {
       if (primaryOrder.includes(asAiProvider)) return;
-      savePrimary([...primaryOrder, asAiProvider]);
+      savePrimary([asAiProvider, ...primaryOrder]);
       return;
     }
     if (primaryOrder.length <= 1) {
@@ -111,7 +118,7 @@ export default function AiProviderMatrix({
   function toggleIndependent(provider: IndependentReviewProvider, checked: boolean) {
     if (checked) {
       if (independentOrder.includes(provider)) return;
-      saveIndependent([...independentOrder, provider]);
+      saveIndependent([provider, ...independentOrder]);
       return;
     }
     if (independentOrder.length <= 1) {
