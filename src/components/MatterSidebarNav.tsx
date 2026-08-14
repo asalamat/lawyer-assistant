@@ -68,6 +68,7 @@ export default function MatterSidebarNav({ matterId }: { matterId: string }) {
         { href: `${base}/evidence-matrix`, label: "Evidence matrix", Icon: EvidenceIcon, tip: "Allegations mapped to elements, supporting evidence, and gaps" },
         { href: `${base}/evidence-connections`, label: "Evidence connections", Icon: EvidenceIcon, tip: "How each document corroborates, contradicts, or is missing for an allegation" },
         { href: `${base}/contradictions`, label: "Contradictions", Icon: EvidenceIcon, tip: "Genuine inconsistencies across witness statements and documents" },
+        { href: `${base}/witness-prep`, label: "Witness prep", Icon: UsersIcon, tip: "Suggested direct/cross-examination questions grounded in a witness's documented statements" },
         { href: `${base}/missing-evidence`, label: "Missing evidence", Icon: AuditIcon, tip: "Rolls up missing/gap items already flagged elsewhere in this matter" },
         { href: `${base}/exhibit-list`, label: "Exhibit list", Icon: DocumentIcon, tip: "A numbered exhibit list built from this matter's documents" },
         { href: `${base}/disclosure-checklist`, label: "Disclosure checklist", Icon: AuditIcon, tip: "What's disclosed vs. what the documents reference as existing" },

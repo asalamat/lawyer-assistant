@@ -729,6 +729,48 @@ List two or three plausible Crown positions (e.g. proceed to trial on all counts
   });
 }
 
+// Same grounded-only-in-matter-documents shape as the other analysis
+// generators above. Explicitly does NOT predict how the witness will
+// answer or whether they're credible — it only surfaces what's already in
+// the record (their own prior statements, and other sources) as material
+// for counsel to build questions from.
+export async function generateWitnessPrepQuestions(
+  sections: MatterDocumentSection[],
+  witnessName: string,
+): Promise<string> {
+  const system = `You are a legal assistant helping counsel prepare for examining a witness named "${witnessName}", using only the documents provided for this matter (statements, reports, correspondence, transcripts). Base everything only on the provided matter documents — cite the source filename in parentheses after any fact you draw from a document, and the page too if available. Structure your answer as:
+
+## What ${witnessName} has said so far (with sources)
+Summarize every statement, account, or assertion attributed to this witness found in the documents, each with its source citation. If nothing in the documents is attributed to this witness by name, say so plainly and stop there — do not invent statements or guess at what they might say.
+
+## Apparent inconsistencies in ${witnessName}'s own statements
+Places where this witness's own statements conflict with each other across documents/dates, with both sources cited.
+
+## Where other sources conflict with ${witnessName}'s account
+Places where another document or witness's statement conflicts with this witness's account, with both sources cited.
+
+## Suggested direct-examination questions
+Questions to elicit this witness's own favorable, on-the-record account, grounded in what they've already said.
+
+## Suggested cross-examination questions
+Questions targeting the inconsistencies identified above, or gaps/vagueness in their account as documented.
+
+Do not speculate about the witness's credibility, demeanor, or how they will actually answer — this is a prompt list grounded in the documentary record, not a prediction, and never a substitute for counsel's own judgment.`;
+
+  if (sections.length === 0) {
+    return "No documents have been uploaded for this matter yet — upload documents first, then generate witness prep.";
+  }
+
+  const context = await buildMatterContext(sections);
+  return complete({
+    system,
+    messages: [
+      { role: "user", content: `Here are the matter documents:\n\n${context}\n\nPrepare examination questions for ${witnessName}.` },
+    ],
+    maxTokens: 4096,
+  });
+}
+
 async function scanDocumentForPrivilegeAndPii(section: MatterDocumentSection): Promise<string> {
   const system = `You are reviewing ONE document from a legal matter for privilege and sensitive-content concerns, as part of a review before the document might be disclosed externally. Identify: (1) passages that appear to be solicitor-client privileged communications or litigation work product; (2) sensitive personal information beyond standard identifiers (SIN/SSN/credit card numbers, phone numbers, and email addresses are already handled separately — don't repeat those) — e.g. medical or psychiatric details, financial account specifics, information about a minor, immigration status, or similarly sensitive personal detail. For each finding, quote the exact passage verbatim (so it can be located and redacted) and give a one-line reason tagged [PRIVILEGE] or [SENSITIVE]. If nothing of concern is found in this document, say so in one line — don't manufacture a marginal finding just to have something to report.`;
   try {

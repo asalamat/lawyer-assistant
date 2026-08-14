@@ -811,6 +811,20 @@ execWithRetry(`
   );
   CREATE INDEX IF NOT EXISTS idx_privilege_reviews_matterId ON privilege_reviews(matterId);
 
+  -- Per-witness, not per-matter like the other analysis tables above — a
+  -- matter can have several witnesses, each prepped separately, so this
+  -- keeps witnessName rather than reusing listSimpleGeneratedDocs's
+  -- single-blob-per-matter shape.
+  CREATE TABLE IF NOT EXISTS witness_prep_analyses (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    witnessName TEXT NOT NULL,
+    content TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_witness_prep_analyses_matterId ON witness_prep_analyses(matterId);
+
   -- A "wish item" any signed-in user can submit from the Help page — not
   -- tied to a matter, just a lightweight backlog everyone at the firm can
   -- see (so a request doesn't get duplicated) and an admin can triage.

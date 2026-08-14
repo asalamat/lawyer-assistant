@@ -406,6 +406,7 @@ export async function deleteMatter(matterId: string): Promise<boolean> {
   db.prepare("DELETE FROM disclosure_checklists WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM crown_position_analyses WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM privilege_reviews WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM witness_prep_analyses WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM independent_reviews WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM invoices WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM time_entries WHERE matterId = ?").run(matterId);
@@ -1189,6 +1190,40 @@ export async function addPrivilegeReview(matterId: string, content: string): Pro
     "privilege_review_generated",
     "Generated a privilege & redaction review",
   );
+}
+
+export interface WitnessPrepAnalysis {
+  id: string;
+  matterId: string;
+  witnessName: string;
+  content: string;
+  createdAt: string;
+}
+
+export async function listWitnessPrepAnalyses(matterId: string): Promise<WitnessPrepAnalysis[]> {
+  return db
+    .prepare("SELECT * FROM witness_prep_analyses WHERE matterId = ? ORDER BY createdAt DESC")
+    .all(matterId)
+    .map((row) => toPlain<WitnessPrepAnalysis>(row));
+}
+
+export async function addWitnessPrepAnalysis(
+  matterId: string,
+  witnessName: string,
+  content: string,
+): Promise<WitnessPrepAnalysis> {
+  const doc: WitnessPrepAnalysis = {
+    id: crypto.randomUUID(),
+    matterId,
+    witnessName,
+    content,
+    createdAt: new Date().toISOString(),
+  };
+  db.prepare(
+    "INSERT INTO witness_prep_analyses (id, matterId, witnessName, content, createdAt) VALUES (?, ?, ?, ?, ?)",
+  ).run(doc.id, doc.matterId, doc.witnessName, doc.content, doc.createdAt);
+  await recordAuditEvent("witness_prep_generated", matterId, `Generated examination prep for witness: ${witnessName}`);
+  return doc;
 }
 
 export async function listRedlineAnalyses(matterId: string): Promise<SimpleGeneratedDoc[]> {
