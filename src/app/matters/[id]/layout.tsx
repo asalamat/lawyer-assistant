@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { isEmailConfigured } from "@/lib/email";
 import { getMatter } from "@/lib/matters";
+import MatterFullReportButton from "@/components/MatterFullReportButton";
 import MatterStatusToggle from "@/components/MatterStatusToggle";
 import MatterSidebarNav from "@/components/MatterSidebarNav";
 
@@ -12,7 +14,7 @@ export default async function MatterLayout({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const matter = await getMatter(id);
+  const [matter, emailConfigured] = await Promise.all([getMatter(id), isEmailConfigured()]);
   if (!matter) notFound();
 
   return (
@@ -38,9 +40,16 @@ export default async function MatterLayout({
             )}
           </div>
         </div>
-        <Link href={`/matters/${matter.id}/chat`} className="btn-primary shrink-0">
-          Chat about this matter
-        </Link>
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <Link href={`/matters/${matter.id}/chat`} className="btn-primary self-end">
+            Chat about this matter
+          </Link>
+          <MatterFullReportButton
+            matterId={matter.id}
+            clientEmail={matter.clientEmail}
+            emailConfigured={emailConfigured}
+          />
+        </div>
       </div>
 
       <div className="flex flex-col gap-6 sm:flex-row">

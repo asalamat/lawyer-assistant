@@ -5,16 +5,28 @@ import MarkdownContent from "@/components/MarkdownContent";
 
 const STORAGE_KEY = "pdfExport";
 
-interface ExportPayload {
+interface SingleExportPayload {
   title: string;
   content: string;
 }
 
+interface MultiExportPayload {
+  title: string;
+  sections: { heading: string; content: string }[];
+}
+
+type ExportPayload = SingleExportPayload | MultiExportPayload;
+
+function hasSections(payload: ExportPayload): payload is MultiExportPayload {
+  return "sections" in payload;
+}
+
 // Chromeless (see isChromelessRoute) — a clean, print-formatted view of one
-// generated document. "Export PDF" is just the browser's native print
-// dialog with a destination of "Save as PDF": no PDF-generation library
-// needed, and print CSS gives full control over the output without a
-// second rendering pipeline to keep in sync with MarkdownContent.
+// generated document (or, via the sections payload, a whole matter's worth
+// of them combined into one). "Export PDF" is just the browser's native
+// print dialog with a destination of "Save as PDF": no PDF-generation
+// library needed, and print CSS gives full control over the output without
+// a second rendering pipeline to keep in sync with MarkdownContent.
 export default function ExportPdfPage() {
   const [payload, setPayload] = useState<ExportPayload | null | "missing">(null);
 
@@ -52,7 +64,18 @@ export default function ExportPdfPage() {
           it.
         </p>
       </div>
-      <MarkdownContent content={payload.content} />
+      {hasSections(payload) ? (
+        <div className="flex flex-col gap-8">
+          {payload.sections.map((section, index) => (
+            <div key={index} className="flex flex-col gap-3 break-inside-avoid-page">
+              <h2 className="font-display text-lg border-b border-border pb-1">{section.heading}</h2>
+              <MarkdownContent content={section.content} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <MarkdownContent content={payload.content} />
+      )}
     </main>
   );
 }
