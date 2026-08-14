@@ -825,6 +825,30 @@ execWithRetry(`
   );
   CREATE INDEX IF NOT EXISTS idx_witness_prep_analyses_matterId ON witness_prep_analyses(matterId);
 
+  -- Structured, per-document version of privilege_reviews' free-text scan —
+  -- one row per flagged passage, so a human can check each one off before
+  -- a document is included in a disclosure package. Deliberately never
+  -- modifies the actual document bytes (no redaction is applied by this
+  -- app) — this app has no page/offset mapping for extracted text, so
+  -- auto-blacking-out a region would risk a genuine privilege waiver if
+  -- the wrong text were removed. status starts 'flagged' and a lawyer
+  -- explicitly moves it to 'cleared' (not privileged after all) or
+  -- 'confirmed' (yes, redact this manually before disclosure).
+  CREATE TABLE IF NOT EXISTS redaction_flags (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    documentId TEXT NOT NULL,
+    documentName TEXT NOT NULL,
+    passage TEXT NOT NULL,
+    category TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'flagged',
+    createdAt TEXT NOT NULL,
+    resolvedAt TEXT,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_redaction_flags_matterId ON redaction_flags(matterId);
+
   -- A "wish item" any signed-in user can submit from the Help page — not
   -- tied to a matter, just a lightweight backlog everyone at the firm can
   -- see (so a request doesn't get duplicated) and an admin can triage.

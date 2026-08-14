@@ -811,6 +811,80 @@ export async function generatePrivilegeReview(sections: MatterDocumentSection[])
   return `# Privilege & Redaction Review\n\nEach document below was reviewed individually. Quoted passages are candidates for redaction before external disclosure — review before acting, this is not a final privilege determination.\n\n${findings.join("\n\n")}`;
 }
 
+export interface RedactionFlagCandidate {
+  passage: string;
+  category: "PRIVILEGE" | "SENSITIVE";
+  reason: string;
+}
+
+const REDACTION_FLAGS_SCHEMA = {
+  type: "object",
+  properties: {
+    flags: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          passage: { type: "string", description: "the exact passage, quoted verbatim from the document" },
+          category: { type: "string", enum: ["PRIVILEGE", "SENSITIVE"] },
+          reason: { type: "string", description: "one line explaining why this passage is a redaction candidate" },
+        },
+        required: ["passage", "category", "reason"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["flags"],
+  additionalProperties: false,
+};
+
+// Structured counterpart to scanDocumentForPrivilegeAndPii, for the
+// disclosure-package builder's per-passage checklist rather than a
+// free-text report. Same rubric, same "quote verbatim, one candidate list,
+// nothing manufactured" instruction — just JSON instead of markdown so
+// each flag can be a row a lawyer individually clears or confirms.
+async function scanDocumentForRedactionFlags(section: MatterDocumentSection): Promise<RedactionFlagCandidate[]> {
+  const system = `You are reviewing ONE document from a legal matter for privilege and sensitive-content concerns, as part of a review before the document might be disclosed externally. Identify: (1) passages that appear to be solicitor-client privileged communications or litigation work product; (2) sensitive personal information beyond standard identifiers (SIN/SSN/credit card numbers, phone numbers, and email addresses are already handled separately — don't repeat those) — e.g. medical or psychiatric details, financial account specifics, information about a minor, immigration status, or similarly sensitive personal detail. For each finding, quote the exact passage verbatim (so it can be located and redacted) and tag it PRIVILEGE or SENSITIVE with a one-line reason. If nothing of concern is found, return an empty list — do not manufacture a marginal finding just to have something to report.`;
+  try {
+    return (
+      await completeJSON<{ flags: RedactionFlagCandidate[] }>({
+        system,
+        messages: [{ role: "user", content: `Document: ${section.label}\n\n${section.text}` }],
+        schema: REDACTION_FLAGS_SCHEMA,
+        schemaName: "redaction_flags",
+        maxTokens: 1024,
+        tier: "fast",
+      })
+    ).flags;
+  } catch {
+    // A failed scan on one document must not block flags already found on
+    // every other document — same reasoning as the freeform scan's catch.
+    return [];
+  }
+}
+
+export interface RedactionFlagScanResult {
+  documentLabel: string;
+  flags: RedactionFlagCandidate[];
+}
+
+export async function scanMatterForRedactionFlags(
+  sections: MatterDocumentSection[],
+): Promise<RedactionFlagScanResult[]> {
+  const results: RedactionFlagScanResult[] = [];
+  for (let i = 0; i < sections.length; i += PRIVILEGE_REVIEW_BATCH_SIZE) {
+    const batch = sections.slice(i, i + PRIVILEGE_REVIEW_BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batch.map(async (section) => ({
+        documentLabel: section.label,
+        flags: await scanDocumentForRedactionFlags(section),
+      })),
+    );
+    results.push(...batchResults);
+  }
+  return results;
+}
+
 export interface EvidenceGraphNode {
   id: string;
   label: string;

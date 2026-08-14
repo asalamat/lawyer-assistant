@@ -74,6 +74,7 @@ export default function MatterSidebarNav({ matterId }: { matterId: string }) {
         { href: `${base}/disclosure-checklist`, label: "Disclosure checklist", Icon: AuditIcon, tip: "What's disclosed vs. what the documents reference as existing" },
         { href: `${base}/crown-position`, label: "Crown position", Icon: ScaleIcon, tip: "Charges, elements, weaknesses, and plausible Crown positions" },
         { href: `${base}/privilege-review`, label: "Privilege & redaction", Icon: SecurityIcon, tip: "Flags privileged communications and sensitive personal information" },
+        { href: `${base}/disclosure-package`, label: "Disclosure package", Icon: SecurityIcon, tip: "Per-passage redaction checklist and which documents are ready to disclose" },
         { href: `${base}/case-noteup`, label: "Case citations", Icon: ScaleIcon, tip: "Looks up cited case law on CanLII — real, findable, cited/citing cases" },
       ],
     },

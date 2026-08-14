@@ -32,6 +32,7 @@ import {
   analyzePageForQuestion,
   extractDeadlines,
   extractMissingEvidenceItems,
+  scanMatterForRedactionFlags,
   suggestMatterClassification,
   type ExtractedDeadline,
 } from "./claude";
@@ -407,6 +408,7 @@ export async function deleteMatter(matterId: string): Promise<boolean> {
   db.prepare("DELETE FROM crown_position_analyses WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM privilege_reviews WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM witness_prep_analyses WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM redaction_flags WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM independent_reviews WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM invoices WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM time_entries WHERE matterId = ?").run(matterId);
@@ -1192,6 +1194,119 @@ export async function addPrivilegeReview(matterId: string, content: string): Pro
   );
 }
 
+export interface RedactionFlag {
+  id: string;
+  matterId: string;
+  documentId: string;
+  documentName: string;
+  passage: string;
+  category: "PRIVILEGE" | "SENSITIVE";
+  reason: string;
+  status: "flagged" | "cleared" | "confirmed";
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export async function listRedactionFlags(matterId: string): Promise<RedactionFlag[]> {
+  return db
+    .prepare("SELECT * FROM redaction_flags WHERE matterId = ? ORDER BY documentName ASC, createdAt ASC")
+    .all(matterId)
+    .map((row) => toPlain<RedactionFlag>(row));
+}
+
+// Full refresh, not an append — same reasoning as refreshCaseNoteups: a
+// re-scan reflects the matter's current documents, not a growing pile of
+// stale flags from documents that may have since been deleted or replaced.
+// Deliberately does NOT touch already-resolved flags' human decisions by
+// silently re-adding them — a fresh scan is a new set of candidates, and
+// prior clear/confirm decisions on passages that still exist will need to
+// be re-made, which is safer than assuming a stale decision still applies.
+export async function generateRedactionFlags(matterId: string): Promise<RedactionFlag[]> {
+  const docs = await getMatterDocumentsWithText(matterId);
+  const sections = docs.map((d) => ({ label: d.documentId, text: d.text }));
+  const scanResults = await scanMatterForRedactionFlags(sections);
+  const byDocumentId = new Map(scanResults.map((r) => [r.documentLabel, r.flags]));
+
+  const flags: RedactionFlag[] = [];
+  const createdAt = new Date().toISOString();
+  for (const doc of docs) {
+    for (const candidate of byDocumentId.get(doc.documentId) ?? []) {
+      flags.push({
+        id: crypto.randomUUID(),
+        matterId,
+        documentId: doc.documentId,
+        documentName: doc.documentName,
+        passage: candidate.passage,
+        category: candidate.category,
+        reason: candidate.reason,
+        status: "flagged",
+        createdAt,
+        resolvedAt: null,
+      });
+    }
+  }
+
+  db.prepare("DELETE FROM redaction_flags WHERE matterId = ?").run(matterId);
+  const insert = db.prepare(
+    "INSERT INTO redaction_flags (id, matterId, documentId, documentName, passage, category, reason, status, createdAt, resolvedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  );
+  for (const f of flags) {
+    insert.run(f.id, f.matterId, f.documentId, f.documentName, f.passage, f.category, f.reason, f.status, f.createdAt, f.resolvedAt);
+  }
+
+  await recordAuditEvent(
+    "redaction_flags_scanned",
+    matterId,
+    `Scanned ${docs.length} document${docs.length === 1 ? "" : "s"} for redaction candidates, found ${flags.length}`,
+  );
+  return flags;
+}
+
+export async function updateRedactionFlagStatus(
+  matterId: string,
+  flagId: string,
+  status: "cleared" | "confirmed",
+): Promise<RedactionFlag | null> {
+  const row = db.prepare("SELECT * FROM redaction_flags WHERE id = ? AND matterId = ?").get(flagId, matterId);
+  if (!row) return null;
+  const resolvedAt = new Date().toISOString();
+  db.prepare("UPDATE redaction_flags SET status = ?, resolvedAt = ? WHERE id = ?").run(status, resolvedAt, flagId);
+  const flag = toPlain<RedactionFlag>(row);
+  await recordAuditEvent(
+    status === "confirmed" ? "redaction_flag_confirmed" : "redaction_flag_cleared",
+    matterId,
+    `Marked a redaction flag on "${flag.documentName}" as ${status}`,
+  );
+  return { ...flag, status, resolvedAt };
+}
+
+export interface DisclosurePackageDocument {
+  documentId: string;
+  documentName: string;
+  unresolvedFlagCount: number;
+  confirmedFlagCount: number;
+  ready: boolean;
+}
+
+// Pure rollup, no AI call — a disclosure decision this consequential
+// shouldn't depend on a model's summarization of its own prior flags, just
+// a plain count of what a human hasn't yet resolved.
+export async function getDisclosurePackageStatus(matterId: string): Promise<DisclosurePackageDocument[]> {
+  const [documents, flags] = await Promise.all([listDocuments(matterId), listRedactionFlags(matterId)]);
+  return documents.map((doc) => {
+    const docFlags = flags.filter((f) => f.documentId === doc.id);
+    const unresolvedFlagCount = docFlags.filter((f) => f.status === "flagged").length;
+    const confirmedFlagCount = docFlags.filter((f) => f.status === "confirmed").length;
+    return {
+      documentId: doc.id,
+      documentName: doc.fileName,
+      unresolvedFlagCount,
+      confirmedFlagCount,
+      ready: unresolvedFlagCount === 0,
+    };
+  });
+}
+
 export interface WitnessPrepAnalysis {
   id: string;
   matterId: string;
@@ -1674,6 +1789,28 @@ export async function getMatterDocumentSections(matterId: string): Promise<Matte
       : [];
 
   return [...docSections, ...referenceSections, ...noteSections];
+}
+
+// Same extraction as getMatterDocumentSections, restricted to this
+// matter's own uploaded documents (not reference library attachments or
+// notes) and keeping each document's real id — the redaction-flag scan
+// needs to tie a flag back to a specific Document row so the disclosure
+// package can gate on it per document.
+export async function getMatterDocumentsWithText(
+  matterId: string,
+): Promise<{ documentId: string; documentName: string; text: string }[]> {
+  const documents = await listDocuments(matterId);
+  const extractable = documents.filter((doc) => isSafeToExtract(doc));
+  return Promise.all(
+    extractable.map(async (doc) => {
+      const text = await extractTextTracked("documents", doc.id, doc.fileName, doc.storagePath);
+      return {
+        documentId: doc.id,
+        documentName: doc.fileName,
+        text: await maskForAI(text ?? "[Could not extract text from this file]"),
+      };
+    }),
+  );
 }
 
 export async function getMatterTextContext(matterId: string): Promise<string> {
