@@ -15,6 +15,8 @@ import { scanBuffer } from "./malwareScan";
 import { maskForAI } from "./piiMask";
 import { listAttachedReferenceDocuments } from "./referenceLibrary";
 import { createSignableDocument, getSignableDocument, sendForSignature } from "./signableDocuments";
+import { findTaskTemplate } from "./taskTemplates";
+import { createTask } from "./tasks";
 import {
   buildContextFromChunks,
   buildRetrievalConfidenceNote,
@@ -145,6 +147,7 @@ export async function createMatter(input: {
   clientEmail?: string;
   matterType: string;
   hourlyRate?: number;
+  createdByUserId?: string | null;
 }): Promise<Matter> {
   const createdAt = new Date().toISOString();
   const clientEmail = input.clientEmail?.trim() || null;
@@ -186,7 +189,35 @@ export async function createMatter(input: {
     `Created matter "${matter.title}" (${matter.fileNumber})`,
   );
   await fireWebhook("matter.created", matter);
+  await seedDefaultTasks(matter, input.createdByUserId ?? null);
   return matter;
+}
+
+// Best-effort, non-fatal — matter creation must succeed even if seeding its
+// starter checklist fails, same reasoning as the deadline-extraction/
+// classification side effects on document upload. matterType is free text
+// (see the Matter type/db schema), so this is a fuzzy, case-insensitive
+// match with a silent no-op when nothing matches, not a required lookup.
+async function seedDefaultTasks(matter: Matter, createdByUserId: string | null): Promise<void> {
+  try {
+    const template = findTaskTemplate(matter.matterType);
+    if (!template) return;
+    const createdAtMs = new Date(matter.createdAt).getTime();
+    for (const item of template) {
+      const dueDate =
+        item.dueOffsetDays !== undefined
+          ? new Date(createdAtMs + item.dueOffsetDays * 24 * 60 * 60 * 1000).toISOString()
+          : null;
+      await createTask({
+        matterId: matter.id,
+        title: item.title,
+        dueDate,
+        createdByUserId,
+      });
+    }
+  } catch {
+    // A broken template must never block matter creation.
+  }
 }
 
 export async function updateMatterStatus(

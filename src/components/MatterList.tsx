@@ -2,9 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { TASK_TEMPLATES } from "@/lib/taskTemplates";
 import type { Client, Matter } from "@/lib/types";
 import type { ConflictMatch } from "@/lib/matters";
 import MatterCard from "./MatterCard";
+
+const MATTER_TYPE_SUGGESTIONS = Object.keys(TASK_TEMPLATES);
 
 type StatusFilter = "all" | "open" | "closed" | "archived";
 type SortOrder = "newest" | "oldest" | "title";
@@ -129,11 +132,17 @@ export default function MatterList({ matters, clients }: { matters: Matter[]; cl
           />
           <input
             required
+            list="matter-type-suggestions"
             placeholder="Matter type"
             value={matterType}
             onChange={(e) => setMatterType(e.target.value)}
             className="surface-input"
           />
+          <datalist id="matter-type-suggestions">
+            {MATTER_TYPE_SUGGESTIONS.map((type) => (
+              <option key={type} value={type} />
+            ))}
+          </datalist>
           <input
             type="number"
             step="0.01"
@@ -144,6 +153,11 @@ export default function MatterList({ matters, clients }: { matters: Matter[]; cl
             className="surface-input"
           />
         </div>
+        <p className="text-xs text-muted">
+          Picking a matter type from the suggestions (e.g. Family, Personal Injury, Real Estate)
+          seeds a starter task checklist automatically — any other text works too, just without
+          the checklist.
+        </p>
         {conflictsChecked && conflicts.length > 0 && (
           <div className="surface-row border-amber-500/40 bg-amber-500/10 text-sm">
             <p className="font-medium">

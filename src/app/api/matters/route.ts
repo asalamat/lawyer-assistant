@@ -12,6 +12,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const user = await getCurrentUser();
   const body = await request.json();
   const { title, clientName, clientEmail, matterType, hourlyRate } = body ?? {};
 
@@ -32,6 +33,13 @@ export async function POST(request: Request) {
     }
   }
 
-  const matter = await createMatter({ title, clientName, clientEmail, matterType, hourlyRate: parsedRate });
+  const matter = await createMatter({
+    title,
+    clientName,
+    clientEmail,
+    matterType,
+    hourlyRate: parsedRate,
+    createdByUserId: user?.id ?? null,
+  });
   return NextResponse.json(matter, { status: 201 });
 }
