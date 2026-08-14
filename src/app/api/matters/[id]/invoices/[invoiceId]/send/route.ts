@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { listInvoiceDisbursements } from "@/lib/disbursements";
 import { sendEmail } from "@/lib/email";
 import { getSmtpConfig } from "@/lib/settings";
 import { getInvoice, getMatter, listInvoiceEntries, recordInvoiceSent } from "@/lib/matters";
@@ -36,15 +37,18 @@ export async function POST(
     );
   }
 
-  const entries = await listInvoiceEntries(invoiceId);
+  const [entries, disbursements] = await Promise.all([
+    listInvoiceEntries(invoiceId),
+    listInvoiceDisbursements(invoiceId),
+  ]);
   const subject = `Invoice ${invoice.invoiceNumber} — ${matter.title}`;
 
   try {
     await sendEmail({
       to,
       subject,
-      text: renderInvoiceText(invoice, matter, entries, smtp.fromName),
-      html: renderInvoiceHtml(invoice, matter, entries, smtp.fromName),
+      text: renderInvoiceText(invoice, matter, entries, smtp.fromName, disbursements),
+      html: renderInvoiceHtml(invoice, matter, entries, smtp.fromName, disbursements),
     });
     await recordInvoiceSent(id, invoice.invoiceNumber, to);
     return NextResponse.json({ ok: true, to });

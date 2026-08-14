@@ -16,10 +16,13 @@ export async function POST(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { entryIds, hourlyRate, discount } = body ?? {};
+  const { entryIds, disbursementIds, hourlyRate, discount } = body ?? {};
 
   if (!Array.isArray(entryIds) || entryIds.some((e) => typeof e !== "string") || entryIds.length === 0) {
     return NextResponse.json({ error: "entryIds must be a non-empty array of strings" }, { status: 400 });
+  }
+  if (disbursementIds !== undefined && (!Array.isArray(disbursementIds) || disbursementIds.some((d) => typeof d !== "string"))) {
+    return NextResponse.json({ error: "disbursementIds must be an array of strings" }, { status: 400 });
   }
   const parsedRate = Number(hourlyRate);
   if (!Number.isFinite(parsedRate) || parsedRate <= 0) {
@@ -33,6 +36,7 @@ export async function POST(
   try {
     const invoice = await createInvoice(id, {
       entryIds,
+      disbursementIds,
       hourlyRate: parsedRate,
       discount: parsedDiscount,
     });

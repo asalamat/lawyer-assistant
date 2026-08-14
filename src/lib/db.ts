@@ -238,6 +238,26 @@ execWithRetry(`
     FOREIGN KEY (matterId) REFERENCES matters(id)
   );
 
+  -- Hard costs (filing fees, expert witnesses, courier, etc.) billed to a
+  -- matter — a separate concept from time_entries (labour, not cost) but
+  -- following the same invoiced-once-then-locked lifecycle: invoiceId is
+  -- NULL until included on an invoice, then permanent.
+  CREATE TABLE IF NOT EXISTS disbursements (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    incurredOn TEXT NOT NULL,
+    category TEXT NOT NULL,
+    description TEXT NOT NULL,
+    amount REAL NOT NULL,
+    receiptDocumentId TEXT,
+    invoiceId TEXT,
+    userId TEXT,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (matterId) REFERENCES matters(id),
+    FOREIGN KEY (receiptDocumentId) REFERENCES documents(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_disbursements_matterId ON disbursements(matterId);
+
   -- Trust (IOLTA-style) accounting. Matter and account balances are never
   -- stored denormalized — always SUM'd from trust_transactions in the lib
   -- layer, so a balance can't drift out of sync with its own ledger.
@@ -1074,6 +1094,7 @@ ensureColumn("signable_documents", "docusignEnvelopeId", "TEXT");
 // matters.ts) — reuses the existing e-signature mechanism rather than a
 // separate invoice-specific approval flow.
 ensureColumn("invoices", "signableDocumentId", "TEXT");
+ensureColumn("invoices", "disbursementsTotal", "REAL NOT NULL DEFAULT 0");
 
 // Backs the idle-timeout check in auth.ts/clientAuth.ts — separate from
 // expiresAt (a fixed absolute deadline set at login) because idle timeout

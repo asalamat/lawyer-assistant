@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { formatDateOnly } from "@/lib/formatDate";
 import type { SignableDocument, SignableDocumentStatus } from "@/lib/signableDocuments";
-import type { Invoice, TimeEntry } from "@/lib/types";
+import type { Disbursement, Invoice, TimeEntry } from "@/lib/types";
 
 const APPROVAL_STATUS_LABELS: Record<SignableDocumentStatus, string> = {
   draft: "Approval prepared",
@@ -22,7 +22,7 @@ function formatCurrency(amount: number): string {
   return `$${amount.toFixed(2)}`;
 }
 
-function invoiceEmailBody(invoice: Invoice, entries: TimeEntry[]): string {
+function invoiceEmailBody(invoice: Invoice, entries: TimeEntry[], disbursements: Disbursement[]): string {
   const lines = [
     `Invoice ${invoice.invoiceNumber}`,
     `Date: ${formatDateOnly(invoice.createdAt.slice(0, 10))}`,
@@ -34,6 +34,16 @@ function invoiceEmailBody(invoice: Invoice, entries: TimeEntry[]): string {
     `Hours: ${invoice.hours.toFixed(1)} @ ${formatCurrency(invoice.hourlyRate)}/hr`,
     `Subtotal: ${formatCurrency(invoice.subtotal)}`,
   ];
+  if (disbursements.length > 0) {
+    lines.push(
+      "",
+      "Disbursements:",
+      ...disbursements.map(
+        (d) => `${formatDateOnly(d.incurredOn)} — ${d.category}: ${d.description} — ${formatCurrency(d.amount)}`,
+      ),
+      `Disbursements total: ${formatCurrency(invoice.disbursementsTotal)}`,
+    );
+  }
   if (invoice.discount > 0) lines.push(`Discount: -${formatCurrency(invoice.discount)}`);
   lines.push(`Total due: ${formatCurrency(invoice.total)}`);
   return lines.join("\n");
@@ -42,6 +52,7 @@ function invoiceEmailBody(invoice: Invoice, entries: TimeEntry[]): string {
 export default function TimesheetPanel({
   matterId,
   initialEntries,
+  initialDisbursements,
   initialInvoices,
   clientEmail,
   emailConfigured,
@@ -50,6 +61,7 @@ export default function TimesheetPanel({
 }: {
   matterId: string;
   initialEntries: TimeEntry[];
+  initialDisbursements: Disbursement[];
   initialInvoices: Invoice[];
   clientEmail: string | null;
   emailConfigured: boolean;
@@ -57,6 +69,7 @@ export default function TimesheetPanel({
   initialSignableDocuments: SignableDocument[];
 }) {
   const [entries, setEntries] = useState(initialEntries);
+  const [disbursements, setDisbursements] = useState(initialDisbursements);
   const [invoices, setInvoices] = useState(initialInvoices);
   const [approvalStatuses, setApprovalStatuses] = useState<Record<string, SignableDocumentStatus>>(() =>
     Object.fromEntries(initialSignableDocuments.map((d) => [d.id, d.status])),
@@ -78,6 +91,15 @@ export default function TimesheetPanel({
   const [error, setError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  const [incurredOn, setIncurredOn] = useState(today());
+  const [category, setCategory] = useState("");
+  const [disbursementDescription, setDisbursementDescription] = useState("");
+  const [amount, setAmount] = useState("");
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [submittingDisbursement, setSubmittingDisbursement] = useState(false);
+  const [disbursementError, setDisbursementError] = useState<string | null>(null);
+  const [disbursementDeleteError, setDisbursementDeleteError] = useState<string | null>(null);
+
   const [matterRate, setMatterRate] = useState(initialHourlyRate);
   const [editingRate, setEditingRate] = useState(false);
   const [rateInput, setRateInput] = useState(String(initialHourlyRate ?? ""));
@@ -85,6 +107,7 @@ export default function TimesheetPanel({
   const [rateError, setRateError] = useState<string | null>(null);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedDisbursementIds, setSelectedDisbursementIds] = useState<Set<string>>(new Set());
   const [hourlyRate, setHourlyRate] = useState(initialHourlyRate != null ? String(initialHourlyRate) : "");
   const [discount, setDiscount] = useState("0");
   const [invoicing, setInvoicing] = useState(false);
@@ -92,10 +115,13 @@ export default function TimesheetPanel({
 
   const totalHours = entries.reduce((sum, entry) => sum + entry.hours, 0);
   const unbilled = entries.filter((e) => !e.invoiceId);
+  const unbilledDisbursements = disbursements.filter((d) => !d.invoiceId);
   const selectedEntries = unbilled.filter((e) => selectedIds.has(e.id));
   const selectedHours = selectedEntries.reduce((sum, e) => sum + e.hours, 0);
+  const selectedDisbursements = unbilledDisbursements.filter((d) => selectedDisbursementIds.has(d.id));
+  const selectedDisbursementsTotal = selectedDisbursements.reduce((sum, d) => sum + d.amount, 0);
   const previewSubtotal = selectedHours * (Number(hourlyRate) || 0);
-  const previewTotal = Math.max(0, previewSubtotal - (Number(discount) || 0));
+  const previewTotal = Math.max(0, previewSubtotal + selectedDisbursementsTotal - (Number(discount) || 0));
 
   function toggleSelected(id: string) {
     setSelectedIds((prev) => {
@@ -108,6 +134,21 @@ export default function TimesheetPanel({
 
   function toggleSelectAll() {
     setSelectedIds((prev) => (prev.size === unbilled.length ? new Set() : new Set(unbilled.map((e) => e.id))));
+  }
+
+  function toggleSelectedDisbursement(id: string) {
+    setSelectedDisbursementIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAllDisbursements() {
+    setSelectedDisbursementIds((prev) =>
+      prev.size === unbilledDisbursements.length ? new Set() : new Set(unbilledDisbursements.map((d) => d.id)),
+    );
   }
 
   async function handleAdd(e: React.FormEvent) {
@@ -150,6 +191,57 @@ export default function TimesheetPanel({
     setSelectedIds((prev) => {
       const next = new Set(prev);
       next.delete(entryId);
+      return next;
+    });
+  }
+
+  async function handleAddDisbursement(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmittingDisbursement(true);
+    setDisbursementError(null);
+    try {
+      const formData = new FormData();
+      formData.append("incurredOn", incurredOn);
+      formData.append("category", category);
+      formData.append("description", disbursementDescription);
+      formData.append("amount", amount);
+      if (receiptFile) formData.append("receipt", receiptFile);
+      const res = await fetch(`/api/matters/${matterId}/disbursements`, {
+        method: "POST",
+        body: formData,
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Failed to log disbursement");
+      setDisbursements((prev) =>
+        [body, ...prev].sort(
+          (a, b) => b.incurredOn.localeCompare(a.incurredOn) || b.createdAt.localeCompare(a.createdAt),
+        ),
+      );
+      setCategory("");
+      setDisbursementDescription("");
+      setAmount("");
+      setReceiptFile(null);
+    } catch (err) {
+      setDisbursementError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setSubmittingDisbursement(false);
+    }
+  }
+
+  async function handleDeleteDisbursement(disbursementId: string) {
+    setDisbursementDeleteError(null);
+    const res = await fetch(`/api/matters/${matterId}/disbursements/${disbursementId}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setDisbursementDeleteError(body.error ?? "Failed to delete disbursement");
+      return;
+    }
+    setDisbursements((prev) => prev.filter((d) => d.id !== disbursementId));
+    setSelectedDisbursementIds((prev) => {
+      const next = new Set(prev);
+      next.delete(disbursementId);
       return next;
     });
   }
@@ -197,6 +289,7 @@ export default function TimesheetPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           entryIds: [...selectedIds],
+          disbursementIds: [...selectedDisbursementIds],
           hourlyRate: Number(hourlyRate),
           discount: Number(discount) || 0,
         }),
@@ -207,7 +300,11 @@ export default function TimesheetPanel({
       setEntries((prev) =>
         prev.map((entry) => (selectedIds.has(entry.id) ? { ...entry, invoiceId: body.id } : entry)),
       );
+      setDisbursements((prev) =>
+        prev.map((d) => (selectedDisbursementIds.has(d.id) ? { ...d, invoiceId: body.id } : d)),
+      );
       setSelectedIds(new Set());
+      setSelectedDisbursementIds(new Set());
       setDiscount("0");
     } catch (err) {
       setInvoiceError(err instanceof Error ? err.message : "Something went wrong");
@@ -230,8 +327,9 @@ export default function TimesheetPanel({
 
   function sendViaMailto(invoice: Invoice) {
     const invoiceEntries = entries.filter((e) => e.invoiceId === invoice.id);
+    const invoiceDisbursements = disbursements.filter((d) => d.invoiceId === invoice.id);
     const subject = encodeURIComponent(`Invoice ${invoice.invoiceNumber}`);
-    const body = encodeURIComponent(invoiceEmailBody(invoice, invoiceEntries));
+    const body = encodeURIComponent(invoiceEmailBody(invoice, invoiceEntries, invoiceDisbursements));
     const to = clientEmail ? encodeURIComponent(clientEmail) : "";
     window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
   }
@@ -430,6 +528,102 @@ export default function TimesheetPanel({
       </div>
 
       <div className="surface-card flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg">Disbursements</h2>
+          <span className="badge-accent">
+            {formatCurrency(disbursements.reduce((sum, d) => sum + d.amount, 0))} total
+          </span>
+        </div>
+        <p className="text-sm text-muted">
+          Hard costs billed to this matter — filing fees, expert witnesses, courier, etc. — kept
+          separate from time entries.
+        </p>
+
+        <form onSubmit={handleAddDisbursement} className="grid gap-2 sm:grid-cols-2">
+          <input
+            required
+            type="date"
+            value={incurredOn}
+            onChange={(e) => setIncurredOn(e.target.value)}
+            className="surface-input"
+          />
+          <input
+            required
+            placeholder="Category (e.g. Filing fee)"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="surface-input"
+          />
+          <input
+            required
+            placeholder="Description"
+            value={disbursementDescription}
+            onChange={(e) => setDisbursementDescription(e.target.value)}
+            className="surface-input sm:col-span-2"
+          />
+          <input
+            required
+            type="number"
+            step="0.01"
+            min="0.01"
+            placeholder="Amount ($)"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="surface-input"
+          />
+          <label className="surface-input flex items-center gap-2 text-sm text-muted">
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)}
+              className="text-xs"
+            />
+          </label>
+          <button type="submit" disabled={submittingDisbursement} className="btn-primary sm:col-span-2">
+            {submittingDisbursement ? "Logging…" : "Log disbursement"}
+          </button>
+        </form>
+        {disbursementError && <p className="text-sm text-red-600">{disbursementError}</p>}
+        {disbursementDeleteError && <p className="text-sm text-red-600">{disbursementDeleteError}</p>}
+
+        {disbursements.length === 0 ? (
+          <p className="text-sm text-muted">No disbursements logged yet.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {disbursements.map((d) => (
+              <li key={d.id} className="surface-row flex items-center justify-between text-sm">
+                <div>
+                  <p>
+                    {d.category}: {d.description}
+                  </p>
+                  <p className="text-xs text-muted">
+                    {formatDateOnly(d.incurredOn)}
+                    {d.receiptDocumentId && " · receipt attached"}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="font-medium text-accent">{formatCurrency(d.amount)}</span>
+                  {d.invoiceId ? (
+                    <span className="badge">
+                      {invoices.find((inv) => inv.id === d.invoiceId)?.invoiceNumber ?? "Invoiced"}
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleDeleteDisbursement(d.id)}
+                      className="text-xs text-muted hover:text-red-600"
+                      aria-label="Delete disbursement"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="surface-card flex flex-col gap-3">
         <h2 className="font-display text-lg">Create invoice</h2>
         {unbilled.length === 0 ? (
           <p className="text-sm text-muted">No unbilled time entries.</p>
@@ -466,6 +660,44 @@ export default function TimesheetPanel({
                 </li>
               ))}
             </ul>
+
+            {unbilledDisbursements.length > 0 && (
+              <>
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selectedDisbursementIds.size === unbilledDisbursements.length}
+                      onChange={toggleSelectAllDisbursements}
+                    />
+                    Include unbilled disbursements ({unbilledDisbursements.length})
+                  </label>
+                  <span className="text-sm text-muted">
+                    {selectedDisbursements.length} selected &middot; {formatCurrency(selectedDisbursementsTotal)}
+                  </span>
+                </div>
+                <ul className="flex flex-col gap-1">
+                  {unbilledDisbursements.map((d) => (
+                    <li key={d.id} className="surface-row flex items-center justify-between text-sm">
+                      <label className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedDisbursementIds.has(d.id)}
+                          onChange={() => toggleSelectedDisbursement(d.id)}
+                        />
+                        <div>
+                          <p>
+                            {d.category}: {d.description}
+                          </p>
+                          <p className="text-xs text-muted">{formatDateOnly(d.incurredOn)}</p>
+                        </div>
+                      </label>
+                      <span className="font-medium text-accent">{formatCurrency(d.amount)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
             <div className="grid gap-2 sm:grid-cols-3">
               <input
                 type="number"
@@ -508,6 +740,8 @@ export default function TimesheetPanel({
                     <p className="text-xs text-muted">
                       {formatDateOnly(invoice.createdAt.slice(0, 10))} &middot; {invoice.hours.toFixed(1)}h @{" "}
                       {formatCurrency(invoice.hourlyRate)}/hr
+                      {invoice.disbursementsTotal > 0 &&
+                        ` · ${formatCurrency(invoice.disbursementsTotal)} disbursements`}
                       {invoice.discount > 0 && ` · ${formatCurrency(invoice.discount)} discount`}
                     </p>
                   </div>

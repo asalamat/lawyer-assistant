@@ -568,6 +568,24 @@ export interface Invoice {
   // Set once a client approval has been requested — see requestInvoiceApproval
   // in matters.ts and signableDocuments.ts for what this points at.
   signableDocumentId: string | null;
+  // Sum of any disbursements included at invoice-creation time — kept
+  // separate from `subtotal` (which stays strictly hours * hourlyRate, same
+  // meaning it always had) rather than folded in, so existing callers that
+  // only care about billable time aren't silently changed.
+  disbursementsTotal: number;
+}
+
+export interface Disbursement {
+  id: string;
+  matterId: string;
+  incurredOn: string;
+  category: string;
+  description: string;
+  amount: number;
+  receiptDocumentId: string | null;
+  invoiceId: string | null;
+  userId: string | null;
+  createdAt: string;
 }
 
 export const EMAIL_PROVIDERS = ["google", "microsoft", "yahoo"] as const;

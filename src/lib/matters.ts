@@ -37,6 +37,7 @@ import {
 import { renderPdfPageToPng } from "./pdfPageRender";
 import type {
   ChatMessage,
+  Disbursement,
   Document,
   Draft,
   DraftType,
@@ -337,6 +338,9 @@ export async function deleteMatter(matterId: string): Promise<boolean> {
     "DELETE FROM message_feedback WHERE chatMessageId IN (SELECT id FROM chat_messages WHERE matterId = ?)",
   ).run(matterId);
   db.prepare("DELETE FROM chat_messages WHERE matterId = ?").run(matterId);
+  // Must run before documents: a disbursement's receiptDocumentId FK would
+  // otherwise still point at a row the next line is about to delete.
+  db.prepare("DELETE FROM disbursements WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM documents WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM matter_digests WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM matter_deadlines WHERE matterId = ?").run(matterId);
@@ -1316,7 +1320,7 @@ export async function listInvoiceEntries(invoiceId: string): Promise<TimeEntry[]
 
 export async function createInvoice(
   matterId: string,
-  input: { entryIds: string[]; hourlyRate: number; discount: number },
+  input: { entryIds: string[]; disbursementIds?: string[]; hourlyRate: number; discount: number },
 ): Promise<Invoice> {
   if (input.entryIds.length === 0) {
     throw new Error("Select at least one time entry to invoice.");
@@ -1333,9 +1337,24 @@ export async function createInvoice(
     throw new Error("Some selected time entries are invalid or already invoiced.");
   }
 
+  const disbursementIds = input.disbursementIds ?? [];
+  let disbursements: Disbursement[] = [];
+  if (disbursementIds.length > 0) {
+    const dPlaceholders = disbursementIds.map(() => "?").join(",");
+    disbursements = db
+      .prepare(
+        `SELECT * FROM disbursements WHERE matterId = ? AND invoiceId IS NULL AND id IN (${dPlaceholders})`,
+      )
+      .all(matterId, ...disbursementIds) as unknown as Disbursement[];
+    if (disbursements.length !== disbursementIds.length) {
+      throw new Error("Some selected disbursements are invalid or already invoiced.");
+    }
+  }
+
   const hours = entries.reduce((sum, entry) => sum + entry.hours, 0);
   const subtotal = hours * input.hourlyRate;
-  const total = Math.max(0, subtotal - input.discount);
+  const disbursementsTotal = disbursements.reduce((sum, d) => sum + d.amount, 0);
+  const total = Math.max(0, subtotal + disbursementsTotal - input.discount);
   const createdAt = new Date().toISOString();
 
   const invoice: Invoice = {
@@ -1351,11 +1370,12 @@ export async function createInvoice(
     paidAt: null,
     createdAt,
     signableDocumentId: null,
+    disbursementsTotal,
   };
 
   db.prepare(
-    `INSERT INTO invoices (id, matterId, invoiceNumber, hourlyRate, hours, subtotal, discount, total, status, paidAt, createdAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO invoices (id, matterId, invoiceNumber, hourlyRate, hours, subtotal, discount, total, status, paidAt, createdAt, disbursementsTotal)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     invoice.id,
     invoice.matterId,
@@ -1368,17 +1388,24 @@ export async function createInvoice(
     invoice.status,
     invoice.paidAt,
     invoice.createdAt,
+    invoice.disbursementsTotal,
   );
 
   const markBilled = db.prepare("UPDATE time_entries SET invoiceId = ? WHERE id = ?");
   for (const entryId of input.entryIds) {
     markBilled.run(invoice.id, entryId);
   }
+  const markDisbursementsBilled = db.prepare("UPDATE disbursements SET invoiceId = ? WHERE id = ?");
+  for (const disbursementId of disbursementIds) {
+    markDisbursementsBilled.run(invoice.id, disbursementId);
+  }
 
   await recordAuditEvent(
     "invoice_created",
     matterId,
-    `Created invoice ${invoice.invoiceNumber} for ${hours.toFixed(1)}h ($${total.toFixed(2)})`,
+    `Created invoice ${invoice.invoiceNumber} for ${hours.toFixed(1)}h${
+      disbursementsTotal > 0 ? ` + $${disbursementsTotal.toFixed(2)} disbursements` : ""
+    } ($${total.toFixed(2)})`,
   );
 
   return invoice;

@@ -1,3 +1,4 @@
+import { listDisbursements } from "@/lib/disbursements";
 import { getMatter, listInvoices, listTimeEntries } from "@/lib/matters";
 import { isEmailConfigured } from "@/lib/email";
 import { listSignableDocuments } from "@/lib/signableDocuments";
@@ -9,9 +10,10 @@ export default async function MatterTimesheetPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [matter, timeEntries, invoices, emailConfigured, signableDocuments] = await Promise.all([
+  const [matter, timeEntries, disbursements, invoices, emailConfigured, signableDocuments] = await Promise.all([
     getMatter(id),
     listTimeEntries(id),
+    listDisbursements(id),
     listInvoices(id),
     isEmailConfigured(),
     listSignableDocuments(id),
@@ -21,6 +23,7 @@ export default async function MatterTimesheetPage({
     <TimesheetPanel
       matterId={id}
       initialEntries={timeEntries}
+      initialDisbursements={disbursements}
       initialInvoices={invoices}
       clientEmail={matter?.clientEmail ?? null}
       emailConfigured={emailConfigured}
