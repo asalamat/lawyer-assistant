@@ -142,7 +142,8 @@ function isAdminOnlyApi(pathname: string): boolean {
     pathname === "/api/settings/location" ||
     pathname === "/api/settings/translation" ||
     pathname.startsWith("/api/settings/document-templates") ||
-    pathname.startsWith("/api/settings/clause-library")
+    pathname.startsWith("/api/settings/clause-library") ||
+    pathname.startsWith("/api/settings/disbursement-categories")
   ) {
     return false;
   }

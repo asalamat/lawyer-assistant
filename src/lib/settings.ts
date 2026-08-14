@@ -219,6 +219,7 @@ interface Settings {
   changeBackup?: StoredChangeBackup;
   vapidPublicKey?: string;
   vapidPrivateKey?: string;
+  disbursementCategories?: string[];
 }
 
 export const DEFAULT_TRANSLATION_LANGUAGE = "French";
@@ -967,4 +968,45 @@ export async function setVapidKeys(keys: { publicKey: string; privateKey: string
   settings.vapidPublicKey = keys.publicKey;
   settings.vapidPrivateKey = await encryptText(keys.privateKey);
   await writeSettings(settings);
+}
+
+// A sensible starting list covering the most common hard costs a Canadian
+// litigation/general practice bills to a matter — firm-wide (not per-matter,
+// not per-matterType), editable via addDisbursementCategory below. "Other"
+// always stays last so it reads as the deliberate catch-all it is.
+const DEFAULT_DISBURSEMENT_CATEGORIES = [
+  "Filing fee",
+  "Court fee",
+  "Process server",
+  "Expert witness",
+  "Transcript",
+  "Registry/title search",
+  "Courier/postage",
+  "Photocopying/printing",
+  "Translation/interpreter",
+  "Travel",
+  "Other",
+];
+
+export async function getDisbursementCategories(): Promise<string[]> {
+  const settings = await readSettings();
+  return settings.disbursementCategories?.length ? settings.disbursementCategories : DEFAULT_DISBURSEMENT_CATEGORIES;
+}
+
+export async function addDisbursementCategory(category: string): Promise<string[]> {
+  const trimmed = category.trim();
+  if (!trimmed) throw new Error("Category name is required.");
+  const settings = await readSettings();
+  const current = settings.disbursementCategories?.length ? settings.disbursementCategories : DEFAULT_DISBURSEMENT_CATEGORIES;
+  if (current.some((c) => c.toLowerCase() === trimmed.toLowerCase())) return current;
+  // New categories go in just before "Other" (if present) so the catch-all
+  // stays last rather than getting pushed around as the list grows.
+  const otherIndex = current.findIndex((c) => c.toLowerCase() === "other");
+  const next =
+    otherIndex === -1
+      ? [...current, trimmed]
+      : [...current.slice(0, otherIndex), trimmed, ...current.slice(otherIndex)];
+  settings.disbursementCategories = next;
+  await writeSettings(settings);
+  return next;
 }

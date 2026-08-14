@@ -53,6 +53,7 @@ export default function TimesheetPanel({
   matterId,
   initialEntries,
   initialDisbursements,
+  initialDisbursementCategories,
   initialInvoices,
   clientEmail,
   emailConfigured,
@@ -62,6 +63,7 @@ export default function TimesheetPanel({
   matterId: string;
   initialEntries: TimeEntry[];
   initialDisbursements: Disbursement[];
+  initialDisbursementCategories: string[];
   initialInvoices: Invoice[];
   clientEmail: string | null;
   emailConfigured: boolean;
@@ -70,6 +72,7 @@ export default function TimesheetPanel({
 }) {
   const [entries, setEntries] = useState(initialEntries);
   const [disbursements, setDisbursements] = useState(initialDisbursements);
+  const [disbursementCategories, setDisbursementCategories] = useState(initialDisbursementCategories);
   const [invoices, setInvoices] = useState(initialInvoices);
   const [approvalStatuses, setApprovalStatuses] = useState<Record<string, SignableDocumentStatus>>(() =>
     Object.fromEntries(initialSignableDocuments.map((d) => [d.id, d.status])),
@@ -92,7 +95,11 @@ export default function TimesheetPanel({
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [incurredOn, setIncurredOn] = useState(today());
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState(initialDisbursementCategories[0] ?? "");
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [savingCategory, setSavingCategory] = useState(false);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
   const [disbursementDescription, setDisbursementDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
@@ -116,6 +123,13 @@ export default function TimesheetPanel({
   const totalHours = entries.reduce((sum, entry) => sum + entry.hours, 0);
   const unbilled = entries.filter((e) => !e.invoiceId);
   const unbilledDisbursements = disbursements.filter((d) => !d.invoiceId);
+  const disbursementTotal = disbursements.reduce((sum, d) => sum + d.amount, 0);
+  const disbursementTotalsByCategory = Object.entries(
+    disbursements.reduce<Record<string, number>>((acc, d) => {
+      acc[d.category] = (acc[d.category] ?? 0) + d.amount;
+      return acc;
+    }, {}),
+  ).sort((a, b) => b[1] - a[1]);
   const selectedEntries = unbilled.filter((e) => selectedIds.has(e.id));
   const selectedHours = selectedEntries.reduce((sum, e) => sum + e.hours, 0);
   const selectedDisbursements = unbilledDisbursements.filter((d) => selectedDisbursementIds.has(d.id));
@@ -244,6 +258,33 @@ export default function TimesheetPanel({
       next.delete(disbursementId);
       return next;
     });
+  }
+
+  async function handleAddCategory() {
+    const trimmed = newCategoryName.trim();
+    if (!trimmed) {
+      setCategoryError("Enter a category name.");
+      return;
+    }
+    setSavingCategory(true);
+    setCategoryError(null);
+    try {
+      const res = await fetch("/api/settings/disbursement-categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: trimmed }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Failed to add category");
+      setDisbursementCategories(body.categories);
+      setCategory(trimmed);
+      setAddingCategory(false);
+      setNewCategoryName("");
+    } catch (err) {
+      setCategoryError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setSavingCategory(false);
+    }
   }
 
   async function handleSaveRate() {
@@ -530,14 +571,22 @@ export default function TimesheetPanel({
       <div className="surface-card flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg">Disbursements</h2>
-          <span className="badge-accent">
-            {formatCurrency(disbursements.reduce((sum, d) => sum + d.amount, 0))} total
-          </span>
+          <span className="badge-accent">{formatCurrency(disbursementTotal)} total</span>
         </div>
         <p className="text-sm text-muted">
           Hard costs billed to this matter — filing fees, expert witnesses, courier, etc. — kept
           separate from time entries.
         </p>
+
+        {disbursementTotalsByCategory.length > 0 && (
+          <div className="flex flex-wrap gap-2 text-xs">
+            {disbursementTotalsByCategory.map(([cat, total]) => (
+              <span key={cat} className="badge">
+                {cat}: {formatCurrency(total)}
+              </span>
+            ))}
+          </div>
+        )}
 
         <form onSubmit={handleAddDisbursement} className="grid gap-2 sm:grid-cols-2">
           <input
@@ -547,13 +596,56 @@ export default function TimesheetPanel({
             onChange={(e) => setIncurredOn(e.target.value)}
             className="surface-input"
           />
-          <input
-            required
-            placeholder="Category (e.g. Filing fee)"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="surface-input"
-          />
+          {addingCategory ? (
+            <div className="flex items-center gap-2">
+              <input
+                autoFocus
+                placeholder="New category name"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                className="surface-input flex-1"
+              />
+              <button
+                type="button"
+                onClick={handleAddCategory}
+                disabled={savingCategory}
+                className="btn-secondary px-2 py-1.5 text-xs"
+              >
+                {savingCategory ? "Saving…" : "Save"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAddingCategory(false);
+                  setNewCategoryName("");
+                  setCategoryError(null);
+                }}
+                className="text-xs text-muted hover:underline"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <select
+              required
+              value={category}
+              onChange={(e) => {
+                if (e.target.value === "__add_new__") {
+                  setAddingCategory(true);
+                } else {
+                  setCategory(e.target.value);
+                }
+              }}
+              className="surface-input"
+            >
+              {disbursementCategories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+              <option value="__add_new__">+ Add new category…</option>
+            </select>
+          )}
           <input
             required
             placeholder="Description"
@@ -583,6 +675,7 @@ export default function TimesheetPanel({
             {submittingDisbursement ? "Logging…" : "Log disbursement"}
           </button>
         </form>
+        {categoryError && <p className="text-sm text-red-600">{categoryError}</p>}
         {disbursementError && <p className="text-sm text-red-600">{disbursementError}</p>}
         {disbursementDeleteError && <p className="text-sm text-red-600">{disbursementDeleteError}</p>}
 
