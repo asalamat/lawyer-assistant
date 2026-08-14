@@ -21,8 +21,28 @@ export default function WitnessPrepPanel({
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(analyses[0]?.id ?? null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const nameToUse = witnessName === "__custom__" ? customName.trim() : witnessName;
+
+  async function handleDelete(id: string) {
+    if (!confirm("Delete this witness prep entry? This cannot be undone.")) return;
+    setDeletingId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/matters/${matterId}/witness-prep/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? "Failed to delete");
+      }
+      setAnalyses((prev) => prev.filter((a) => a.id !== id));
+      setExpandedId((prev) => (prev === id ? null : prev));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   async function handleGenerate() {
     if (!nameToUse) return;
@@ -96,12 +116,21 @@ export default function WitnessPrepPanel({
                   <span className="font-medium">{a.witnessName}</span>
                   <span className="ml-2 text-xs text-muted">{new Date(a.createdAt).toLocaleString()}</span>
                 </div>
-                <button
-                  onClick={() => setExpandedId((prev) => (prev === a.id ? null : a.id))}
-                  className="text-xs text-accent hover:underline"
-                >
-                  {expandedId === a.id ? "Hide" : "Show"}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setExpandedId((prev) => (prev === a.id ? null : a.id))}
+                    className="text-xs text-accent hover:underline"
+                  >
+                    {expandedId === a.id ? "Hide" : "Show"}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(a.id)}
+                    disabled={deletingId === a.id}
+                    className="text-xs text-red-600 hover:underline"
+                  >
+                    {deletingId === a.id ? "Deleting…" : "Delete"}
+                  </button>
+                </div>
               </div>
               {expandedId === a.id && (
                 <div className="flex flex-col gap-2 border-t border-border pt-2">

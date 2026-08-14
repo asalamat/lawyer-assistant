@@ -1341,6 +1341,15 @@ export async function addWitnessPrepAnalysis(
   return doc;
 }
 
+export async function deleteWitnessPrepAnalysis(matterId: string, id: string): Promise<boolean> {
+  const row = db.prepare("SELECT * FROM witness_prep_analyses WHERE id = ? AND matterId = ?").get(id, matterId);
+  if (!row) return false;
+  const doc = toPlain<WitnessPrepAnalysis>(row);
+  db.prepare("DELETE FROM witness_prep_analyses WHERE id = ?").run(id);
+  await recordAuditEvent("witness_prep_deleted", matterId, `Deleted examination prep for witness: ${doc.witnessName}`);
+  return true;
+}
+
 export async function listRedlineAnalyses(matterId: string): Promise<SimpleGeneratedDoc[]> {
   return listSimpleGeneratedDocs("redline_analyses", matterId);
 }
