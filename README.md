@@ -34,11 +34,13 @@ licensing: add as many lawyers and staff as your office needs.
 - 🧾 Matter digests, evidence-mapping matrices, contradiction detection
 - 📋 Exhibit lists, disclosure-completeness checklists, Crown-position analysis, privilege review
 - 🛡️ Defence strategy memos, missing-evidence rollup report
-- ⏰ Deadline extraction (AI) + rules-based deadline calculator
+- ⏰ Deadline extraction (AI) + rules-based deadline calculator + 🆕 auto-seeded limitation-period deadline by matter type
 - ✍️ First-draft memos/letters/correspondence, smart email drafting
 - 🔍 Self-checking drafting agent (verifies its own citations)
 - 📜 Contract clause library + AI redlining
-- ⚖️ Case-citation checking against CanLII
+- ⚖️ Case-citation checking against CanLII, 🆕 with a "possible appeal" flag on citing cases sharing a party name
+- 🆕 Witness/examination prep — statements, inconsistencies, and suggested direct/cross-examination questions for a named witness
+- 🆕 Disclosure package builder — per-passage redaction checklist and per-document disclosure readiness
 - 🧠 Independent second-model review (choose from 6 providers, own fallback sequence) for blind spots, with a warning if it overlaps your primary provider
 - 🎙️ Voice dictation on every free-text field
 - 🌍 Translation of any AI output + clean PDF export
@@ -55,11 +57,11 @@ licensing: add as many lawyers and staff as your office needs.
 
 **💼 Practice Management**
 - ⏱️ Timesheets, invoicing, SMTP email sending with attachments
-- 💰 Trust accounting (compliance-first ledger, bank reconciliation)
+- 💰 Trust accounting (compliance-first ledger, bank reconciliation) + 🆕 low-balance alerts
 - ✔️ Task/to-do management per matter
 - 🧩 Document assembly templates + DOCX export
 - ✒️ E-signature requests and signing flow
-- 📊 Firm analytics dashboard (WIP, billed vs. collected, hours/attorney)
+- 📊 Firm analytics dashboard (WIP, billed vs. collected, hours/attorney, 🆕 AR aging, 🆕 matter profitability)
 - 🔎 Saved searches/reports, global search
 
 **📬 Communications**
@@ -142,7 +144,26 @@ document independently double-checked for citations that don't match a
 real document in the matter, flagged in the UI rather than trusted blindly.
 An independent second AI model (Google Gemini) can review any digest,
 evidence matrix, or chat answer for blind spots. Voice dictation on every
-free-text field, for anyone who'd rather speak than type. Any AI-generated
+free-text field, for anyone who'd rather speak than type.
+
+**Case-citation health check, limitation periods, witness prep, and a
+disclosure-package builder** — case citations already looked up on CanLII
+now also flag a citing case sharing a distinctive party name with the
+original as a possible appeal worth checking (CanLII's API has no actual
+treatment/outcome history, so this is an honest party-name-overlap
+heuristic, not a legal-status claim). Opening a matter with a recognized
+matter type auto-seeds one starting limitation-period deadline as a
+verify-this reminder, never a real calculation. Witness/examination prep
+pulls every statement attributed to a named witness out of a matter's
+documents and notes, flags inconsistencies within and against other
+sources, and drafts direct/cross-examination questions grounded only in
+that record. The disclosure-package builder scans documents for
+privileged/sensitive passages as individually reviewable flags and rolls
+them up into per-document disclosure readiness — it never edits or
+redacts a document itself (there's no reliable way to map a quoted
+passage back to an exact position in the original file), so a confirmed
+flag is a checklist item for a lawyer's own manual redaction before a
+document is produced. Any AI-generated
 output can be translated into a configurable language (Settings >
 Translation), with citations and markdown structure preserved, and
 exported as a clean, printable PDF.
@@ -165,7 +186,10 @@ withdrawals, and transfers per matter against one or more trust accounts,
 with balances always computed fresh from transaction history (never a
 stored number that could drift), a hard rejection of any transaction that
 would take a matter's balance negative, and permanent reconciliation
-records against a bank statement.
+records against a bank statement. An optional per-matter low-balance
+threshold triggers a one-time alert (bell, email, browser push) the first
+time the balance drops below it, re-arming on the next new transaction
+rather than repeating while the balance stays low.
 
 **Rules-based deadline calculator, with a native calendar** — a
 firm-editable library of deadline rules (e.g. "21 business days after
@@ -186,7 +210,10 @@ list.
 
 **Firm analytics dashboard** — matters opened/closed by month,
 work-in-progress (unbilled time value), billed vs. collected, top matter
-types, and hours logged per attorney — all computed from the same
+types, hours logged per attorney, accounts-receivable aging (unpaid
+invoices bucketed by days outstanding, always today's full picture rather
+than scoped to the dashboard's date filter), and matter profitability
+(billed minus disbursement costs, ranked) — all computed from the same
 matters/time-entries/invoices data shown elsewhere, visible to admins and
 lawyers, not staff.
 
@@ -341,6 +368,32 @@ Windows, and Linux.
 
 ## Recent changes
 
+- 🆕⚖️ **Four new legal-practice features** — a case-citation health check (flags
+  a citing case as a "possible appeal — review" when it shares a distinctive
+  party name with the original, since CanLII's API exposes no actual
+  treatment/outcome history to check against); limitation-period
+  auto-seeding (one starting deadline by matter type — Personal Injury,
+  Civil Litigation, Criminal Defence/Law, Wills and Estates — always framed
+  as "verify this," never a real calculation); witness/examination prep
+  (pulls a named witness's statements out of the matter's own documents,
+  flags inconsistencies within and against other sources, and drafts
+  direct/cross-examination questions grounded only in that record, with
+  per-entry delete); and a disclosure-package builder (per-passage
+  privilege/sensitive-content flags a lawyer individually clears or
+  confirms, rolling up into per-document disclosure readiness).
+  Deliberately never edits or redacts a document's actual bytes — this app
+  has no character-offset-to-page mapping for extracted text, so
+  auto-blacking-out a region on a bad match would risk a real privilege
+  waiver; a confirmed flag is a checklist item for the lawyer's own manual
+  redaction. Also added the first staff-side raw document download route
+  (previously only the client portal could download a document).
+- 🆕💰 **Trust low-balance alerts, AR aging, and matter profitability**
+  (`Settings`/matter Trust tab, `/analytics`) — set a trust-balance
+  threshold per matter to get notified the first time it drops below that
+  amount (re-arms on the next new transaction, doesn't nag while the
+  balance stays low); the analytics dashboard now also buckets unpaid
+  invoices by days outstanding with a link to the oldest ones, and ranks
+  matters by billed minus disbursement costs.
 - 🆕☁️ **`rclone` removed; Google Drive/OneDrive connect directly** — the
   rclone-based path (its own CLI install, non-interactive config wizard,
   and a real recurring bug where an ambiguous "drive picker" prompt could

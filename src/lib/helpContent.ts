@@ -209,7 +209,8 @@ export const HELP_SECTIONS: HelpSection[] = [
           "- A matter's own Trust tab records deposits, withdrawals, and transfers to your operating account against whichever trust account holds its funds, and shows a running balance computed fresh from that history every time — never a stored number that could drift\n" +
           "- A withdrawal or transfer that would take a matter's balance negative is rejected outright — one client's funds are never used to cover another's shortfall\n" +
           "- From the main Trust accounting page, **\"Reconcile\"** compares an account's ledger total against a bank statement balance you enter, recording the comparison (and any variance) permanently, whether or not it matches\n" +
-          "- Every deposit, withdrawal, transfer, and reconciliation is in the audit log",
+          "- Every deposit, withdrawal, transfer, and reconciliation is in the audit log\n" +
+          "- Set a **low-balance threshold** on a matter's Trust tab to get notified (bell, email, browser push) the first time its balance drops below it — re-arms after the next new transaction rather than nagging every hour while the balance stays low",
       },
       {
         slug: "email",
@@ -263,7 +264,8 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Scans this matter's documents and notes for Canadian neutral case citations (e.g. \"2020 ONCA 123\") and looks each one up on CanLII: whether it's a real, findable decision, plus its cited/citing cases and cited legislation (a \"note-up\").\n\n" +
           "- Only the standard neutral-citation format is detected — citations written another way won't be picked up\n" +
           "- Re-checking replaces the previous results; this isn't a history\n" +
-          "- Requires a CanLII key in Settings",
+          "- Requires a CanLII key in Settings\n" +
+          "- A citing case that shares a distinctive party name with the original is flagged **\"possible appeal — review\"** and highlighted in the Citing cases list. CanLII's API has no citation-treatment data (no \"affirmed/reversed/distinguished\"), so this is a party-name overlap heuristic to go check, never a claim about the case's actual legal status",
       },
       {
         slug: "deadlines",
@@ -277,7 +279,8 @@ export const HELP_SECTIONS: HelpSection[] = [
           "- Upcoming deadlines across all matters also show on the Dashboard\n" +
           "- Every deadline with a due date appears automatically on this app's own calendar (firm-wide `/calendar` and this matter's Calendar tab) — no external account or sync step needed\n" +
           "- **\"Export to personal calendar\"** downloads a one-time .ics file for a single deadline if you also want it in your own phone/desktop calendar app\n" +
-          "- Reminders for upcoming and overdue deadlines show up in the notification bell, by email, and (if enabled in Settings > Security) as a browser push notification",
+          "- Reminders for upcoming and overdue deadlines show up in the notification bell, by email, and (if enabled in Settings > Security) as a browser push notification\n" +
+          "- Opening a new matter with a recognized matter type (e.g. Personal Injury, Civil Litigation, Criminal Defence/Law, Wills and Estates) auto-seeds one starting limitation-period deadline, tagged **\"Limitation period\"** — a common-case Ontario-law default (e.g. the 2-year discovery period), always a reminder to verify the real date against the actual facts, never a substitute for calculating it yourself",
       },
       {
         slug: "evidence-matrix",
@@ -304,6 +307,16 @@ export const HELP_SECTIONS: HelpSection[] = [
           "Compares witness statements and other documents for genuine inconsistencies — dates, locations, amounts, and identity/description details — with both sides of each conflict quoted and cited.\n\n" +
           "- Normal variation (different wording, different level of detail) is deliberately not flagged; only real conflicts are\n" +
           "- Citations are checked against the matter's real documents; anything that doesn't match is flagged",
+      },
+      {
+        slug: "witness-prep",
+        name: "Witness / examination prep",
+        detail:
+          "Pulls every statement attributed to a named witness out of the matter's documents and notes, then drafts direct- and cross-examination questions grounded in that record.\n\n" +
+          "- Pick a witness from the matter's own Parties list (anyone with a \"Witness\"/\"Expert witness\" role) or type another name as it appears in the documents\n" +
+          "- Reports what that witness has said so far with sources, flags inconsistencies within their own statements and against other sources (both sides quoted and cited), then suggests questions for each side\n" +
+          "- Deliberately does not predict how the witness will actually answer or comment on their credibility — a prompt list grounded in the documentary record, not a forecast\n" +
+          "- Each generation is saved per witness; **Delete** removes one you no longer need",
       },
       {
         slug: "exhibit-list",
@@ -343,6 +356,16 @@ export const HELP_SECTIONS: HelpSection[] = [
           "- Each finding quotes the exact passage as a redaction candidate, tagged **[PRIVILEGE]** or **[SENSITIVE]**\n" +
           "- This is a review aid, not a final privilege determination — always reviewed by a lawyer before anything is actually redacted or withheld\n" +
           "- Citations are checked against the matter's real documents; anything that doesn't match is flagged",
+      },
+      {
+        slug: "disclosure-package",
+        name: "Disclosure package",
+        detail:
+          "A per-passage checklist and readiness tracker for producing this matter's documents externally, built on top of the same scan as Privilege & redaction review.\n\n" +
+          "- **\"Scan documents\"** flags candidate passages one at a time (tagged PRIVILEGE or SENSITIVE, with the exact quote and a reason) — for each, mark **\"Confirm — needs redaction\"** or **\"Clear — not privileged\"**\n" +
+          "- A document shows **\"Ready to disclose\"** once every flag against it is resolved either way, and **\"N unresolved flags\"** otherwise, with a running count of anything confirmed for redaction\n" +
+          "- This never edits, redacts, or removes anything from a document itself — a confirmed flag is a checklist item for a lawyer's own manual redaction (in whatever PDF/document tool you normally use) before the file is sent; **Download** gets you the original so you can do that\n" +
+          "- Re-scanning replaces the flag list with fresh candidates — resolved decisions on passages that still exist need to be made again, which is safer than assuming a prior decision still applies",
       },
       {
         slug: "redline",
@@ -416,10 +439,12 @@ export const HELP_SECTIONS: HelpSection[] = [
         slug: "analytics",
         name: "Analytics",
         detail:
-          "Firm-wide metrics (nav > Analytics, admins and lawyers only — not visible to staff): matters opened/closed, work-in-progress (unbilled time value across every open matter), billed vs. collected by month, top matter types, and hours logged per person.\n\n" +
+          "Firm-wide metrics (nav > Analytics, admins and lawyers only — not visible to staff): matters opened/closed, work-in-progress (unbilled time value across every open matter), billed vs. collected by month, top matter types, hours logged per person, accounts-receivable aging, and matter profitability.\n\n" +
           "- Defaults to the last 12 months (90 days for hours) — the Filters section narrows any of it to a custom date range and/or a specific matter type\n" +
           "- **\"Save this report\"** keeps a filter combination you'll want to re-run later, personal to your account\n" +
           "- Hours-per-person only counts time entries logged since attorney attribution was added — older entries stay uncounted rather than guessed at\n" +
+          "- **Accounts-receivable aging** buckets every unpaid invoice by days outstanding (0-30/31-60/61-90/90+) and lists the oldest outstanding ones, linking straight to that matter's Timesheet tab — always today's full picture, not scoped to the date filter above\n" +
+          "- **Matter profitability** ranks matters by billed minus disbursement costs for the selected period\n" +
           "- All numbers come straight from the same matters/time-entries/invoices data you already see elsewhere",
       },
     ],
