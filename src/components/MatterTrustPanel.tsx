@@ -19,14 +19,23 @@ export default function MatterTrustPanel({
   initialBalance,
   initialTransactions,
   accounts,
+  initialRetainerThreshold,
 }: {
   matterId: string;
   initialBalance: number;
   initialTransactions: TrustTransaction[];
   accounts: TrustAccount[];
+  initialRetainerThreshold: number | null;
 }) {
   const [balance, setBalance] = useState(initialBalance);
   const [transactions, setTransactions] = useState(initialTransactions);
+  const [retainerThreshold, setRetainerThreshold] = useState(initialRetainerThreshold);
+  const [editingThreshold, setEditingThreshold] = useState(false);
+  const [thresholdInput, setThresholdInput] = useState(
+    initialRetainerThreshold != null ? String(initialRetainerThreshold) : "",
+  );
+  const [savingThreshold, setSavingThreshold] = useState(false);
+  const [thresholdError, setThresholdError] = useState<string | null>(null);
   const [trustAccountId, setTrustAccountId] = useState(accounts[0]?.id ?? "");
   const [type, setType] = useState<TrustTransactionType>("deposit");
   const [amount, setAmount] = useState("");
@@ -58,6 +67,36 @@ export default function MatterTrustPanel({
     }
   }
 
+  async function handleSaveThreshold() {
+    let parsed: number | null = null;
+    if (thresholdInput.trim() !== "") {
+      parsed = Number(thresholdInput);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        setThresholdError("Enter a non-negative number, or leave blank to turn off the alert.");
+        return;
+      }
+    }
+    setSavingThreshold(true);
+    setThresholdError(null);
+    try {
+      const res = await fetch(`/api/matters/${matterId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ retainerThreshold: parsed }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Failed to save");
+      setRetainerThreshold(parsed);
+      setEditingThreshold(false);
+    } catch (err) {
+      setThresholdError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setSavingThreshold(false);
+    }
+  }
+
+  const isLow = retainerThreshold != null && balance < retainerThreshold;
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -66,6 +105,56 @@ export default function MatterTrustPanel({
           Bookkeeping support, not accounting/tax advice. Current balance held for this matter:
         </p>
         <p className="font-display text-3xl">{formatMoney(balance)}</p>
+
+        <div className="mt-2 flex items-center gap-2 text-sm">
+          <span className="text-muted">Low-balance alert:</span>
+          {editingThreshold ? (
+            <>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                autoFocus
+                placeholder="No alert"
+                value={thresholdInput}
+                onChange={(e) => setThresholdInput(e.target.value)}
+                className="surface-input w-28"
+              />
+              <button onClick={handleSaveThreshold} disabled={savingThreshold} className="btn-secondary px-2 py-1 text-xs">
+                {savingThreshold ? "Saving…" : "Save"}
+              </button>
+              <button
+                onClick={() => {
+                  setEditingThreshold(false);
+                  setThresholdInput(retainerThreshold != null ? String(retainerThreshold) : "");
+                  setThresholdError(null);
+                }}
+                className="text-xs text-muted hover:underline"
+              >
+                Cancel
+              </button>
+            </>
+          ) : retainerThreshold != null ? (
+            <>
+              <span className="font-medium text-accent">Notify below {formatMoney(retainerThreshold)}</span>
+              <button onClick={() => setEditingThreshold(true)} className="text-xs text-accent hover:underline">
+                Edit
+              </button>
+            </>
+          ) : (
+            <button onClick={() => setEditingThreshold(true)} className="text-xs text-accent hover:underline">
+              Set a threshold
+            </button>
+          )}
+        </div>
+        {thresholdError && <p className="mt-1 text-xs text-red-600">{thresholdError}</p>}
+
+        {isLow && (
+          <p className="surface-row mt-2 border-amber-500/40 bg-amber-500/10 text-sm text-amber-800 dark:text-amber-300">
+            This matter&apos;s retainer is below your ${retainerThreshold!.toFixed(2)} threshold — consider
+            requesting a top-up before continuing work.
+          </p>
+        )}
       </div>
 
       {accounts.length === 0 ? (

@@ -1,3 +1,4 @@
+import { getMatter } from "@/lib/matters";
 import { getMatterTrustBalance, listMatterTrustTransactions, listTrustAccounts } from "@/lib/trustAccounting";
 import MatterTrustPanel from "@/components/MatterTrustPanel";
 
@@ -7,7 +8,8 @@ export default async function MatterTrustPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [balance, transactions, accounts] = await Promise.all([
+  const [matter, balance, transactions, accounts] = await Promise.all([
+    getMatter(id),
     getMatterTrustBalance(id),
     listMatterTrustTransactions(id),
     listTrustAccounts(),
@@ -19,6 +21,7 @@ export default async function MatterTrustPage({
       initialBalance={balance}
       initialTransactions={transactions}
       accounts={accounts}
+      initialRetainerThreshold={matter?.retainerThreshold ?? null}
     />
   );
 }

@@ -169,6 +169,7 @@ export async function createMatter(input: {
     retentionDate: null,
     ethicalWall: 0,
     createdAt,
+    retainerThreshold: null,
   };
   db.prepare(
     "INSERT INTO matters (id, fileNumber, title, clientName, clientEmail, clientId, matterType, status, hourlyRate, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -244,6 +245,27 @@ export async function updateMatterHourlyRate(
       "matter_rate_updated",
       matterId,
       `Set default hourly rate to $${hourlyRate.toFixed(2)}/hr`,
+    );
+  }
+  return matter;
+}
+
+// null clears the alert entirely (no threshold configured) rather than
+// treating 0 as "alert below zero" — a matter with no retainer tracking at
+// all shouldn't need to be given an unreachable threshold to opt out.
+export async function updateMatterRetainerThreshold(
+  matterId: string,
+  retainerThreshold: number | null,
+): Promise<Matter | null> {
+  db.prepare("UPDATE matters SET retainerThreshold = ? WHERE id = ?").run(retainerThreshold, matterId);
+  const matter = await getMatter(matterId);
+  if (matter) {
+    await recordAuditEvent(
+      "matter_retainer_threshold_updated",
+      matterId,
+      retainerThreshold !== null
+        ? `Set retainer low-balance alert threshold to $${retainerThreshold.toFixed(2)}`
+        : "Cleared retainer low-balance alert threshold",
     );
   }
   return matter;
@@ -355,6 +377,10 @@ export async function deleteMatter(matterId: string): Promise<boolean> {
   db.prepare("DELETE FROM invoices WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM time_entries WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM trust_transactions WHERE matterId = ?").run(matterId);
+  // notifications.matterId has a real FK to matters(id) — deadline/event/
+  // retainer reminders all create rows here, so any matter that ever
+  // triggered one couldn't be deleted without this.
+  db.prepare("DELETE FROM notifications WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM portal_messages WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM assembled_documents WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM matter_notes WHERE matterId = ?").run(matterId);

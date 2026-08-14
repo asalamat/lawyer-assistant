@@ -163,7 +163,7 @@ export async function createNotificationIfNew(params: {
   title: string;
   body: string;
   matterId: string | null;
-  relatedType: "deadline" | "calendar_event" | "signable_document";
+  relatedType: "deadline" | "calendar_event" | "signable_document" | "trust_transaction" | "matter";
   relatedId: string;
 }): Promise<boolean> {
   const id = randomUUID();

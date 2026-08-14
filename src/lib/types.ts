@@ -16,6 +16,10 @@ export interface Matter {
   retentionDate: string | null;
   ethicalWall: number;
   createdAt: string;
+  // Trust-retainer low-balance alert threshold — null means no alert
+  // configured for this matter. See notificationScheduler.ts's
+  // checkRetainerBalances().
+  retainerThreshold: number | null;
 }
 
 export type ClientType = "individual" | "corporate" | "institutional";
@@ -279,7 +283,12 @@ export interface CalendarItem {
   matterTitle: string | null;
 }
 
-export type NotificationType = "deadline_reminder" | "event_reminder" | "deadline_overdue" | "document_signed";
+export type NotificationType =
+  | "deadline_reminder"
+  | "event_reminder"
+  | "deadline_overdue"
+  | "document_signed"
+  | "retainer_low";
 
 export interface AppNotification {
   id: string;
@@ -287,7 +296,7 @@ export interface AppNotification {
   title: string;
   body: string;
   matterId: string | null;
-  relatedType: "deadline" | "calendar_event" | "signable_document" | null;
+  relatedType: "deadline" | "calendar_event" | "signable_document" | "trust_transaction" | "matter" | null;
   relatedId: string | null;
   readAt: string | null;
   createdAt: string;

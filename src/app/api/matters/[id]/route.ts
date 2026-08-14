@@ -7,6 +7,7 @@ import {
   setMatterLegalHold,
   setMatterRetentionDate,
   updateMatterHourlyRate,
+  updateMatterRetainerThreshold,
   updateMatterStatus,
 } from "@/lib/matters";
 import type { MatterClassification } from "@/lib/types";
@@ -38,6 +39,21 @@ export async function PATCH(
       return NextResponse.json({ error: "hourlyRate must be a positive number" }, { status: 400 });
     }
     const matter = await updateMatterHourlyRate(id, parsedRate);
+    if (!matter) {
+      return NextResponse.json({ error: "Matter not found" }, { status: 404 });
+    }
+    return NextResponse.json(matter);
+  }
+
+  if (body?.retainerThreshold !== undefined) {
+    let threshold: number | null = null;
+    if (body.retainerThreshold !== null) {
+      threshold = Number(body.retainerThreshold);
+      if (!Number.isFinite(threshold) || threshold < 0) {
+        return NextResponse.json({ error: "retainerThreshold must be a non-negative number or null" }, { status: 400 });
+      }
+    }
+    const matter = await updateMatterRetainerThreshold(id, threshold);
     if (!matter) {
       return NextResponse.json({ error: "Matter not found" }, { status: 404 });
     }

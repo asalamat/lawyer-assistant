@@ -54,3 +54,6 @@ next-env.d.ts
 # tesseract.js downloads OCR language data into the cwd at runtime
 *.traineddata
 
+# graphify knowledge-graph output (generated, regenerate with /graphify)
+/graphify-out
+

@@ -10,6 +10,29 @@ export interface MonthTotal {
   total: number;
 }
 
+export interface ArAgingBucket {
+  bucket: "0-30" | "31-60" | "61-90" | "90+";
+  total: number;
+  count: number;
+}
+
+export interface ArAgingInvoice {
+  invoiceId: string;
+  invoiceNumber: string;
+  matterId: string;
+  matterTitle: string;
+  daysOutstanding: number;
+  amount: number;
+}
+
+export interface MatterProfitability {
+  matterId: string;
+  matterTitle: string;
+  billed: number;
+  disbursements: number;
+  net: number;
+}
+
 export interface FirmAnalytics {
   mattersOpenedByMonth: MonthCount[];
   mattersClosedByMonth: MonthCount[];
@@ -18,6 +41,9 @@ export interface FirmAnalytics {
   collectedByMonth: MonthTotal[];
   topMatterTypes: { matterType: string; count: number }[];
   hoursByUser: { userId: string; userName: string; hours: number }[];
+  arAging: ArAgingBucket[];
+  arAgingOldest: ArAgingInvoice[];
+  matterProfitability: MatterProfitability[];
 }
 
 // Same shape as SearchFilters in search.ts — dateFrom/dateTo are inclusive
@@ -199,6 +225,105 @@ export async function getFirmAnalytics(filters: AnalyticsFilters = {}): Promise<
     )
     .all(...hoursParams) as { userId: string; userName: string; hours: number }[];
 
+  // AR aging — every currently-unpaid invoice, bucketed by days since it was
+  // issued. Not filtered by the dateFrom/dateTo range the other metrics use:
+  // an aging report is inherently "as of today" for whatever is unpaid right
+  // now, regardless of when it was billed — restricting to a past date range
+  // would hide exactly the oldest, most overdue invoices a firm most needs
+  // to see. matterType still applies, since that's a real segmentation, not
+  // a time window.
+  const arClauses = ["invoices.status = 'unpaid'"];
+  const arParams: string[] = [];
+  if (matterType) {
+    arClauses.push("matters.matterType = ?");
+    arParams.push(matterType);
+  }
+  const unpaidInvoices = db
+    .prepare(
+      `SELECT invoices.id as invoiceId, invoices.invoiceNumber, invoices.total, invoices.createdAt,
+              matters.id as matterId, matters.title as matterTitle
+       FROM invoices JOIN matters ON matters.id = invoices.matterId
+       WHERE ${arClauses.join(" AND ")}`,
+    )
+    .all(...arParams) as {
+    invoiceId: string;
+    invoiceNumber: string;
+    total: number;
+    createdAt: string;
+    matterId: string;
+    matterTitle: string;
+  }[];
+
+  const now = Date.now();
+  const agingDetail: ArAgingInvoice[] = unpaidInvoices.map((inv) => ({
+    invoiceId: inv.invoiceId,
+    invoiceNumber: inv.invoiceNumber,
+    matterId: inv.matterId,
+    matterTitle: inv.matterTitle,
+    daysOutstanding: Math.floor((now - new Date(inv.createdAt).getTime()) / (24 * 60 * 60 * 1000)),
+    amount: inv.total,
+  }));
+
+  const bucketDefs: { bucket: ArAgingBucket["bucket"]; min: number; max: number }[] = [
+    { bucket: "0-30", min: 0, max: 30 },
+    { bucket: "31-60", min: 31, max: 60 },
+    { bucket: "61-90", min: 61, max: 90 },
+    { bucket: "90+", min: 91, max: Infinity },
+  ];
+  const arAging: ArAgingBucket[] = bucketDefs.map(({ bucket, min, max }) => {
+    const inBucket = agingDetail.filter((inv) => inv.daysOutstanding >= min && inv.daysOutstanding <= max);
+    return { bucket, total: inBucket.reduce((sum, inv) => sum + inv.amount, 0), count: inBucket.length };
+  });
+  const arAgingOldest = [...agingDetail].sort((a, b) => b.daysOutstanding - a.daysOutstanding).slice(0, 10);
+
+  // Matter profitability — billed revenue minus hard costs (disbursements)
+  // per matter, both scoped to the same date/matterType filters as "billed"
+  // above. Deliberately NOT "profit" in the full accounting sense: staff
+  // time has no internal cost/wage rate tracked anywhere in this app, only
+  // a client-billing rate, so labor cost can't be deducted — this is net
+  // revenue after hard costs, not true profit. Labeled as such in the UI.
+  const profitBilledRows = db
+    .prepare(
+      `SELECT matters.id as matterId, matters.title as matterTitle, COALESCE(SUM(invoices.total), 0) as billed
+       FROM invoices JOIN matters ON matters.id = invoices.matterId
+       WHERE ${billedClauses.join(" AND ")}
+       GROUP BY matters.id`,
+    )
+    .all(...billedParams) as { matterId: string; matterTitle: string; billed: number }[];
+
+  const disbursementClauses = ["disbursements.incurredOn >= ?"];
+  const disbursementParams: string[] = [since];
+  if (until) {
+    disbursementClauses.push("disbursements.incurredOn <= ?");
+    disbursementParams.push(until);
+  }
+  if (matterType) {
+    disbursementClauses.push("matters.matterType = ?");
+    disbursementParams.push(matterType);
+  }
+  const disbursementRows = db
+    .prepare(
+      `SELECT disbursements.matterId as matterId, COALESCE(SUM(disbursements.amount), 0) as total
+       FROM disbursements JOIN matters ON matters.id = disbursements.matterId
+       WHERE ${disbursementClauses.join(" AND ")}
+       GROUP BY disbursements.matterId`,
+    )
+    .all(...disbursementParams) as { matterId: string; total: number }[];
+  const disbursementsByMatter = new Map(disbursementRows.map((r) => [r.matterId, r.total]));
+
+  const matterProfitability: MatterProfitability[] = profitBilledRows
+    .map((row) => {
+      const disbursements = disbursementsByMatter.get(row.matterId) ?? 0;
+      return {
+        matterId: row.matterId,
+        matterTitle: row.matterTitle,
+        billed: row.billed,
+        disbursements,
+        net: row.billed - disbursements,
+      };
+    })
+    .sort((a, b) => b.net - a.net);
+
   return {
     mattersOpenedByMonth: zeroFillCounts(months, openedRows),
     mattersClosedByMonth: zeroFillCounts(months, closedRows),
@@ -207,5 +332,8 @@ export async function getFirmAnalytics(filters: AnalyticsFilters = {}): Promise<
     collectedByMonth: zeroFillTotals(months, collectedRows),
     topMatterTypes,
     hoursByUser,
+    arAging,
+    arAgingOldest,
+    matterProfitability,
   };
 }

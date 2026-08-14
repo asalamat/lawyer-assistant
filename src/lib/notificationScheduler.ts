@@ -36,10 +36,10 @@ async function sendReminderEmail(subject: string, body: string): Promise<void> {
   await sendEmail({ to: recipients.join(", "), subject, text: body });
 }
 
-async function dispatchReminderAlert(title: string, body: string): Promise<void> {
+async function dispatchReminderAlert(title: string, body: string, url = "/calendar"): Promise<void> {
   await Promise.all([
     sendReminderEmail(title, body),
-    sendPushToAllSubscribers({ title, body, url: "/calendar" }),
+    sendPushToAllSubscribers({ title, body, url }),
   ]);
 }
 
@@ -125,9 +125,54 @@ async function checkEventReminders(): Promise<void> {
   }
 }
 
+// Keyed on the matter's latest trust_transaction id, not the matter id
+// itself — the notifications table's UNIQUE(relatedType, relatedId, type)
+// constraint means a static key (e.g. matterId) would only ever fire once,
+// ever, even after the retainer is topped up and later drops low again.
+// The latest transaction id changes with every deposit/withdrawal, so this
+// naturally re-arms after each new transaction while staying silent for a
+// balance that's been low with no new activity — same "notify once per new
+// occurrence" semantics as deadline_overdue, just occurrence = transaction
+// instead of occurrence = calendar day.
+async function checkRetainerBalances(): Promise<void> {
+  const matters = db
+    .prepare(
+      `SELECT id, title, retainerThreshold FROM matters
+       WHERE retainerThreshold IS NOT NULL AND status = 'open'`,
+    )
+    .all() as { id: string; title: string; retainerThreshold: number }[];
+
+  for (const matter of matters) {
+    const balanceRow = db
+      .prepare(
+        `SELECT COALESCE(SUM(CASE WHEN type = 'deposit' THEN amount ELSE -amount END), 0) as balance
+         FROM trust_transactions WHERE matterId = ?`,
+      )
+      .get(matter.id) as { balance: number };
+    if (balanceRow.balance >= matter.retainerThreshold) continue;
+
+    const latest = db
+      .prepare("SELECT id FROM trust_transactions WHERE matterId = ? ORDER BY createdAt DESC LIMIT 1")
+      .get(matter.id) as { id: string } | undefined;
+
+    const title = `Retainer low: ${matter.title}`;
+    const body = `Trust balance is $${balanceRow.balance.toFixed(2)}, below the $${matter.retainerThreshold.toFixed(2)} threshold.`;
+    const isNew = await createNotificationIfNew({
+      type: "retainer_low",
+      title,
+      body,
+      matterId: matter.id,
+      relatedType: latest ? "trust_transaction" : "matter",
+      relatedId: latest ? latest.id : matter.id,
+    });
+    if (isNew) await dispatchReminderAlert(title, body, `/matters/${matter.id}/trust`);
+  }
+}
+
 function runTick(): void {
   checkDeadlineReminders().catch((err) => console.error("[notification-scheduler] deadline check failed:", err));
   checkEventReminders().catch((err) => console.error("[notification-scheduler] event check failed:", err));
+  checkRetainerBalances().catch((err) => console.error("[notification-scheduler] retainer check failed:", err));
 }
 
 export function startNotificationScheduler(): void {

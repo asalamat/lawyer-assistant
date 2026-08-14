@@ -137,6 +137,68 @@ export default async function AnalyticsPage({
       </div>
 
       <div className="surface-card">
+        <h2 className="mb-1 font-display text-lg">Accounts receivable aging</h2>
+        <p className="mb-3 text-sm text-muted">
+          Every currently-unpaid invoice, by days since it was issued — not affected by the date
+          filter above, since an aging report needs today&apos;s full picture of what&apos;s overdue.
+        </p>
+        {analytics.arAging.every((b) => b.count === 0) ? (
+          <p className="text-sm text-muted">No unpaid invoices.</p>
+        ) : (
+          <>
+            <HorizontalBarChart
+              data={analytics.arAging.map((b) => ({ label: `${b.bucket} days (${b.count})`, value: b.total }))}
+              formatValue={formatMoney}
+            />
+            {analytics.arAgingOldest.length > 0 && (
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-medium text-muted">Oldest outstanding</p>
+                <ul className="flex flex-col gap-1 text-sm">
+                  {analytics.arAgingOldest.map((inv) => (
+                    <li key={inv.invoiceId} className="surface-row flex items-center justify-between">
+                      <a href={`/matters/${inv.matterId}/timesheet`} className="hover:text-accent">
+                        {inv.invoiceNumber} &middot; {inv.matterTitle}
+                      </a>
+                      <span className="shrink-0 text-muted">
+                        {inv.daysOutstanding}d &middot; <span className="font-medium text-accent">{formatMoney(inv.amount)}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="surface-card">
+        <h2 className="mb-1 font-display text-lg">Matter profitability ({periodLabel})</h2>
+        <p className="mb-3 text-sm text-muted">
+          Billed revenue minus disbursements (hard costs) per matter — net of costs, not full
+          profit, since staff time has no internal cost rate tracked here, only a client-billing
+          rate.
+        </p>
+        {analytics.matterProfitability.length === 0 ? (
+          <p className="text-sm text-muted">No invoiced matters in this period yet.</p>
+        ) : (
+          <ul className="flex flex-col gap-1 text-sm">
+            {analytics.matterProfitability.slice(0, 15).map((m) => (
+              <li key={m.matterId} className="surface-row flex items-center justify-between">
+                <a href={`/matters/${m.matterId}/timesheet`} className="hover:text-accent">
+                  {m.matterTitle}
+                </a>
+                <span className="shrink-0 text-muted">
+                  {formatMoney(m.billed)} billed
+                  {m.disbursements > 0 && ` − ${formatMoney(m.disbursements)} costs`} ={" "}
+                  <span className="font-medium text-accent">{formatMoney(m.net)}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="surface-card">
         <h2 className="mb-1 font-display text-lg">Hours logged per person</h2>
         <p className="mb-3 text-sm text-muted">
           Only counts time entries logged since attorney attribution was added — older entries
