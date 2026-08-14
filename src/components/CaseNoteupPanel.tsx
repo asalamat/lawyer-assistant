@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { findPossibleAppeals } from "@/lib/caseAppealHeuristic";
 import type { CaseNoteup } from "@/lib/types";
 
 export default function CaseNoteupPanel({
@@ -55,53 +56,73 @@ export default function CaseNoteupPanel({
         <p className="text-sm text-muted">No citations checked yet.</p>
       ) : (
         <ul className="flex flex-col gap-2">
-          {noteups.map((n) => (
-            <li key={n.id} className="surface-row flex flex-col gap-2 text-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  {n.found && n.url ? (
-                    <a
-                      href={n.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium text-accent hover:underline"
+          {noteups.map((n) => {
+            const possibleAppeals = n.found && n.title ? findPossibleAppeals(n.title, n.citingCases) : [];
+            return (
+              <li key={n.id} className="surface-row flex flex-col gap-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    {n.found && n.url ? (
+                      <a
+                        href={n.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-accent hover:underline"
+                      >
+                        {n.citation}
+                      </a>
+                    ) : (
+                      <span className="font-medium">{n.citation}</span>
+                    )}
+                    {n.title && <span className="ml-2 text-muted">{n.title}</span>}
+                    {possibleAppeals.length > 0 && (
+                      <span
+                        className="ml-2 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400"
+                        title="A citing case shares a party name with this one — may be the same litigation on appeal. Not a verdict on whether this case is still good law, just worth checking."
+                      >
+                        {possibleAppeals.length} possible appeal{possibleAppeals.length > 1 ? "s" : ""} — review
+                      </span>
+                    )}
+                  </div>
+                  {n.found ? (
+                    <button
+                      onClick={() => setExpandedId((prev) => (prev === n.id ? null : n.id))}
+                      className="text-xs text-accent hover:underline"
                     >
-                      {n.citation}
-                    </a>
+                      {expandedId === n.id ? "Hide" : "Show"} citing/cited (
+                      {n.citingCases.length + n.citedCases.length + n.citedLegislations.length})
+                    </button>
                   ) : (
-                    <span className="font-medium">{n.citation}</span>
+                    <span className="text-xs text-red-600">Not found on CanLII</span>
                   )}
-                  {n.title && <span className="ml-2 text-muted">{n.title}</span>}
                 </div>
-                {n.found ? (
-                  <button
-                    onClick={() => setExpandedId((prev) => (prev === n.id ? null : n.id))}
-                    className="text-xs text-accent hover:underline"
-                  >
-                    {expandedId === n.id ? "Hide" : "Show"} citing/cited (
-                    {n.citingCases.length + n.citedCases.length + n.citedLegislations.length})
-                  </button>
-                ) : (
-                  <span className="text-xs text-red-600">Not found on CanLII</span>
+                {n.found && expandedId === n.id && (
+                  <div className="grid gap-2 border-t border-border pt-2 text-xs sm:grid-cols-3">
+                    <NoteupRefList label="Cited cases" refs={n.citedCases} />
+                    <NoteupRefList label="Citing cases" refs={n.citingCases} highlight={possibleAppeals} />
+                    <NoteupRefList label="Cited legislation" refs={n.citedLegislations} />
+                  </div>
                 )}
-              </div>
-              {n.found && expandedId === n.id && (
-                <div className="grid gap-2 border-t border-border pt-2 text-xs sm:grid-cols-3">
-                  <NoteupRefList label="Cited cases" refs={n.citedCases} />
-                  <NoteupRefList label="Citing cases" refs={n.citingCases} />
-                  <NoteupRefList label="Cited legislation" refs={n.citedLegislations} />
-                </div>
-              )}
-              {!n.found && n.error && <p className="text-xs text-muted">{n.error}</p>}
-            </li>
-          ))}
+                {!n.found && n.error && <p className="text-xs text-muted">{n.error}</p>}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
   );
 }
 
-function NoteupRefList({ label, refs }: { label: string; refs: { title: string; citation: string }[] }) {
+function NoteupRefList({
+  label,
+  refs,
+  highlight = [],
+}: {
+  label: string;
+  refs: { title: string; citation: string }[];
+  highlight?: { title: string; citation: string }[];
+}) {
+  const highlighted = new Set(highlight.map((h) => h.citation));
   return (
     <div>
       <p className="mb-1 font-medium text-muted">
@@ -112,8 +133,9 @@ function NoteupRefList({ label, refs }: { label: string; refs: { title: string; 
       ) : (
         <ul className="flex flex-col gap-0.5">
           {refs.map((ref, i) => (
-            <li key={i}>
+            <li key={i} className={highlighted.has(ref.citation) ? "font-medium text-amber-700 dark:text-amber-400" : undefined}>
               {ref.title} — {ref.citation}
+              {highlighted.has(ref.citation) && " (possible appeal)"}
             </li>
           ))}
         </ul>

@@ -14,6 +14,7 @@ import { extractTextTracked } from "./extractionStatus";
 import { scanBuffer } from "./malwareScan";
 import { maskForAI } from "./piiMask";
 import { listAttachedReferenceDocuments } from "./referenceLibrary";
+import { findLimitationPeriod } from "./limitationPeriods";
 import { createSignableDocument, getSignableDocument, sendForSignature } from "./signableDocuments";
 import { findTaskTemplate } from "./taskTemplates";
 import { createTask } from "./tasks";
@@ -192,7 +193,39 @@ export async function createMatter(input: {
   );
   await fireWebhook("matter.created", matter);
   await seedDefaultTasks(matter, input.createdByUserId ?? null);
+  await seedLimitationDeadline(matter);
   return matter;
+}
+
+// Best-effort, non-fatal, same reasoning as seedDefaultTasks below — a
+// broken template must never block matter creation. Computed from
+// matter-open date only, since that's the only date this form collects;
+// the deadline's own description says explicitly that a real limitation
+// period depends on facts (date of loss, discoverability, etc.) this app
+// has no way to know at intake.
+async function seedLimitationDeadline(matter: Matter): Promise<void> {
+  try {
+    const template = findLimitationPeriod(matter.matterType);
+    if (!template) return;
+    const dueDate = new Date(
+      new Date(matter.createdAt).getTime() + template.offsetDays * 24 * 60 * 60 * 1000,
+    )
+      .toISOString()
+      .slice(0, 10);
+    const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    db.prepare(
+      `INSERT INTO matter_deadlines (id, matterId, description, dueDate, sourceDocument, source, createdAt)
+       VALUES (?, ?, ?, ?, NULL, 'limitation-period', ?)`,
+    ).run(id, matter.id, template.description, dueDate, createdAt);
+    await recordAuditEvent(
+      "deadline_computed",
+      matter.id,
+      `Seeded a possible limitation-period deadline (${dueDate}) — verify against current legislation`,
+    );
+  } catch {
+    // A broken template must never block matter creation.
+  }
 }
 
 // Best-effort, non-fatal — matter creation must succeed even if seeding its

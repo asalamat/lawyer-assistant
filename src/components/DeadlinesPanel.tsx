@@ -8,6 +8,7 @@ const SOURCE_LABELS: Record<MatterDeadline["source"], string> = {
   extracted: "AI-extracted",
   "rule-computed": "Rule-computed",
   manual: "Manual",
+  "limitation-period": "Limitation period",
 };
 
 function CalculatorPanel({

@@ -45,7 +45,7 @@ next-env.d.ts
 /data
 /data.before-restore-*
 /backups
-/.claude-flow
+.claude-flow
 .claude/settings.local.json
 .claude/memory.db
 /claude-flow.config.json

@@ -238,7 +238,7 @@ export interface MatterNote {
   createdAt: string;
 }
 
-export const DEADLINE_SOURCES = ["extracted", "rule-computed", "manual"] as const;
+export const DEADLINE_SOURCES = ["extracted", "rule-computed", "manual", "limitation-period"] as const;
 export type DeadlineSource = (typeof DEADLINE_SOURCES)[number];
 
 export interface MatterDeadline {
