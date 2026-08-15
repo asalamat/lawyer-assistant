@@ -70,8 +70,7 @@ export const HELP_SECTIONS: HelpSection[] = [
           "- Create a matter with a title, client name, client email, matter type, and an optional default hourly billing rate\n" +
           "- A conflict-of-interest check runs automatically against every existing client name (exact and near-miss spelling) when you fill in the client name\n" +
           "- Search/filter the matters list by text or open/closed/archived status\n" +
-          "- Close, reopen, archive, or permanently delete a matter at any time from its Overview tab — a matter placed on legal hold (see Compliance below) can't be deleted until the hold is released\n" +
-          "- Click **\"change\"** next to the matter type at the top of any matter to correct or update it — free text, same as at creation. This immediately affects which sidebar tabs show (e.g. Crown position only shows for a recognized criminal matter type) and any \"is this the right practice area\" tip text, but does NOT retroactively re-seed the Requirements checklist, Tasks, or the auto-seeded limitation-period deadline — those were seeded once, based on the matter type at creation time",
+          "- Close, reopen, archive, or permanently delete a matter at any time from its Overview tab — a matter placed on legal hold (see Compliance below) can't be deleted until the hold is released",
       },
       {
         slug: "compliance",
@@ -213,15 +212,6 @@ export const HELP_SECTIONS: HelpSection[] = [
           "- Add a task with just a title, or optionally a due date and an assignee from anyone active at the firm\n" +
           "- Checking it off records when it was completed; deleting removes it outright, no undo\n" +
           "- Any task assigned to you, across every matter you can see, rolls up into a \"My tasks\" widget on the Dashboard, the same way upcoming deadlines do",
-      },
-      {
-        slug: "requirements",
-        name: "Requirements",
-        detail:
-          "A practice-area-specific checklist of documents/steps a matter typically needs — different from Tasks (free-form to-dos) in that this is seeded automatically based on the matter's own matter type, so an Immigration matter and a Real Estate matter start with genuinely different checklists.\n\n" +
-          "- Auto-seeded when the matter is created, for any recognized matter type (Personal Injury, Civil Litigation, Criminal Defence/Law, Wills and Estates, Traffic/Provincial Offences, Immigration, Real Estate, Family, Employment, Corporate) — nothing seeds for a matter type that isn't recognized, and the checklist is a generic starting point to adapt, never a complete or authoritative list for the actual case\n" +
-          "- Check items off as they're satisfied; add your own extra items or delete ones that don't apply\n" +
-          "- Changing a matter's type later doesn't re-seed the checklist — there's no way to edit matter type once set",
       },
       {
         slug: "trust-accounting",
@@ -371,8 +361,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         detail:
           "Analyzes charges and statutory elements, available evidence for each, weaknesses, possible defences, and aggravating/mitigating factors — then ends with two or three plausible Crown positions, each with supporting evidence, what's missing, and a confidence level (high/medium/low).\n\n" +
           "- Deliberately does not predict which one will happen, give a percentage, or present this as advice — a structured starting point for the lawyer's own judgment\n" +
-          "- Citations are checked against the matter's real documents; anything that doesn't match is flagged\n" +
-          "- Only shows up in the sidebar for a matter type recognized as criminal (\"Criminal Defence\"/\"Criminal Law\") — this whole feature assumes charges and a Crown prosecutor, so it's hidden rather than shown as a confusing option on every other kind of matter",
+          "- Citations are checked against the matter's real documents; anything that doesn't match is flagged",
       },
       {
         slug: "missing-evidence",

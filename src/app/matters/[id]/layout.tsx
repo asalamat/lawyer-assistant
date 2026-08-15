@@ -4,7 +4,6 @@ import { isEmailConfigured } from "@/lib/email";
 import { getMatter } from "@/lib/matters";
 import MatterFullReportButton from "@/components/MatterFullReportButton";
 import MatterStatusToggle from "@/components/MatterStatusToggle";
-import MatterTypeEditor from "@/components/MatterTypeEditor";
 import MatterSidebarNav from "@/components/MatterSidebarNav";
 
 export default async function MatterLayout({
@@ -27,7 +26,7 @@ export default async function MatterLayout({
             <span className="badge font-mono shrink-0">{matter.fileNumber}</span>
           </div>
           <p className="text-sm text-muted break-words">
-            {matter.clientName} &middot; <MatterTypeEditor matter={matter} />
+            {matter.clientName} &middot; {matter.matterType}
           </p>
           <div className="mt-1 flex items-center gap-2">
             <MatterStatusToggle matter={matter} />
@@ -54,7 +53,7 @@ export default async function MatterLayout({
       </div>
 
       <div className="flex flex-col gap-6 sm:flex-row">
-        <MatterSidebarNav matterId={matter.id} matterType={matter.matterType} />
+        <MatterSidebarNav matterId={matter.id} />
         <div className="min-w-0 flex-1">{children}</div>
       </div>
     </main>

@@ -41,7 +41,6 @@ licensing: add as many lawyers and staff as your office needs.
 - ⚖️ Case-citation checking against CanLII, 🆕 with a "possible appeal" flag on citing cases sharing a party name
 - 🆕 Witness/examination prep — statements, inconsistencies, and suggested direct/cross-examination questions for a named witness
 - 🆕 Disclosure package builder — per-passage redaction checklist and per-document disclosure readiness
-- 🆕 Practice-area requirements checklist — a different starting document/step checklist auto-seeded per matter type (10 areas: Personal Injury, Civil Litigation, Criminal Defence/Law, Wills and Estates, Traffic/Provincial Offences, Immigration, Real Estate, Family, Employment, Corporate)
 - 🧠 Independent second-model review (choose from 6 providers, own fallback sequence) for blind spots, with a warning if it overlaps your primary provider
 - 🎙️ Voice dictation on every free-text field
 - 🌍 Translation of any AI output + clean PDF export
@@ -375,18 +374,6 @@ Windows, and Linux.
 
 ## Recent changes
 
-- 🆕✅ **Per-practice-area requirements checklist** — opening a matter now
-  auto-seeds a different starting checklist of documents/steps depending on
-  its matter type (Immigration needs a passport/proof of status/biometrics;
-  Real Estate needs a title search/mortgage commitment/status certificate;
-  Family needs financial disclosure/a parenting plan; and so on across all
-  10 recognized practice areas), on its own "Requirements" tab next to
-  Tasks — check items off, add your own, delete what doesn't apply. Manual,
-  not AI-detected, on purpose: claiming to know a document exists based on
-  filename/content matching would be a real accuracy risk this feature
-  avoids by just asking the lawyer to check it off themselves. A generic
-  starting point, not a complete or authoritative list for the actual
-  application/case type.
 - 🆕💳📱📗 **Online payments, SMS, QuickBooks sync, and an installable app** —
   clients can now pay an outstanding invoice or make a trust deposit
   online from their portal via Stripe Checkout (card details never touch

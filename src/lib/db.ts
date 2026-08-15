@@ -924,25 +924,6 @@ execWithRetry(`
   CREATE INDEX IF NOT EXISTS idx_tasks_matterId ON tasks(matterId);
   CREATE INDEX IF NOT EXISTS idx_tasks_assignedToUserId ON tasks(assignedToUserId);
 
-  -- A practice-area-specific checklist of documents/steps a matter
-  -- typically needs (Immigration, Real Estate, Family, etc.) — deliberately
-  -- separate from tasks: a requirement item has no dueDate/assignedToUserId,
-  -- and mixing the two would mean retrofitting a type filter into every
-  -- tasks query (including the cross-matter Dashboard rollup) instead of
-  -- one dedicated table. key is set for a template-seeded item (see
-  -- requirementsChecklists.ts), NULL for one a lawyer added by hand.
-  CREATE TABLE IF NOT EXISTS matter_requirements (
-    id TEXT PRIMARY KEY,
-    matterId TEXT NOT NULL,
-    key TEXT,
-    label TEXT NOT NULL,
-    completed INTEGER NOT NULL DEFAULT 0,
-    completedAt TEXT,
-    createdAt TEXT NOT NULL,
-    FOREIGN KEY (matterId) REFERENCES matters(id)
-  );
-  CREATE INDEX IF NOT EXISTS idx_matter_requirements_matterId ON matter_requirements(matterId);
-
   -- A firm-wide contract playbook, not per-matter — same "author once,
   -- reuse across every matter" shape as document_templates.
   CREATE TABLE IF NOT EXISTS clause_library_entries (

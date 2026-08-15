@@ -9,7 +9,6 @@ import {
   updateMatterHourlyRate,
   updateMatterRetainerThreshold,
   updateMatterStatus,
-  updateMatterType,
 } from "@/lib/matters";
 import type { MatterClassification } from "@/lib/types";
 
@@ -33,22 +32,6 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await request.json();
-
-  if (body?.matterType !== undefined) {
-    if (typeof body.matterType !== "string" || !body.matterType.trim()) {
-      return NextResponse.json({ error: "matterType is required" }, { status: 400 });
-    }
-    try {
-      const matter = await updateMatterType(id, body.matterType);
-      if (!matter) return NextResponse.json({ error: "Matter not found" }, { status: 404 });
-      return NextResponse.json(matter);
-    } catch (err) {
-      return NextResponse.json(
-        { error: err instanceof Error ? err.message : "Failed to update matter type" },
-        { status: 400 },
-      );
-    }
-  }
 
   if (body?.hourlyRate !== undefined) {
     const parsedRate = Number(body.hourlyRate);

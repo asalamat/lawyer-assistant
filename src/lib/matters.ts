@@ -15,11 +15,9 @@ import { scanBuffer } from "./malwareScan";
 import { maskForAI } from "./piiMask";
 import { listAttachedReferenceDocuments } from "./referenceLibrary";
 import { findLimitationPeriod } from "./limitationPeriods";
-import { addMatterRequirement } from "./matterRequirements";
 import { createSignableDocument, getSignableDocument, sendForSignature } from "./signableDocuments";
 import { createQuickBooksInvoice, getOrCreateQuickBooksCustomer, recordQuickBooksPayment } from "./quickbooks";
 import { sendSms } from "./sms";
-import { findRequirementsChecklist } from "./requirementsChecklists";
 import { findTaskTemplate } from "./taskTemplates";
 import { createTask } from "./tasks";
 import {
@@ -199,7 +197,6 @@ export async function createMatter(input: {
   await fireWebhook("matter.created", matter);
   await seedDefaultTasks(matter, input.createdByUserId ?? null);
   await seedLimitationDeadline(matter);
-  await seedRequirementsChecklist(matter);
   return matter;
 }
 
@@ -261,22 +258,6 @@ async function seedDefaultTasks(matter: Matter, createdByUserId: string | null):
   }
 }
 
-// Best-effort, non-fatal, same reasoning as seedDefaultTasks/
-// seedLimitationDeadline above. Generic "what's typically needed" content,
-// not a complete or authoritative list for the actual application/case
-// type — a starting point for the lawyer to adapt.
-async function seedRequirementsChecklist(matter: Matter): Promise<void> {
-  try {
-    const template = findRequirementsChecklist(matter.matterType);
-    if (!template) return;
-    for (const item of template) {
-      await addMatterRequirement(matter.id, item.label, item.key);
-    }
-  } catch {
-    // A broken template must never block matter creation.
-  }
-}
-
 export async function updateMatterStatus(
   matterId: string,
   status: Matter["status"],
@@ -285,25 +266,6 @@ export async function updateMatterStatus(
   const matter = await getMatter(matterId);
   if (matter) {
     await recordAuditEvent("matter_status_changed", matterId, `Marked matter as ${status}`);
-  }
-  return matter;
-}
-
-// Deliberately does NOT re-seed Requirements/Tasks/the limitation-period
-// deadline — those were seeded once at creation based on whatever
-// matterType applied then, and silently adding/removing checklist items
-// because someone corrected a typo (or genuinely changed practice area)
-// would be a surprising side effect. The one thing that DOES immediately
-// follow a matterType change is the sidebar nav (MatterSidebarNav reads
-// matter.matterType live on every render, not a stored snapshot), e.g. the
-// Crown-position tab reappearing/disappearing.
-export async function updateMatterType(matterId: string, matterType: string): Promise<Matter | null> {
-  const trimmed = matterType.trim();
-  if (!trimmed) throw new Error("Matter type is required");
-  db.prepare("UPDATE matters SET matterType = ? WHERE id = ?").run(trimmed, matterId);
-  const matter = await getMatter(matterId);
-  if (matter) {
-    await recordAuditEvent("matter_type_changed", matterId, `Changed matter type to "${trimmed}"`);
   }
   return matter;
 }
@@ -473,7 +435,6 @@ export async function deleteMatter(matterId: string): Promise<boolean> {
   db.prepare("DELETE FROM matter_team WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM case_noteups WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM tasks WHERE matterId = ?").run(matterId);
-  db.prepare("DELETE FROM matter_requirements WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM redline_analyses WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM missing_evidence_reports WHERE matterId = ?").run(matterId);
   db.prepare(

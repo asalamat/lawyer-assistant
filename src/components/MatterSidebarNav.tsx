@@ -30,21 +30,7 @@ import {
 // list — 27 links in a row was hard to scan. Overview stays outside any
 // group since it's the entry point back to the matter, not a category
 // member itself.
-// Same normalize/substring-match shape as taskTemplates.ts/
-// limitationPeriods.ts/requirementsChecklists.ts — reused here to decide
-// whether a matter-type-specific tab (currently just Crown position,
-// which assumes charges and a Crown prosecutor) should show at all.
-// Deliberately narrow: only a tab that's unambiguously wrong for every
-// other practice area gets hidden this way, and everything else still
-// shows regardless of matter type, since guessing wrong and hiding
-// something a lawyer actually needs is worse than one irrelevant tab.
-function matterTypeMatches(matterType: string, keywords: string[]): boolean {
-  const key = matterType.trim().toLowerCase();
-  if (!key) return false;
-  return keywords.some((k) => key.includes(k) || k.includes(key));
-}
-
-export default function MatterSidebarNav({ matterId, matterType }: { matterId: string; matterType: string }) {
+export default function MatterSidebarNav({ matterId }: { matterId: string }) {
   const pathname = usePathname();
   const base = `/matters/${matterId}`;
 
@@ -73,7 +59,6 @@ export default function MatterSidebarNav({ matterId, matterType }: { matterId: s
         { href: `${base}/deadlines`, label: "Deadlines", Icon: DeadlineIcon, tip: "AI-extracted and rule-computed deadlines, court dates, limitation periods" },
         { href: `${base}/calendar`, label: "Calendar", Icon: CalendarIcon, tip: "This matter's deadlines and events on a calendar view" },
         { href: `${base}/tasks`, label: "Tasks", Icon: TaskIcon, tip: "A plain to-do checklist, separate from Deadlines" },
-        { href: `${base}/requirements`, label: "Requirements", Icon: TaskIcon, tip: "A practice-area-specific checklist of documents/steps this kind of matter typically needs" },
       ],
     },
     {
@@ -87,13 +72,7 @@ export default function MatterSidebarNav({ matterId, matterType }: { matterId: s
         { href: `${base}/missing-evidence`, label: "Missing evidence", Icon: AuditIcon, tip: "Rolls up missing/gap items already flagged elsewhere in this matter" },
         { href: `${base}/exhibit-list`, label: "Exhibit list", Icon: DocumentIcon, tip: "A numbered exhibit list built from this matter's documents" },
         { href: `${base}/disclosure-checklist`, label: "Disclosure checklist", Icon: AuditIcon, tip: "What's disclosed vs. what the documents reference as existing" },
-        {
-          href: `${base}/crown-position`,
-          label: "Crown position",
-          Icon: ScaleIcon,
-          tip: "Charges, elements, weaknesses, and plausible Crown positions",
-          onlyForMatterTypes: ["criminal"],
-        },
+        { href: `${base}/crown-position`, label: "Crown position", Icon: ScaleIcon, tip: "Charges, elements, weaknesses, and plausible Crown positions" },
         { href: `${base}/privilege-review`, label: "Privilege & redaction", Icon: SecurityIcon, tip: "Flags privileged communications and sensitive personal information" },
         { href: `${base}/disclosure-package`, label: "Disclosure package", Icon: SecurityIcon, tip: "Per-passage redaction checklist and which documents are ready to disclose" },
         { href: `${base}/case-noteup`, label: "Case citations", Icon: ScaleIcon, tip: "Looks up cited case law on CanLII — real, findable, cited/citing cases" },
@@ -137,7 +116,6 @@ export default function MatterSidebarNav({ matterId, matterType }: { matterId: s
     label: string;
     Icon: typeof OverviewIcon;
     tip?: string;
-    onlyForMatterTypes?: string[];
   }) {
     const active = isActive(href);
     return (
@@ -163,9 +141,7 @@ export default function MatterSidebarNav({ matterId, matterType }: { matterId: s
       {groups.map((group) => (
         <div key={group.label} className="flex flex-col gap-1">
           <p className="px-3 text-xs font-bold uppercase tracking-wide text-accent">{group.label}</p>
-          {group.links
-            .filter((link) => !link.onlyForMatterTypes || matterTypeMatches(matterType, link.onlyForMatterTypes))
-            .map(renderLink)}
+          {group.links.map(renderLink)}
         </div>
       ))}
     </nav>
