@@ -36,6 +36,7 @@ const LINKS = [
   { href: "/settings/sms", label: "SMS", Icon: ChatIcon, adminOnly: true },
   { href: "/settings/docusign", label: "DocuSign", Icon: SignatureIcon, adminOnly: true },
   { href: "/settings/integrations", label: "Integrations", Icon: IntegrationIcon, adminOnly: true },
+  { href: "/settings/quickbooks", label: "QuickBooks", Icon: IntegrationIcon, adminOnly: true },
   { href: "/settings/api-webhooks", label: "API & webhooks", Icon: IntegrationIcon, adminOnly: true },
   { href: "/settings/campaigns", label: "Marketing campaigns", Icon: MailIcon, adminOnly: true },
   { href: "/settings/users", label: "Users", Icon: UsersIcon, adminOnly: true },

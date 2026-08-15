@@ -59,6 +59,7 @@ export default function TimesheetPanel({
   emailConfigured,
   initialHourlyRate,
   initialSignableDocuments,
+  quickBooksConnected,
 }: {
   matterId: string;
   initialEntries: TimeEntry[];
@@ -69,6 +70,7 @@ export default function TimesheetPanel({
   emailConfigured: boolean;
   initialHourlyRate: number | null;
   initialSignableDocuments: SignableDocument[];
+  quickBooksConnected: boolean;
 }) {
   const [entries, setEntries] = useState(initialEntries);
   const [disbursements, setDisbursements] = useState(initialDisbursements);
@@ -82,6 +84,8 @@ export default function TimesheetPanel({
   const [approvalLinks, setApprovalLinks] = useState<Record<string, string>>({});
   const [approvalEmailedTo, setApprovalEmailedTo] = useState<Record<string, string>>({});
   const [approvalViaDocuSign, setApprovalViaDocuSign] = useState<Record<string, boolean>>({});
+  const [qbSyncingId, setQbSyncingId] = useState<string | null>(null);
+  const [qbSyncError, setQbSyncError] = useState<{ id: string; message: string } | null>(null);
   const [copiedApprovalId, setCopiedApprovalId] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sendResult, setSendResult] = useState<{ id: string; ok: boolean; message: string } | null>(
@@ -364,6 +368,23 @@ export default function TimesheetPanel({
     if (!res.ok) return;
     const updated = await res.json();
     setInvoices((prev) => prev.map((inv) => (inv.id === invoice.id ? updated : inv)));
+  }
+
+  async function handleQuickBooksSync(invoice: Invoice) {
+    setQbSyncingId(invoice.id);
+    setQbSyncError(null);
+    try {
+      const res = await fetch(`/api/matters/${matterId}/invoices/${invoice.id}/quickbooks-sync`, {
+        method: "POST",
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Sync failed");
+      setInvoices((prev) => prev.map((inv) => (inv.id === invoice.id ? body : inv)));
+    } catch (err) {
+      setQbSyncError({ id: invoice.id, message: err instanceof Error ? err.message : "Something went wrong" });
+    } finally {
+      setQbSyncingId(null);
+    }
   }
 
   function sendViaMailto(invoice: Invoice) {
@@ -879,6 +900,29 @@ export default function TimesheetPanel({
                     </button>
                   )}
                 </div>
+                {quickBooksConnected && (
+                  <div className="flex items-center gap-2">
+                    {invoice.qbInvoiceId && (
+                      <span className="badge-accent">
+                        Synced{invoice.qbPaymentId ? " (paid recorded)" : ""}
+                      </span>
+                    )}
+                    <button
+                      onClick={() => handleQuickBooksSync(invoice)}
+                      disabled={qbSyncingId === invoice.id}
+                      className="text-xs text-accent hover:underline"
+                    >
+                      {qbSyncingId === invoice.id
+                        ? "Syncing…"
+                        : invoice.qbInvoiceId
+                          ? "Re-sync to QuickBooks"
+                          : "Sync to QuickBooks"}
+                    </button>
+                  </div>
+                )}
+                {qbSyncError?.id === invoice.id && (
+                  <p className="text-xs text-red-600">{qbSyncError.message}</p>
+                )}
                 {approvalError?.id === invoice.id && (
                   <p className="text-xs text-red-600">{approvalError.message}</p>
                 )}

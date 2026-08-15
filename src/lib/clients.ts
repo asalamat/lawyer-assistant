@@ -52,6 +52,7 @@ export async function createClient(input: {
     phone: input.phone?.trim() || null,
     notes: input.notes?.trim() || null,
     createdAt: new Date().toISOString(),
+    qbCustomerId: null,
   };
   db.prepare(
     "INSERT INTO clients (id, name, type, contactPerson, registrationNumber, email, phone, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -133,6 +134,10 @@ export async function deleteClient(id: string): Promise<boolean> {
   db.prepare("DELETE FROM clients WHERE id = ?").run(id);
   await recordAuditEvent("client_deleted", null, `Deleted client "${client.name}"`);
   return true;
+}
+
+export async function setClientQuickBooksCustomerId(clientId: string, qbCustomerId: string): Promise<void> {
+  db.prepare("UPDATE clients SET qbCustomerId = ? WHERE id = ?").run(qbCustomerId, clientId);
 }
 
 // Reuses an existing client if the name+email pair already exists (so a

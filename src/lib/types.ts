@@ -36,6 +36,10 @@ export interface Client {
   phone: string | null;
   notes: string | null;
   createdAt: string;
+  // Set once this client has a matching Customer created in QuickBooks
+  // Online (see quickbooks.ts) — reused on every later invoice sync so a
+  // repeat sync never creates a duplicate Customer record.
+  qbCustomerId: string | null;
 }
 
 // Common party roles, offered as autocomplete suggestions on the parties
@@ -582,6 +586,11 @@ export interface Invoice {
   // meaning it always had) rather than folded in, so existing callers that
   // only care about billable time aren't silently changed.
   disbursementsTotal: number;
+  // Set once this invoice has been pushed to QuickBooks Online (see
+  // quickbooks.ts / syncInvoiceToQuickBooks in matters.ts) — the QBO
+  // Invoice id, and the QBO Payment id once marked paid there too.
+  qbInvoiceId: string | null;
+  qbPaymentId: string | null;
 }
 
 export interface Disbursement {

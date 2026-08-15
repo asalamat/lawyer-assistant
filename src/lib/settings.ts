@@ -35,6 +35,27 @@ export interface TwilioConfig {
   fromPhoneNumber: string;
 }
 
+// One-way invoice sync (this app -> QuickBooks Online), Intuit's standard
+// OAuth 2.0 authorization-code flow (no PKCE — Intuit doesn't require it
+// the way Google/Microsoft's public-client flows do). App registration
+// (set once, admin step) and the resulting connection (set after the
+// OAuth round-trip) are separate objects, same reasoning as Drive/OneDrive
+// splitting driveOAuthApp.ts from the connection in settings.ts — only one
+// provider here, so both still live in this file rather than a dedicated one.
+export interface QuickBooksAppCredentials {
+  clientId: string;
+  clientSecret: string;
+  sandbox: boolean;
+}
+
+export interface QuickBooksConnection {
+  realmId: string;
+  accessToken: string;
+  refreshToken: string;
+  tokenExpiresAt: string | null;
+  companyName: string | null;
+}
+
 export interface WeatherLocation {
   name: string;
   country: string | null;
@@ -219,6 +240,8 @@ interface Settings {
   // Twilio to webhook to (same constraint as DocuSign), so it polls
   // Twilio's message list instead, same reasoning as docusignScheduler.ts.
   lastSmsPollAt?: string;
+  quickbooksApp?: QuickBooksAppCredentials;
+  quickbooksConnection?: QuickBooksConnection;
   location?: WeatherLocation;
   aiProviderOrder?: AiProvider[];
   cronSecret?: string;
@@ -272,6 +295,18 @@ async function readSettings(): Promise<Settings> {
   }
   if (settings.twilio?.authToken && !isEncryptedText(settings.twilio.authToken)) {
     settings.twilio.authToken = await encryptText(settings.twilio.authToken);
+    migrated = true;
+  }
+  if (settings.quickbooksApp?.clientSecret && !isEncryptedText(settings.quickbooksApp.clientSecret)) {
+    settings.quickbooksApp.clientSecret = await encryptText(settings.quickbooksApp.clientSecret);
+    migrated = true;
+  }
+  if (settings.quickbooksConnection?.accessToken && !isEncryptedText(settings.quickbooksConnection.accessToken)) {
+    settings.quickbooksConnection.accessToken = await encryptText(settings.quickbooksConnection.accessToken);
+    migrated = true;
+  }
+  if (settings.quickbooksConnection?.refreshToken && !isEncryptedText(settings.quickbooksConnection.refreshToken)) {
+    settings.quickbooksConnection.refreshToken = await encryptText(settings.quickbooksConnection.refreshToken);
     migrated = true;
   }
   if (settings.cloudBackup?.accessKeyId && !isEncryptedText(settings.cloudBackup.accessKeyId)) {
@@ -495,6 +530,77 @@ export async function setLastSmsPollAt(iso: string): Promise<void> {
   const settings = await readSettings();
   settings.lastSmsPollAt = iso;
   await writeSettings(settings);
+}
+
+export async function getQuickBooksAppCredentials(): Promise<QuickBooksAppCredentials | undefined> {
+  const settings = await readSettings();
+  if (!settings.quickbooksApp) return undefined;
+  return { ...settings.quickbooksApp, clientSecret: await decryptText(settings.quickbooksApp.clientSecret) };
+}
+
+export async function setQuickBooksAppCredentials(app: QuickBooksAppCredentials): Promise<void> {
+  const settings = await readSettings();
+  settings.quickbooksApp = { ...app, clientSecret: await encryptText(app.clientSecret) };
+  await writeSettings(settings);
+}
+
+export async function getQuickBooksConnection(): Promise<QuickBooksConnection | undefined> {
+  const settings = await readSettings();
+  if (!settings.quickbooksConnection) return undefined;
+  return {
+    ...settings.quickbooksConnection,
+    accessToken: await decryptText(settings.quickbooksConnection.accessToken),
+    refreshToken: await decryptText(settings.quickbooksConnection.refreshToken),
+  };
+}
+
+export async function saveQuickBooksConnection(connection: QuickBooksConnection): Promise<void> {
+  const settings = await readSettings();
+  settings.quickbooksConnection = {
+    ...connection,
+    accessToken: await encryptText(connection.accessToken),
+    refreshToken: await encryptText(connection.refreshToken),
+  };
+  await writeSettings(settings);
+}
+
+export async function updateQuickBooksTokens(
+  accessToken: string,
+  refreshToken: string,
+  tokenExpiresAt: string | null,
+): Promise<void> {
+  const settings = await readSettings();
+  if (!settings.quickbooksConnection) return;
+  settings.quickbooksConnection = {
+    ...settings.quickbooksConnection,
+    accessToken: await encryptText(accessToken),
+    refreshToken: await encryptText(refreshToken),
+    tokenExpiresAt,
+  };
+  await writeSettings(settings);
+}
+
+export async function disconnectQuickBooks(): Promise<void> {
+  const settings = await readSettings();
+  delete settings.quickbooksConnection;
+  await writeSettings(settings);
+}
+
+export async function getQuickBooksStatus(): Promise<{
+  appConfigured: boolean;
+  sandbox: boolean;
+  connected: boolean;
+  companyName: string | null;
+  realmId: string | null;
+}> {
+  const settings = await readSettings();
+  return {
+    appConfigured: Boolean(settings.quickbooksApp),
+    sandbox: settings.quickbooksApp?.sandbox ?? true,
+    connected: Boolean(settings.quickbooksConnection),
+    companyName: settings.quickbooksConnection?.companyName ?? null,
+    realmId: settings.quickbooksConnection?.realmId ?? null,
+  };
 }
 
 export async function getDocuSignConfig(): Promise<DocuSignConfig | undefined> {

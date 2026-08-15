@@ -1,6 +1,7 @@
 import { listDisbursements } from "@/lib/disbursements";
 import { getMatter, listInvoices, listTimeEntries } from "@/lib/matters";
 import { isEmailConfigured } from "@/lib/email";
+import { isQuickBooksConnected } from "@/lib/quickbooks";
 import { getDisbursementCategories } from "@/lib/settings";
 import { listSignableDocuments } from "@/lib/signableDocuments";
 import TimesheetPanel from "@/components/TimesheetPanel";
@@ -11,16 +12,25 @@ export default async function MatterTimesheetPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [matter, timeEntries, disbursements, disbursementCategories, invoices, emailConfigured, signableDocuments] =
-    await Promise.all([
-      getMatter(id),
-      listTimeEntries(id),
-      listDisbursements(id),
-      getDisbursementCategories(),
-      listInvoices(id),
-      isEmailConfigured(),
-      listSignableDocuments(id),
-    ]);
+  const [
+    matter,
+    timeEntries,
+    disbursements,
+    disbursementCategories,
+    invoices,
+    emailConfigured,
+    signableDocuments,
+    quickBooksConnected,
+  ] = await Promise.all([
+    getMatter(id),
+    listTimeEntries(id),
+    listDisbursements(id),
+    getDisbursementCategories(),
+    listInvoices(id),
+    isEmailConfigured(),
+    listSignableDocuments(id),
+    isQuickBooksConnected(),
+  ]);
 
   return (
     <TimesheetPanel
@@ -33,6 +43,7 @@ export default async function MatterTimesheetPage({
       emailConfigured={emailConfigured}
       initialHourlyRate={matter?.hourlyRate ?? null}
       initialSignableDocuments={signableDocuments}
+      quickBooksConnected={quickBooksConnected}
     />
   );
 }

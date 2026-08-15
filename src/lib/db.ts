@@ -1050,6 +1050,7 @@ ensureColumn("users", "totpBackupCodesJson", "TEXT");
 ensureColumn("clients", "type", "TEXT NOT NULL DEFAULT 'individual'");
 ensureColumn("clients", "contactPerson", "TEXT");
 ensureColumn("clients", "registrationNumber", "TEXT");
+ensureColumn("clients", "qbCustomerId", "TEXT");
 // detectedLanguage: ISO 639-3 code (e.g. "eng", "fra") or "und" if the text
 // was too short to tell. ocrConfidence only set for OCR'd images (null for
 // every other extraction path — there's no equivalent signal). qualityScore
@@ -1151,6 +1152,8 @@ ensureColumn("signable_documents", "docusignEnvelopeId", "TEXT");
 // separate invoice-specific approval flow.
 ensureColumn("invoices", "signableDocumentId", "TEXT");
 ensureColumn("invoices", "disbursementsTotal", "REAL NOT NULL DEFAULT 0");
+ensureColumn("invoices", "qbInvoiceId", "TEXT");
+ensureColumn("invoices", "qbPaymentId", "TEXT");
 
 // Backs the idle-timeout check in auth.ts/clientAuth.ts — separate from
 // expiresAt (a fixed absolute deadline set at login) because idle timeout

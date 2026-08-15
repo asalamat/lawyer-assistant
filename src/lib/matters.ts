@@ -4,7 +4,7 @@ import { createHash } from "crypto";
 import path from "path";
 import { cache } from "react";
 import { recordAuditEvent } from "./auditLog";
-import { findOrCreateClient, getClient } from "./clients";
+import { findOrCreateClient, getClient, setClientQuickBooksCustomerId } from "./clients";
 import { encryptFile } from "./crypto";
 import db, { toPlain } from "./db";
 import { nameSimilarity } from "./fuzzyMatch";
@@ -16,6 +16,7 @@ import { maskForAI } from "./piiMask";
 import { listAttachedReferenceDocuments } from "./referenceLibrary";
 import { findLimitationPeriod } from "./limitationPeriods";
 import { createSignableDocument, getSignableDocument, sendForSignature } from "./signableDocuments";
+import { createQuickBooksInvoice, getOrCreateQuickBooksCustomer, recordQuickBooksPayment } from "./quickbooks";
 import { sendSms } from "./sms";
 import { findTaskTemplate } from "./taskTemplates";
 import { createTask } from "./tasks";
@@ -1633,6 +1634,8 @@ export async function createInvoice(
     createdAt,
     signableDocumentId: null,
     disbursementsTotal,
+    qbInvoiceId: null,
+    qbPaymentId: null,
   };
 
   db.prepare(
@@ -1758,6 +1761,49 @@ export async function updateInvoiceStatus(
     `Marked invoice as ${status}`,
   );
   return toPlain<Invoice>(row);
+}
+
+// One explicit, idempotent action rather than an automatic sync on every
+// invoice change — accounting sync failures/duplicates are a real cost, so
+// this stays a deliberate button-press, not something that fires silently
+// in the background. Safe to call repeatedly: reuses the client's
+// qbCustomerId and the invoice's qbInvoiceId/qbPaymentId once set, so a
+// second call only does whatever hasn't happened yet (e.g. recording
+// payment after the invoice is later marked paid).
+export async function syncInvoiceToQuickBooks(matterId: string, invoiceId: string): Promise<Invoice> {
+  const invoice = await getInvoice(matterId, invoiceId);
+  if (!invoice) throw new Error("Invoice not found");
+  const matter = await getMatter(matterId);
+  if (!matter?.clientId) throw new Error("This matter has no linked client.");
+  const client = await getClient(matter.clientId);
+  if (!client) throw new Error("Linked client not found.");
+
+  let qbCustomerId = client.qbCustomerId;
+  if (!qbCustomerId) {
+    qbCustomerId = await getOrCreateQuickBooksCustomer({ name: client.name, email: client.email });
+    await setClientQuickBooksCustomerId(client.id, qbCustomerId);
+  }
+
+  let qbInvoiceId = invoice.qbInvoiceId;
+  if (!qbInvoiceId) {
+    qbInvoiceId = await createQuickBooksInvoice({
+      customerId: qbCustomerId,
+      invoiceNumber: invoice.invoiceNumber,
+      description: `Legal services — ${matter.title} (Invoice ${invoice.invoiceNumber})`,
+      amount: invoice.total,
+    });
+    db.prepare("UPDATE invoices SET qbInvoiceId = ? WHERE id = ?").run(qbInvoiceId, invoiceId);
+  }
+
+  let qbPaymentId = invoice.qbPaymentId;
+  if (invoice.status === "paid" && !qbPaymentId) {
+    qbPaymentId = await recordQuickBooksPayment(qbCustomerId, qbInvoiceId, invoice.total);
+    db.prepare("UPDATE invoices SET qbPaymentId = ? WHERE id = ?").run(qbPaymentId, invoiceId);
+  }
+
+  await recordAuditEvent("invoice_synced_to_quickbooks", matterId, `Synced invoice ${invoice.invoiceNumber} to QuickBooks Online`);
+
+  return { ...invoice, qbInvoiceId, qbPaymentId };
 }
 
 export async function listMatterNotes(matterId: string): Promise<MatterNote[]> {
