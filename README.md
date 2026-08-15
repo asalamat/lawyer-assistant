@@ -49,6 +49,7 @@ licensing: add as many lawyers and staff as your office needs.
 **🏛️ Client Portal**
 - 🔐 Persistent client login (separate identity from staff)
 - 💌 Lawyer-controlled per-document visibility, portal messaging
+- 🆕💳 Online payments — pay an outstanding invoice or make a trust deposit, via Stripe Checkout (card details never touch this app)
 
 **📈 Leads / CRM**
 - 🗓️ Kanban pipeline (new → contacted → consultation → proposal → won/lost)
@@ -57,6 +58,7 @@ licensing: add as many lawyers and staff as your office needs.
 
 **💼 Practice Management**
 - ⏱️ Timesheets, invoicing, SMTP email sending with attachments
+- 🆕📗 QuickBooks Online sync — push invoices as they're created, record payment once marked paid, one-way (this app stays the source of truth)
 - 💰 Trust accounting (compliance-first ledger, bank reconciliation) + 🆕 low-balance alerts
 - ✔️ Task/to-do management per matter
 - 🧩 Document assembly templates + DOCX export
@@ -66,7 +68,11 @@ licensing: add as many lawyers and staff as your office needs.
 
 **📬 Communications**
 - ✉️ Connected email (Gmail, Outlook/O365, Yahoo) — browse, import to matter
+- 🆕📱 SMS texting with clients (Twilio) — send from a matter, replies picked up automatically
 - 👀 Legislation watch (CanLII) for tracked statutes
+
+**📱 Mobile & Access**
+- 🆕 Installable as a mobile/desktop app (PWA) — add to your phone's home screen, works like a native app
 
 **🔒 Security & Governance**
 - 🧑‍⚖️ Multi-user accounts + roles, TOTP MFA with backup codes
@@ -368,6 +374,22 @@ Windows, and Linux.
 
 ## Recent changes
 
+- 🆕💳📱📗 **Online payments, SMS, QuickBooks sync, and an installable app** —
+  clients can now pay an outstanding invoice or make a trust deposit
+  online from their portal via Stripe Checkout (card details never touch
+  this app, and the two payment types are kept strictly separate — an
+  invoice payment is earned-fee revenue, a trust deposit is a trust-account
+  deposit, never mixed). Staff can text a client directly from a matter
+  (Twilio), with replies picked up automatically every few minutes.
+  Invoices sync one-way to QuickBooks Online (create/reuse a Customer,
+  create the Invoice, record the Payment once marked paid here) via the
+  same OAuth pattern as the Google Drive/OneDrive backup integrations.
+  None of Stripe, Twilio, or QuickBooks use a webhook — this app has no
+  public URL for any of them to call back to, so each confirms completion
+  by polling the provider's own API instead (the same reasoning already
+  used for the DocuSign integration). The app itself is now an installable
+  PWA — add it to a phone's home screen and it opens like a native app, no
+  app store involved.
 - 🆕⚖️ **Four new legal-practice features** — a case-citation health check (flags
   a citing case as a "possible appeal — review" when it shares a distinctive
   party name with the original, since CanLII's API exposes no actual
@@ -607,6 +629,13 @@ reasoning behind each decision, is in
 
 ## Known bugs found & fixed
 
+- **Deleting a client that ever had portal access granted would fail with
+  a raw database error.** `client_users.clientId` is a real foreign key,
+  but `deleteClient()` never cleaned up `client_users`/`client_sessions`
+  before deleting the `clients` row — confirmed live (`FOREIGN KEY
+  constraint failed`) while testing the online-payments feature. Fixed by
+  deleting a client's portal account and sessions first, same pattern as
+  the earlier `deleteMatter()`/notifications fix.
 - **Editing a client's email/name didn't update any of their existing
   matters.** Every matter keeps its own copy of `clientName`/`clientEmail`
   (what invoice sending, e-signature, and compose-email actually read) —

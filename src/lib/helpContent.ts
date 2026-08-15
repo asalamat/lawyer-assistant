@@ -48,6 +48,16 @@ export const HELP_SECTIONS: HelpSection[] = [
           "  - A browser push notification on any device that opted in (Settings > Security > Browser notifications)\n" +
           "- Each reminder is only ever raised once per item, so re-checking never spams the same due date twice",
       },
+      {
+        slug: "install-app",
+        name: "Install as an app",
+        detail:
+          "This app can be installed like a native app on a phone, tablet, or desktop — no app store involved.\n\n" +
+          "- **Phone/tablet (Chrome/Edge/Android):** open the browser menu and tap \"Add to Home screen\" or \"Install app\"\n" +
+          "- **iPhone/iPad (Safari):** tap the Share icon, then \"Add to Home Screen\"\n" +
+          "- **Desktop (Chrome/Edge):** an install icon appears in the address bar; or use the browser menu's \"Install Lawyer Assistant…\"\n" +
+          "- Opens in its own window with no browser chrome, same login session as the browser — still needs a live connection to this app's server, there's no offline mode",
+      },
     ],
   },
   {
@@ -129,7 +139,8 @@ export const HELP_SECTIONS: HelpSection[] = [
           "- If access already exists, the same button becomes **\"Reset password\"** and works the same way, signing them out of any existing session\n" +
           "- The client logs in separately from staff, at `/portal/login`, and sees only their own matters and whichever documents you've turned **\"Share with client\"** on — nothing is visible by default, and a client can never see another client's matters\n" +
           "- One portal account per client\n" +
-          "- A matter's own **Client messages** tab (staff side) and the client's portal page share the same real two-way message thread — no email, no SMS, just an in-app conversation either side can refresh and reply to\n" +
+          "- A matter's own **Client messages** tab (staff side) and the client's portal page share the same real two-way message thread — separate from SMS texting (Matters > Text messages), which goes to the client's phone instead\n" +
+          "- If Stripe is connected (Settings > Payments), the client's portal matter page also shows a **Payments** section — \"Pay now\" on any outstanding invoice, and a \"Deposit\" option for a trust deposit\n" +
           "- Downloads, grants/resets, and messages are all recorded in the audit log",
       },
       {
@@ -189,7 +200,9 @@ export const HELP_SECTIONS: HelpSection[] = [
           "- Select unbilled entries to generate an invoice with an optional discount\n" +
           "- Track paid/unpaid status\n" +
           "- Email the invoice to the client (once SMTP is configured in Settings) or open it as a draft in your own mail client\n" +
-          "- **\"Request client approval\"** sends a signing link (or routes through DocuSign, if configured) for the client to explicitly approve an invoice — see Consent & signatures above for how signing works",
+          "- **\"Request client approval\"** sends a signing link (or routes through DocuSign, if configured) for the client to explicitly approve an invoice — see Consent & signatures above for how signing works\n" +
+          "- Once Stripe is connected (Settings > Payments), the client can pay an invoice online from their portal — no separate action needed here beyond marking it paid, which happens automatically\n" +
+          "- Once QuickBooks Online is connected (Settings > QuickBooks), each invoice gets a **\"Sync to QuickBooks\"** button — creates a matching Customer and Invoice there (reused on repeat syncs), and records a Payment once the invoice is marked paid. One-way sync only: this app stays the source of truth, QuickBooks is the bookkeeping mirror",
       },
       {
         slug: "tasks",
@@ -210,7 +223,8 @@ export const HELP_SECTIONS: HelpSection[] = [
           "- A withdrawal or transfer that would take a matter's balance negative is rejected outright — one client's funds are never used to cover another's shortfall\n" +
           "- From the main Trust accounting page, **\"Reconcile\"** compares an account's ledger total against a bank statement balance you enter, recording the comparison (and any variance) permanently, whether or not it matches\n" +
           "- Every deposit, withdrawal, transfer, and reconciliation is in the audit log\n" +
-          "- Set a **low-balance threshold** on a matter's Trust tab to get notified (bell, email, browser push) the first time its balance drops below it — re-arms after the next new transaction rather than nagging every hour while the balance stays low",
+          "- Set a **low-balance threshold** on a matter's Trust tab to get notified (bell, email, browser push) the first time its balance drops below it — re-arms after the next new transaction rather than nagging every hour while the balance stays low\n" +
+          "- Once Stripe is connected (Settings > Payments), a client can make a trust deposit online from their portal — recorded as a deposit against the firm's trust account, never mixed with invoice payments",
       },
       {
         slug: "email",
@@ -221,6 +235,15 @@ export const HELP_SECTIONS: HelpSection[] = [
           "- Translate the message into another language right in the compose box (defaults to Settings > Translation), replacing the draft in place\n" +
           "- Attach any of the matter's own uploaded documents when sending\n" +
           "- To bring a message FROM a connected inbox INTO this matter instead, see **\"Import an email\"** on the Overview tab — that's the opposite direction (in, not out), so it lives with the rest of document intake rather than here",
+      },
+      {
+        slug: "sms",
+        name: "Text messages (SMS)",
+        detail:
+          "Text a client directly from a matter's Client messages tab, once Twilio is connected (Settings > SMS) — separate from portal messaging above, since this goes straight to the client's phone and needs no portal login on their end.\n\n" +
+          "- Pulls the client's phone number from their client record — add one there first if it's missing\n" +
+          "- Replies aren't instant: this app has no public URL for Twilio to notify directly, so it checks for new texts every few minutes instead and matches a reply back to a matter by phone number\n" +
+          "- Full two-way thread, shown oldest to newest, same layout as portal messages",
       },
     ],
   },
@@ -496,6 +519,34 @@ export const HELP_SECTIONS: HelpSection[] = [
           "7. Open the one-time **admin-consent URL** this page then shows, in a browser while logged into the same DocuSign account, and click **Allow** — a one-time step per integration key (\"There are no redirect URIs registered\" here means step 4 didn't actually save)\n" +
           "8. Click **\"Test connection\"** to confirm everything resolves correctly\n\n" +
           "Once enabled, sending flips automatically for every existing e-signature action — no per-document choice needed. Since this app has no inbound URL for DocuSign to notify directly, a background check every 5 minutes (not instant) looks for newly completed envelopes and pulls the signed document back in. A change to that polling logic itself needs a full app restart to take effect, not just a page refresh, since it runs as a long-lived background timer rather than something reloaded per request.",
+      },
+      {
+        slug: "sms-settings",
+        name: "SMS",
+        detail:
+          "Admin-only. Connect a Twilio account (Account SID, Auth Token, and your Twilio phone number) so staff can text clients — see \"Text messages (SMS)\" under Matters for what this enables.\n\n" +
+          "- **\"Test connection\"** verifies the credentials without sending a message\n" +
+          "- No public URL needed for replies: this app checks Twilio for new messages every few minutes rather than relying on a webhook",
+      },
+      {
+        slug: "quickbooks",
+        name: "QuickBooks Online",
+        detail:
+          "Admin-only, optional. One-way invoice sync (this app → QuickBooks Online) — this app stays the source of truth for matters/billing, QuickBooks becomes the bookkeeping mirror.\n\n" +
+          "1. Register a free app at developer.intuit.com and enter its Client ID and Client Secret here, plus whether it's a sandbox (test) or production app\n" +
+          "2. Click **\"Connect QuickBooks\"** and sign in to the QuickBooks company you want to sync to\n" +
+          "3. Once connected, every invoice gets a **\"Sync to QuickBooks\"** button on the matter's Timesheet tab — creates/reuses a Customer and Invoice, and records a Payment once marked paid here\n" +
+          "- **\"Test connection\"** and **\"Disconnect\"** are available once connected — disconnecting keeps your app registration, so reconnecting doesn't need the Client ID/Secret re-entered",
+      },
+      {
+        slug: "payments",
+        name: "Payments",
+        detail:
+          "Admin-only, optional. Connect Stripe (Secret key and Publishable key from your Stripe dashboard) so clients can pay online from their portal.\n\n" +
+          "- Enables two separate actions on a client's portal matter page: **\"Pay now\"** on an outstanding invoice, and **\"Deposit\"** for a trust deposit of any amount\n" +
+          "- Card details never touch this app — payment happens entirely on Stripe's own hosted page\n" +
+          "- The two payment types are never mixed: an invoice payment marks that invoice paid (earned fees), a trust deposit is recorded as a deposit against the firm's first trust account (set one up under Trust accounting if you haven't yet) — a real limitation if your firm uses more than one trust account, since a client-facing payment can't choose which one\n" +
+          "- No webhook needed: this app confirms a payment by checking with Stripe directly, both when the client's browser returns from checkout and via a periodic background check for anyone who closed the tab first",
       },
       {
         slug: "software-updates",
