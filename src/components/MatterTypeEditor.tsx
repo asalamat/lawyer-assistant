@@ -19,8 +19,11 @@ export default function MatterTypeEditor({ matter }: { matter: Matter }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSave() {
+    if (!value.trim()) {
+      setError("Matter type is required");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -57,14 +60,22 @@ export default function MatterTypeEditor({ matter }: { matter: Matter }) {
     );
   }
 
+  // A plain <span>, not a <form> — this whole component sits inside a <p>
+  // in the matter layout header, and <form> isn't valid content inside <p>;
+  // browsers silently split the <p> to fix the invalid nesting, which
+  // breaks hydration and, with it, this component's own event handling
+  // (that's what was actually causing the missing error message).
   return (
-    <form onSubmit={handleSave} className="inline-flex items-center gap-2">
+    <span className="inline-flex items-center gap-2">
       <input
-        required
         autoFocus
         list="matter-type-edit-suggestions"
         value={value}
         onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") handleSave();
+          if (e.key === "Escape") setEditing(false);
+        }}
         className="surface-input px-2 py-0.5 text-sm"
         style={{ width: `${Math.max(value.length, 10)}ch` }}
       />
@@ -73,7 +84,12 @@ export default function MatterTypeEditor({ matter }: { matter: Matter }) {
           <option key={type} value={type} />
         ))}
       </datalist>
-      <button type="submit" disabled={saving} className="text-xs text-accent underline decoration-accent/40">
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={saving}
+        className="text-xs text-accent underline decoration-accent/40"
+      >
         {saving ? "Saving…" : "Save"}
       </button>
       <button
@@ -85,6 +101,6 @@ export default function MatterTypeEditor({ matter }: { matter: Matter }) {
         Cancel
       </button>
       {error && <span className="text-xs text-red-600">{error}</span>}
-    </form>
+    </span>
   );
 }
