@@ -59,6 +59,7 @@ export default function MatterSidebarNav({ matterId }: { matterId: string }) {
         { href: `${base}/deadlines`, label: "Deadlines", Icon: DeadlineIcon, tip: "AI-extracted and rule-computed deadlines, court dates, limitation periods" },
         { href: `${base}/calendar`, label: "Calendar", Icon: CalendarIcon, tip: "This matter's deadlines and events on a calendar view" },
         { href: `${base}/tasks`, label: "Tasks", Icon: TaskIcon, tip: "A plain to-do checklist, separate from Deadlines" },
+        { href: `${base}/requirements`, label: "Requirements", Icon: TaskIcon, tip: "A practice-area-specific checklist of documents/steps this kind of matter typically needs" },
       ],
     },
     {

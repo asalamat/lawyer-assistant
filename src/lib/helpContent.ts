@@ -214,6 +214,15 @@ export const HELP_SECTIONS: HelpSection[] = [
           "- Any task assigned to you, across every matter you can see, rolls up into a \"My tasks\" widget on the Dashboard, the same way upcoming deadlines do",
       },
       {
+        slug: "requirements",
+        name: "Requirements",
+        detail:
+          "A practice-area-specific checklist of documents/steps a matter typically needs — different from Tasks (free-form to-dos) in that this is seeded automatically based on the matter's own matter type, so an Immigration matter and a Real Estate matter start with genuinely different checklists.\n\n" +
+          "- Auto-seeded when the matter is created, for any recognized matter type (Personal Injury, Civil Litigation, Criminal Defence/Law, Wills and Estates, Traffic/Provincial Offences, Immigration, Real Estate, Family, Employment, Corporate) — nothing seeds for a matter type that isn't recognized, and the checklist is a generic starting point to adapt, never a complete or authoritative list for the actual case\n" +
+          "- Check items off as they're satisfied; add your own extra items or delete ones that don't apply\n" +
+          "- Changing a matter's type later doesn't re-seed the checklist — there's no way to edit matter type once set",
+      },
+      {
         slug: "trust-accounting",
         name: "Trust accounting",
         detail:

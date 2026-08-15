@@ -378,6 +378,16 @@ export interface MatterTask {
   createdAt: string;
 }
 
+export interface MatterRequirement {
+  id: string;
+  matterId: string;
+  key: string | null;
+  label: string;
+  completed: number;
+  completedAt: string | null;
+  createdAt: string;
+}
+
 export const DEADLINE_OFFSET_UNITS = ["calendar", "business"] as const;
 export type DeadlineOffsetUnit = (typeof DEADLINE_OFFSET_UNITS)[number];
 
