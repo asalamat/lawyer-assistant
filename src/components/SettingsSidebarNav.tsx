@@ -25,6 +25,7 @@ import {
 
 const LINKS = [
   { href: "/settings", label: "Appearance", Icon: MonitorIcon, adminOnly: false },
+  { href: "/settings/app", label: "App", Icon: MonitorIcon, adminOnly: false },
   { href: "/settings/ai", label: "AI model", Icon: AiIcon, adminOnly: true },
   { href: "/settings/transcription", label: "Transcription", Icon: MicIcon, adminOnly: true },
   { href: "/settings/legal-research", label: "Legal research", Icon: EvidenceIcon, adminOnly: true },
