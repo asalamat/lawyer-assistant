@@ -13,4 +13,6 @@ export async function register(): Promise<void> {
   startNotificationScheduler();
   const { startDocuSignScheduler } = await import("./lib/docusignScheduler");
   startDocuSignScheduler();
+  const { startSmsScheduler } = await import("./lib/smsScheduler");
+  startSmsScheduler();
 }

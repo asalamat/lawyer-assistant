@@ -27,6 +27,14 @@ export interface DocuSignConfig {
   enabled: boolean;
 }
 
+// Twilio's REST API is called directly via fetch (Basic Auth with
+// accountSid:authToken) — no SDK dependency needed for send + list.
+export interface TwilioConfig {
+  accountSid: string;
+  authToken: string;
+  fromPhoneNumber: string;
+}
+
 export interface WeatherLocation {
   name: string;
   country: string | null;
@@ -206,6 +214,11 @@ interface Settings {
   canliiApiKey?: string;
   smtp?: SmtpConfig;
   docusign?: DocuSignConfig;
+  twilio?: TwilioConfig;
+  // Cursor for smsScheduler.ts's inbound-SMS poll — no public URL for
+  // Twilio to webhook to (same constraint as DocuSign), so it polls
+  // Twilio's message list instead, same reasoning as docusignScheduler.ts.
+  lastSmsPollAt?: string;
   location?: WeatherLocation;
   aiProviderOrder?: AiProvider[];
   cronSecret?: string;
@@ -255,6 +268,10 @@ async function readSettings(): Promise<Settings> {
   }
   if (settings.docusign?.privateKey && !isEncryptedText(settings.docusign.privateKey)) {
     settings.docusign.privateKey = await encryptText(settings.docusign.privateKey);
+    migrated = true;
+  }
+  if (settings.twilio?.authToken && !isEncryptedText(settings.twilio.authToken)) {
+    settings.twilio.authToken = await encryptText(settings.twilio.authToken);
     migrated = true;
   }
   if (settings.cloudBackup?.accessKeyId && !isEncryptedText(settings.cloudBackup.accessKeyId)) {
@@ -444,6 +461,40 @@ export async function getSmtpStatus(): Promise<{
     fromName: smtp.fromName,
     fromEmail: smtp.fromEmail,
   };
+}
+
+export async function getTwilioConfig(): Promise<TwilioConfig | undefined> {
+  const settings = await readSettings();
+  if (!settings.twilio) return undefined;
+  return { ...settings.twilio, authToken: await decryptText(settings.twilio.authToken) };
+}
+
+export async function setTwilioConfig(config: TwilioConfig): Promise<void> {
+  const settings = await readSettings();
+  settings.twilio = { ...config, authToken: await encryptText(config.authToken) };
+  await writeSettings(settings);
+}
+
+export async function getTwilioStatus(): Promise<{
+  configured: boolean;
+  accountSid: string | null;
+  fromPhoneNumber: string | null;
+}> {
+  const settings = await readSettings();
+  const twilio = settings.twilio;
+  if (!twilio) return { configured: false, accountSid: null, fromPhoneNumber: null };
+  return { configured: true, accountSid: twilio.accountSid, fromPhoneNumber: twilio.fromPhoneNumber };
+}
+
+export async function getLastSmsPollAt(): Promise<string | undefined> {
+  const settings = await readSettings();
+  return settings.lastSmsPollAt;
+}
+
+export async function setLastSmsPollAt(iso: string): Promise<void> {
+  const settings = await readSettings();
+  settings.lastSmsPollAt = iso;
+  await writeSettings(settings);
 }
 
 export async function getDocuSignConfig(): Promise<DocuSignConfig | undefined> {

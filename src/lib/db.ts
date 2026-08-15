@@ -415,6 +415,23 @@ execWithRetry(`
   );
   CREATE INDEX IF NOT EXISTS idx_portal_messages_matterId ON portal_messages(matterId);
 
+  -- Separate from portal_messages — SMS goes to the client's own phone
+  -- number, no portal login needed, and travels through Twilio rather than
+  -- the in-app thread. phoneNumber is always the CLIENT's number, whether
+  -- the message is inbound or outbound (i.e. never this firm's own Twilio
+  -- number), so a thread reads the same regardless of direction.
+  CREATE TABLE IF NOT EXISTS sms_messages (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    direction TEXT NOT NULL,
+    phoneNumber TEXT NOT NULL,
+    body TEXT NOT NULL,
+    twilioSid TEXT,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_sms_messages_matterId ON sms_messages(matterId);
+
   -- Merge-field document templates ("{{matter.title}}") authored directly
   -- in-app as markdown/text, not real uploaded .docx files — reuses the
   -- same rendering/export pipeline every other generated document already

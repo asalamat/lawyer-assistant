@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   AiIcon,
   BackupIcon,
+  ChatIcon,
   DeadlineIcon,
   EvidenceIcon,
   IntegrationIcon,
@@ -32,6 +33,7 @@ const LINKS = [
   { href: "/settings/translation", label: "Translation", Icon: TranslateIcon, adminOnly: false },
   { href: "/settings/privacy", label: "Privacy", Icon: PrivacyIcon, adminOnly: true },
   { href: "/settings/email", label: "Email", Icon: MailIcon, adminOnly: true },
+  { href: "/settings/sms", label: "SMS", Icon: ChatIcon, adminOnly: true },
   { href: "/settings/docusign", label: "DocuSign", Icon: SignatureIcon, adminOnly: true },
   { href: "/settings/integrations", label: "Integrations", Icon: IntegrationIcon, adminOnly: true },
   { href: "/settings/api-webhooks", label: "API & webhooks", Icon: IntegrationIcon, adminOnly: true },

@@ -4,7 +4,7 @@ import { createHash } from "crypto";
 import path from "path";
 import { cache } from "react";
 import { recordAuditEvent } from "./auditLog";
-import { findOrCreateClient } from "./clients";
+import { findOrCreateClient, getClient } from "./clients";
 import { encryptFile } from "./crypto";
 import db, { toPlain } from "./db";
 import { nameSimilarity } from "./fuzzyMatch";
@@ -16,6 +16,7 @@ import { maskForAI } from "./piiMask";
 import { listAttachedReferenceDocuments } from "./referenceLibrary";
 import { findLimitationPeriod } from "./limitationPeriods";
 import { createSignableDocument, getSignableDocument, sendForSignature } from "./signableDocuments";
+import { sendSms } from "./sms";
 import { findTaskTemplate } from "./taskTemplates";
 import { createTask } from "./tasks";
 import {
@@ -418,6 +419,7 @@ export async function deleteMatter(matterId: string): Promise<boolean> {
   // triggered one couldn't be deleted without this.
   db.prepare("DELETE FROM notifications WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM portal_messages WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM sms_messages WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM assembled_documents WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM matter_notes WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM matter_reference_documents WHERE matterId = ?").run(matterId);
@@ -1305,6 +1307,48 @@ export async function getDisclosurePackageStatus(matterId: string): Promise<Disc
       ready: unresolvedFlagCount === 0,
     };
   });
+}
+
+export interface SmsMessage {
+  id: string;
+  matterId: string;
+  direction: "outbound" | "inbound";
+  phoneNumber: string;
+  body: string;
+  twilioSid: string | null;
+  createdAt: string;
+}
+
+export async function listSmsMessages(matterId: string): Promise<SmsMessage[]> {
+  return db
+    .prepare("SELECT * FROM sms_messages WHERE matterId = ? ORDER BY createdAt ASC")
+    .all(matterId)
+    .map((row) => toPlain<SmsMessage>(row));
+}
+
+// Staff-initiated only — see smsScheduler.ts for how an inbound reply gets
+// attached to a matter (this app has no public URL for Twilio to webhook
+// to, so inbound is discovered by polling, not by this function).
+export async function sendSmsToClient(matterId: string, body: string): Promise<SmsMessage> {
+  const trimmed = body.trim();
+  if (!trimmed) throw new Error("Message can't be empty");
+
+  const matter = await getMatter(matterId);
+  if (!matter?.clientId) throw new Error("This matter has no linked client.");
+  const client = await getClient(matter.clientId);
+  if (!client?.phone) throw new Error("This client has no phone number on file.");
+
+  const result = await sendSms({ to: client.phone, body: trimmed });
+
+  const id = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+  db.prepare(
+    "INSERT INTO sms_messages (id, matterId, direction, phoneNumber, body, twilioSid, createdAt) VALUES (?, ?, 'outbound', ?, ?, ?, ?)",
+  ).run(id, matterId, client.phone, trimmed, result.sid, createdAt);
+
+  await recordAuditEvent("sms_sent", matterId, `Sent a text message to ${client.phone}`);
+
+  return { id, matterId, direction: "outbound", phoneNumber: client.phone, body: trimmed, twilioSid: result.sid, createdAt };
 }
 
 export interface WitnessPrepAnalysis {
