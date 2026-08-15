@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import { getCurrentUser } from "@/lib/auth";
 import { getAppVersion } from "@/lib/systemInfo";
 import ConditionalNav from "@/components/ConditionalNav";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import StickyNotesWidget from "@/components/StickyNotesWidget";
 import ThemeScript from "@/components/ThemeScript";
 import TopUtilityBar from "@/components/TopUtilityBar";
@@ -30,6 +31,16 @@ const monoFont = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Lawyer Assistant",
   description: "Matter management, document intake, and legal Q&A",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Lawyer Assistant",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#7a2e37",
 };
 
 export default async function RootLayout({
@@ -56,6 +67,7 @@ export default async function RootLayout({
           {children}
         </div>
         <StickyNotesWidget />
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

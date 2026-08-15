@@ -225,5 +225,9 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // manifest.webmanifest/sw.js/icon-*.png must be fetchable with no session
+  // — the PWA install prompt and the service-worker registration that
+  // enables it (see ServiceWorkerRegister.tsx, registered app-wide,
+  // including on /login) both run before any authenticated request exists.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icon-.*\\.png).*)"],
 };
