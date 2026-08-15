@@ -2,7 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { TASK_TEMPLATES } from "@/lib/taskTemplates";
 import type { Matter } from "@/lib/types";
+
+// Same suggestion list as the new-matter form (MatterList.tsx) — every
+// recognized matterType that seeds a task checklist/limitation deadline/
+// requirements checklist, so picking one from the list is guaranteed to
+// actually match instead of silently typing something the fuzzy lookup
+// misses. Still free text underneath — nothing stops typing anything else.
+const MATTER_TYPE_SUGGESTIONS = Object.keys(TASK_TEMPLATES);
 
 export default function MatterTypeEditor({ matter }: { matter: Matter }) {
   const router = useRouter();
@@ -54,11 +62,17 @@ export default function MatterTypeEditor({ matter }: { matter: Matter }) {
       <input
         required
         autoFocus
+        list="matter-type-edit-suggestions"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         className="surface-input px-2 py-0.5 text-sm"
         style={{ width: `${Math.max(value.length, 10)}ch` }}
       />
+      <datalist id="matter-type-edit-suggestions">
+        {MATTER_TYPE_SUGGESTIONS.map((type) => (
+          <option key={type} value={type} />
+        ))}
+      </datalist>
       <button type="submit" disabled={saving} className="text-xs text-accent underline decoration-accent/40">
         {saving ? "Saving…" : "Save"}
       </button>
