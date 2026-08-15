@@ -289,6 +289,25 @@ export async function updateMatterStatus(
   return matter;
 }
 
+// Deliberately does NOT re-seed Requirements/Tasks/the limitation-period
+// deadline — those were seeded once at creation based on whatever
+// matterType applied then, and silently adding/removing checklist items
+// because someone corrected a typo (or genuinely changed practice area)
+// would be a surprising side effect. The one thing that DOES immediately
+// follow a matterType change is the sidebar nav (MatterSidebarNav reads
+// matter.matterType live on every render, not a stored snapshot), e.g. the
+// Crown-position tab reappearing/disappearing.
+export async function updateMatterType(matterId: string, matterType: string): Promise<Matter | null> {
+  const trimmed = matterType.trim();
+  if (!trimmed) throw new Error("Matter type is required");
+  db.prepare("UPDATE matters SET matterType = ? WHERE id = ?").run(trimmed, matterId);
+  const matter = await getMatter(matterId);
+  if (matter) {
+    await recordAuditEvent("matter_type_changed", matterId, `Changed matter type to "${trimmed}"`);
+  }
+  return matter;
+}
+
 export async function updateMatterHourlyRate(
   matterId: string,
   hourlyRate: number,

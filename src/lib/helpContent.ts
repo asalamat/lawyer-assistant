@@ -70,7 +70,8 @@ export const HELP_SECTIONS: HelpSection[] = [
           "- Create a matter with a title, client name, client email, matter type, and an optional default hourly billing rate\n" +
           "- A conflict-of-interest check runs automatically against every existing client name (exact and near-miss spelling) when you fill in the client name\n" +
           "- Search/filter the matters list by text or open/closed/archived status\n" +
-          "- Close, reopen, archive, or permanently delete a matter at any time from its Overview tab — a matter placed on legal hold (see Compliance below) can't be deleted until the hold is released",
+          "- Close, reopen, archive, or permanently delete a matter at any time from its Overview tab — a matter placed on legal hold (see Compliance below) can't be deleted until the hold is released\n" +
+          "- Click **\"change\"** next to the matter type at the top of any matter to correct or update it — free text, same as at creation. This immediately affects which sidebar tabs show (e.g. Crown position only shows for a recognized criminal matter type) and any \"is this the right practice area\" tip text, but does NOT retroactively re-seed the Requirements checklist, Tasks, or the auto-seeded limitation-period deadline — those were seeded once, based on the matter type at creation time",
       },
       {
         slug: "compliance",
