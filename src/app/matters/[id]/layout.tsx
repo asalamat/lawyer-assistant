@@ -53,7 +53,7 @@ export default async function MatterLayout({
       </div>
 
       <div className="flex flex-col gap-6 sm:flex-row">
-        <MatterSidebarNav matterId={matter.id} />
+        <MatterSidebarNav matterId={matter.id} matterType={matter.matterType} />
         <div className="min-w-0 flex-1">{children}</div>
       </div>
     </main>

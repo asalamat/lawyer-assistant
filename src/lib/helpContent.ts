@@ -370,7 +370,8 @@ export const HELP_SECTIONS: HelpSection[] = [
         detail:
           "Analyzes charges and statutory elements, available evidence for each, weaknesses, possible defences, and aggravating/mitigating factors — then ends with two or three plausible Crown positions, each with supporting evidence, what's missing, and a confidence level (high/medium/low).\n\n" +
           "- Deliberately does not predict which one will happen, give a percentage, or present this as advice — a structured starting point for the lawyer's own judgment\n" +
-          "- Citations are checked against the matter's real documents; anything that doesn't match is flagged",
+          "- Citations are checked against the matter's real documents; anything that doesn't match is flagged\n" +
+          "- Only shows up in the sidebar for a matter type recognized as criminal (\"Criminal Defence\"/\"Criminal Law\") — this whole feature assumes charges and a Crown prosecutor, so it's hidden rather than shown as a confusing option on every other kind of matter",
       },
       {
         slug: "missing-evidence",
