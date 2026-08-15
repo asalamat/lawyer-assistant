@@ -225,9 +225,13 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // manifest.webmanifest/sw.js/icon-*.png must be fetchable with no session
-  // — the PWA install prompt and the service-worker registration that
-  // enables it (see ServiceWorkerRegister.tsx, registered app-wide,
-  // including on /login) both run before any authenticated request exists.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icon-.*\\.png).*)"],
+  // manifest.webmanifest/sw.js/icon-*.png/apple-icon.png must be fetchable
+  // with no session — the PWA install prompt and the service-worker
+  // registration that enables it (see ServiceWorkerRegister.tsx, registered
+  // app-wide, including on /login) both run before any authenticated
+  // request exists, and iOS fetches apple-icon.png itself when a user taps
+  // "Add to Home Screen," with no session cookie of its own to send either.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icon-.*\\.png|apple-icon.png).*)",
+  ],
 };
