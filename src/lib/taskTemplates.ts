@@ -65,6 +65,24 @@ export const TASK_TEMPLATES: Record<string, TaskTemplateItem[]> = {
     { title: "Request supporting documents from client", dueOffsetDays: 7 },
     { title: "Calendar any statutory response deadline" },
   ],
+  traffic: [
+    { title: "Confirm the offence notice/summons deadline and calendar it", dueOffsetDays: 2 },
+    { title: "Request disclosure from the prosecutor's office", dueOffsetDays: 7 },
+    { title: "Review the certificate of offence for defects (date, location, wording)" },
+    { title: "Check whether a trial date has been set or needs requesting" },
+  ],
+  "provincial offences": [
+    { title: "Confirm the offence notice/summons deadline and calendar it", dueOffsetDays: 2 },
+    { title: "Request disclosure from the prosecutor's office", dueOffsetDays: 7 },
+    { title: "Review the certificate of offence for defects (date, location, wording)" },
+    { title: "Check whether a trial date has been set or needs requesting" },
+  ],
+  employment: [
+    { title: "Request employment contract and any termination letter", dueOffsetDays: 5 },
+    { title: "Calculate reasonable notice/statutory entitlements owing", dueOffsetDays: 7 },
+    { title: "Confirm ROE and final pay were issued", dueOffsetDays: 7 },
+    { title: "Check for an ESA complaint deadline" },
+  ],
 };
 
 function normalize(matterType: string): string {

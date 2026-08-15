@@ -303,7 +303,7 @@ export const HELP_SECTIONS: HelpSection[] = [
           "- Every deadline with a due date appears automatically on this app's own calendar (firm-wide `/calendar` and this matter's Calendar tab) — no external account or sync step needed\n" +
           "- **\"Export to personal calendar\"** downloads a one-time .ics file for a single deadline if you also want it in your own phone/desktop calendar app\n" +
           "- Reminders for upcoming and overdue deadlines show up in the notification bell, by email, and (if enabled in Settings > Security) as a browser push notification\n" +
-          "- Opening a new matter with a recognized matter type (e.g. Personal Injury, Civil Litigation, Criminal Defence/Law, Wills and Estates) auto-seeds one starting limitation-period deadline, tagged **\"Limitation period\"** — a common-case Ontario-law default (e.g. the 2-year discovery period), always a reminder to verify the real date against the actual facts, never a substitute for calculating it yourself",
+          "- Opening a new matter with a recognized matter type (Personal Injury, Civil Litigation, Criminal Defence/Law, Wills and Estates, Traffic/Provincial Offences, Immigration, Real Estate/Property, Family, Employment) auto-seeds one starting limitation-period deadline, tagged **\"Limitation period\"** — a common-case Ontario-law default (e.g. the 2-year discovery period), always a reminder to verify the real date against the actual facts, never a substitute for calculating it yourself",
       },
       {
         slug: "evidence-matrix",
