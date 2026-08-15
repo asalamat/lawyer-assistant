@@ -56,6 +56,17 @@ export interface QuickBooksConnection {
   companyName: string | null;
 }
 
+// Stripe Checkout (hosted payment page) — no card data ever touches this
+// app, so no PCI scope beyond redirecting to Stripe's own page. No webhook
+// secret stored/needed: this app has no public URL for Stripe to call, so
+// payment confirmation is done by polling Stripe's API directly instead
+// (see stripe.ts / stripePaymentScheduler.ts), same reasoning as the
+// DocuSign/Twilio integrations.
+export interface StripeConfig {
+  secretKey: string;
+  publishableKey: string;
+}
+
 export interface WeatherLocation {
   name: string;
   country: string | null;
@@ -242,6 +253,7 @@ interface Settings {
   lastSmsPollAt?: string;
   quickbooksApp?: QuickBooksAppCredentials;
   quickbooksConnection?: QuickBooksConnection;
+  stripe?: StripeConfig;
   location?: WeatherLocation;
   aiProviderOrder?: AiProvider[];
   cronSecret?: string;
@@ -307,6 +319,10 @@ async function readSettings(): Promise<Settings> {
   }
   if (settings.quickbooksConnection?.refreshToken && !isEncryptedText(settings.quickbooksConnection.refreshToken)) {
     settings.quickbooksConnection.refreshToken = await encryptText(settings.quickbooksConnection.refreshToken);
+    migrated = true;
+  }
+  if (settings.stripe?.secretKey && !isEncryptedText(settings.stripe.secretKey)) {
+    settings.stripe.secretKey = await encryptText(settings.stripe.secretKey);
     migrated = true;
   }
   if (settings.cloudBackup?.accessKeyId && !isEncryptedText(settings.cloudBackup.accessKeyId)) {
@@ -601,6 +617,24 @@ export async function getQuickBooksStatus(): Promise<{
     companyName: settings.quickbooksConnection?.companyName ?? null,
     realmId: settings.quickbooksConnection?.realmId ?? null,
   };
+}
+
+export async function getStripeConfig(): Promise<StripeConfig | undefined> {
+  const settings = await readSettings();
+  if (!settings.stripe) return undefined;
+  return { ...settings.stripe, secretKey: await decryptText(settings.stripe.secretKey) };
+}
+
+export async function setStripeConfig(config: StripeConfig): Promise<void> {
+  const settings = await readSettings();
+  settings.stripe = { ...config, secretKey: await encryptText(config.secretKey) };
+  await writeSettings(settings);
+}
+
+export async function getStripeStatus(): Promise<{ configured: boolean; publishableKey: string | null }> {
+  const settings = await readSettings();
+  if (!settings.stripe) return { configured: false, publishableKey: null };
+  return { configured: true, publishableKey: settings.stripe.publishableKey };
 }
 
 export async function getDocuSignConfig(): Promise<DocuSignConfig | undefined> {

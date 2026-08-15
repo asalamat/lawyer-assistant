@@ -285,6 +285,29 @@ execWithRetry(`
   CREATE INDEX IF NOT EXISTS idx_trust_transactions_matterId ON trust_transactions(matterId);
   CREATE INDEX IF NOT EXISTS idx_trust_transactions_trustAccountId ON trust_transactions(trustAccountId);
 
+  -- Tracks a Stripe Checkout Session from creation through to whichever
+  -- internal record it finalizes into (an invoice marked paid, or a trust
+  -- deposit) — this app has no public URL for a Stripe webhook to reach
+  -- (same constraint as DocuSign/Twilio), so payment completion is
+  -- confirmed by fetching the session directly from Stripe's API, either
+  -- when the client's browser returns to the success URL or by
+  -- stripePaymentScheduler.ts polling any still-pending session, in case
+  -- the tab was closed before returning.
+  CREATE TABLE IF NOT EXISTS stripe_payment_sessions (
+    id TEXT PRIMARY KEY,
+    matterId TEXT NOT NULL,
+    purpose TEXT NOT NULL,
+    invoiceId TEXT,
+    trustAccountId TEXT,
+    amount REAL NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    createdAt TEXT NOT NULL,
+    completedAt TEXT,
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_stripe_payment_sessions_matterId ON stripe_payment_sessions(matterId);
+  CREATE INDEX IF NOT EXISTS idx_stripe_payment_sessions_status ON stripe_payment_sessions(status);
+
   -- A permanent record every time someone reconciles an account against a
   -- bank statement — kept even after the fact, since "we reconciled on this
   -- date and it matched" is itself the bar-audit evidence, not just a

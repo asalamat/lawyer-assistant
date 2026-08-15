@@ -131,6 +131,15 @@ export async function deleteClient(id: string): Promise<boolean> {
     );
   }
 
+  // client_users.clientId is a real FK — a client that ever had portal
+  // access granted would otherwise fail to delete with a raw "FOREIGN KEY
+  // constraint failed" instead of ever reaching the friendlier check above.
+  const portalUsers = db.prepare("SELECT id FROM client_users WHERE clientId = ?").all(id) as { id: string }[];
+  for (const user of portalUsers) {
+    db.prepare("DELETE FROM client_sessions WHERE clientUserId = ?").run(user.id);
+  }
+  db.prepare("DELETE FROM client_users WHERE clientId = ?").run(id);
+
   db.prepare("DELETE FROM clients WHERE id = ?").run(id);
   await recordAuditEvent("client_deleted", null, `Deleted client "${client.name}"`);
   return true;

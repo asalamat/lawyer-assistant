@@ -2,11 +2,14 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getClientSessionUser } from "@/lib/clientAuth";
-import { getMatter, listDocuments } from "@/lib/matters";
+import { getMatter, listDocuments, listInvoices } from "@/lib/matters";
+import { finalizeStripeSession } from "@/lib/payments";
 import { listPortalMessages } from "@/lib/portalMessages";
 import { listSignableDocuments, SIGNABLE_KIND_LABELS } from "@/lib/signableDocuments";
+import { isStripeConfigured } from "@/lib/stripe";
 import PortalLogoutButton from "@/components/PortalLogoutButton";
 import PortalMessagesPanel from "@/components/PortalMessagesPanel";
+import PortalPaymentsPanel from "@/components/PortalPaymentsPanel";
 import PortalSignableDocumentsPanel from "@/components/PortalSignableDocumentsPanel";
 
 export const dynamic = "force-dynamic";
@@ -19,10 +22,13 @@ function formatBytes(bytes: number): string {
 
 export default async function PortalMatterPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ stripeSession?: string }>;
 }) {
   const { id } = await params;
+  const { stripeSession } = await searchParams;
   const token = (await cookies()).get("client_session")?.value;
   const user = await getClientSessionUser(token);
   if (!user) redirect("/portal/login");
@@ -31,8 +37,21 @@ export default async function PortalMatterPage({
   const matter = await getMatter(id);
   if (!matter || matter.clientId !== user.clientId) notFound();
 
+  // The fast path for confirming an online payment — the client's browser
+  // just returned from Stripe's hosted checkout page. stripePaymentScheduler
+  // polls for anyone who never made it back here (closed tab, dropped
+  // connection), so this isn't the only way a payment gets confirmed.
+  if (stripeSession) {
+    await finalizeStripeSession(stripeSession).catch(() => {
+      // Already finalized, or Stripe not reachable right now — the
+      // scheduler will pick it up on its next pass either way.
+    });
+  }
+
   const documents = (await listDocuments(id)).filter((doc) => doc.sharedWithClient);
   const messages = await listPortalMessages(id);
+  const invoices = await listInvoices(id);
+  const stripeConfigured = await isStripeConfigured();
   const pendingSignatures = (await listSignableDocuments(id))
     .filter((doc) => doc.status === "sent")
     .map((doc) => ({ id: doc.id, title: doc.title, kindLabel: SIGNABLE_KIND_LABELS[doc.kind] ?? doc.kind }));
@@ -50,6 +69,10 @@ export default async function PortalMatterPage({
       </div>
 
       <PortalSignableDocumentsPanel matterId={id} initialPending={pendingSignatures} />
+
+      {stripeConfigured && (
+        <PortalPaymentsPanel matterId={id} initialInvoices={invoices} justPaid={Boolean(stripeSession)} />
+      )}
 
       <div>
         <h2 className="mb-2 font-display text-lg">Shared documents</h2>

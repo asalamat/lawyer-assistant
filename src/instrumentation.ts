@@ -15,4 +15,6 @@ export async function register(): Promise<void> {
   startDocuSignScheduler();
   const { startSmsScheduler } = await import("./lib/smsScheduler");
   startSmsScheduler();
+  const { startStripePaymentScheduler } = await import("./lib/stripePaymentScheduler");
+  startStripePaymentScheduler();
 }
