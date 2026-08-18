@@ -231,7 +231,10 @@ export const config = {
   // app-wide, including on /login) both run before any authenticated
   // request exists, and iOS fetches apple-icon.png itself when a user taps
   // "Add to Home Screen," with no session cookie of its own to send either.
+  // landing.html is the public marketing page (public/landing.html) — meant
+  // for a prospective client with no account at all, so it must be
+  // reachable with no session too.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icon-.*\\.png|apple-icon.png).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icon-.*\\.png|apple-icon.png|landing.html).*)",
   ],
 };
