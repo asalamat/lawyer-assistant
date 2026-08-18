@@ -374,6 +374,18 @@ Windows, and Linux.
 
 ## Recent changes
 
+- 🆕🏦📣 **Three-way trust reconciliation, and a public marketing landing page** —
+  reconciling a trust account now compares the bank statement against the
+  ledger *as of the statement date* (not "right now"), and snapshots every
+  matter's own trust balance at that same date — the per-client listing a
+  Law Society trust audit actually wants to see alongside the aggregate
+  numbers, viewable under each past reconciliation in Trust accounting.
+  Separately, `public/landing.html` is a self-contained public marketing
+  page (exempted from the auth gate) with a feature comparison against
+  Clio/MyCase/PracticePanther/Filevine and a real "Request a demo" form
+  that emails a submission directly — no CRM/lead pipeline involved, and
+  rate-limited per IP the same way the embeddable public lead-intake form
+  already is.
 - 🆕💳📱📗 **Online payments, SMS, QuickBooks sync, and an installable app** —
   clients can now pay an outstanding invoice or make a trust deposit
   online from their portal via Stripe Checkout (card details never touch

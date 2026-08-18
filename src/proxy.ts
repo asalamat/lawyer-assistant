@@ -52,6 +52,10 @@ const PUBLIC_PATHS = [
   "/api/legislation-watches/check-all",
   "/api/backup/scheduled",
   "/api/campaigns/run-due",
+  // The public landing page's demo-request form (public/landing.html) —
+  // rate-limited per-IP in the route handler itself, same shape as
+  // /api/leads/public below.
+  "/api/demo-request",
 ];
 
 // Client-facing, no-login, token-gated routes (see src/lib/clientAccess.ts).

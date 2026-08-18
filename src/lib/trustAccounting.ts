@@ -1,7 +1,13 @@
 import { randomUUID } from "crypto";
 import { recordAuditEvent } from "./auditLog";
 import db, { toPlain } from "./db";
-import type { TrustAccount, TrustReconciliation, TrustTransaction, TrustTransactionType } from "./types";
+import type {
+  TrustAccount,
+  TrustReconciliation,
+  TrustReconciliationMatterBalance,
+  TrustTransaction,
+  TrustTransactionType,
+} from "./types";
 
 // Bookkeeping support, not accounting/tax advice — the firm is responsible
 // for verifying this against its own bar's trust-accounting rules. Balances
@@ -132,11 +138,65 @@ export async function recordTrustTransaction(input: {
   return { id, trustAccountId, matterId, type, amount, description: description.trim(), transactionDate, createdByUserId: userId, createdAt };
 }
 
-export async function listTrustReconciliations(trustAccountId: string): Promise<TrustReconciliation[]> {
+function loadMatterBalances(reconciliationId: string): TrustReconciliationMatterBalance[] {
   return db
+    .prepare(
+      `SELECT b.matterId as matterId, m.title as matterTitle, m.clientName as clientName, b.balance as balance
+       FROM trust_reconciliation_matter_balances b
+       JOIN matters m ON m.id = b.matterId
+       WHERE b.reconciliationId = ?
+       ORDER BY m.clientName ASC`,
+    )
+    .all(reconciliationId) as unknown as TrustReconciliationMatterBalance[];
+}
+
+export async function listTrustReconciliations(trustAccountId: string): Promise<TrustReconciliation[]> {
+  const rows = db
     .prepare("SELECT * FROM trust_reconciliations WHERE trustAccountId = ? ORDER BY statementDate DESC")
     .all(trustAccountId)
-    .map((row) => toPlain<TrustReconciliation>(row));
+    .map((row) => toPlain<Omit<TrustReconciliation, "matterBalances">>(row));
+  return rows.map((r) => ({ ...r, matterBalances: loadMatterBalances(r.id) }));
+}
+
+// Same SUM as getTrustAccountBalance, but as of a specific date — a
+// reconciliation must compare the bank statement against the ledger as it
+// stood on that statement date, not against every transaction entered
+// since (which would compare a March statement against April's activity
+// if this is reconciled late).
+async function getTrustAccountBalanceAsOf(trustAccountId: string, asOfDate: string): Promise<number> {
+  const row = db
+    .prepare(
+      `SELECT COALESCE(SUM(CASE WHEN type = 'deposit' THEN amount ELSE -amount END), 0) as balance
+       FROM trust_transactions WHERE trustAccountId = ? AND transactionDate <= ?`,
+    )
+    .get(trustAccountId, asOfDate) as { balance: number };
+  return row.balance;
+}
+
+// The three-way check itself: every matter's own balance under this
+// account as of the statement date. This will always sum to the account's
+// ledgerBalance above by construction — every transaction row carries both
+// IDs — so its value isn't catching an arithmetic discrepancy, it's
+// producing the retained per-client listing a Law Society trust audit
+// actually asks to see alongside the aggregate numbers.
+async function getTrustAccountMatterBalancesAsOf(
+  trustAccountId: string,
+  asOfDate: string,
+): Promise<{ matterId: string; matterTitle: string; clientName: string; balance: number }[]> {
+  const rows = db
+    .prepare(
+      `SELECT t.matterId as matterId, m.title as matterTitle, m.clientName as clientName,
+              SUM(CASE WHEN t.type = 'deposit' THEN t.amount ELSE -t.amount END) as balance
+       FROM trust_transactions t
+       JOIN matters m ON m.id = t.matterId
+       WHERE t.trustAccountId = ? AND t.transactionDate <= ?
+       GROUP BY t.matterId`,
+    )
+    .all(trustAccountId, asOfDate) as { matterId: string; matterTitle: string; clientName: string; balance: number }[];
+  return rows
+    .map((r) => ({ ...r, balance: Math.round(r.balance * 100) / 100 }))
+    .filter((r) => r.balance !== 0)
+    .sort((a, b) => a.clientName.localeCompare(b.clientName));
 }
 
 // Records the comparison permanently, whether or not it actually balances —
@@ -148,8 +208,9 @@ export async function reconcileTrustAccount(
   statementDate: string,
   userId: string | null,
 ): Promise<TrustReconciliation> {
-  const ledgerBalance = await getTrustAccountBalance(trustAccountId);
+  const ledgerBalance = await getTrustAccountBalanceAsOf(trustAccountId, statementDate);
   const variance = Math.round((bankBalance - ledgerBalance) * 100) / 100;
+  const matterBalances = await getTrustAccountMatterBalancesAsOf(trustAccountId, statementDate);
 
   const id = randomUUID();
   const createdAt = new Date().toISOString();
@@ -159,12 +220,29 @@ export async function reconcileTrustAccount(
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(id, trustAccountId, statementDate, bankBalance, ledgerBalance, variance, userId, createdAt);
 
+  const insertBalance = db.prepare(
+    "INSERT INTO trust_reconciliation_matter_balances (id, reconciliationId, matterId, balance) VALUES (?, ?, ?, ?)",
+  );
+  for (const mb of matterBalances) {
+    insertBalance.run(randomUUID(), id, mb.matterId, mb.balance);
+  }
+
   const account = await getTrustAccount(trustAccountId);
   await recordAuditEvent(
     "trust_account_reconciled",
     null,
-    `Reconciled "${account?.name ?? trustAccountId}" against ${statementDate} statement — bank $${bankBalance.toFixed(2)}, ledger $${ledgerBalance.toFixed(2)}, variance $${variance.toFixed(2)}`,
+    `Reconciled "${account?.name ?? trustAccountId}" against ${statementDate} statement — bank $${bankBalance.toFixed(2)}, ledger $${ledgerBalance.toFixed(2)}, variance $${variance.toFixed(2)}, ${matterBalances.length} client ledger(s) snapshotted`,
   );
 
-  return { id, trustAccountId, statementDate, bankBalance, ledgerBalance, variance, reconciledByUserId: userId, createdAt };
+  return {
+    id,
+    trustAccountId,
+    statementDate,
+    bankBalance,
+    ledgerBalance,
+    variance,
+    reconciledByUserId: userId,
+    createdAt,
+    matterBalances,
+  };
 }

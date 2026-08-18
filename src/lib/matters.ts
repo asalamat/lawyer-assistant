@@ -417,6 +417,7 @@ export async function deleteMatter(matterId: string): Promise<boolean> {
   db.prepare("DELETE FROM invoices WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM time_entries WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM trust_transactions WHERE matterId = ?").run(matterId);
+  db.prepare("DELETE FROM trust_reconciliation_matter_balances WHERE matterId = ?").run(matterId);
   db.prepare("DELETE FROM stripe_payment_sessions WHERE matterId = ?").run(matterId);
   // notifications.matterId has a real FK to matters(id) — deadline/event/
   // retainer reminders all create rows here, so any matter that ever

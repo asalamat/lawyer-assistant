@@ -76,12 +76,31 @@ function ReconcilePanel({ account }: { account: AccountWithBalance }) {
       </form>
       {error && <p className="text-sm text-red-600">{error}</p>}
       {history && (
-        <ul className="flex flex-col gap-1 text-xs text-muted">
+        <ul className="flex flex-col gap-2 text-xs text-muted">
           {history.length === 0 && <li>No reconciliations recorded yet.</li>}
           {history.map((r) => (
-            <li key={r.id} className={r.variance !== 0 ? "text-amber-700 dark:text-amber-400" : ""}>
-              {r.statementDate}: bank {formatMoney(r.bankBalance)}, ledger {formatMoney(r.ledgerBalance)}, variance{" "}
-              {formatMoney(r.variance)}
+            <li key={r.id}>
+              <div className={r.variance !== 0 ? "text-amber-700 dark:text-amber-400" : ""}>
+                {r.statementDate}: bank {formatMoney(r.bankBalance)}, ledger {formatMoney(r.ledgerBalance)}, variance{" "}
+                {formatMoney(r.variance)}
+              </div>
+              {r.matterBalances.length > 0 && (
+                <details className="mt-1">
+                  <summary className="cursor-pointer text-accent hover:underline">
+                    Client trust ledger ({r.matterBalances.length}) — third leg of the three-way check
+                  </summary>
+                  <ul className="mt-1 flex flex-col gap-0.5 pl-3">
+                    {r.matterBalances.map((mb) => (
+                      <li key={mb.matterId} className="flex justify-between gap-4">
+                        <span>
+                          {mb.clientName} — {mb.matterTitle}
+                        </span>
+                        <span className="font-display">{formatMoney(mb.balance)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
             </li>
           ))}
         </ul>

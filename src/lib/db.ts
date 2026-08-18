@@ -325,6 +325,24 @@ execWithRetry(`
   );
   CREATE INDEX IF NOT EXISTS idx_trust_reconciliations_trustAccountId ON trust_reconciliations(trustAccountId);
 
+  -- Snapshot of every matter's trust balance as of the reconciliation's own
+  -- statement date, taken at the moment of reconciling — the actual bar-
+  -- audit deliverable (a Law Society's monthly trust check wants a
+  -- retained per-client listing, not just the aggregate bank-vs-ledger
+  -- numbers above). This listing's sum always equals that reconciliation's
+  -- ledgerBalance by construction (every trust_transactions row carries
+  -- both trustAccountId and matterId), so it isn't a discrepancy detector —
+  -- it's the retained, point-in-time record an audit actually asks to see.
+  CREATE TABLE IF NOT EXISTS trust_reconciliation_matter_balances (
+    id TEXT PRIMARY KEY,
+    reconciliationId TEXT NOT NULL,
+    matterId TEXT NOT NULL,
+    balance REAL NOT NULL,
+    FOREIGN KEY (reconciliationId) REFERENCES trust_reconciliations(id),
+    FOREIGN KEY (matterId) REFERENCES matters(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_trust_recon_matter_balances_reconciliationId ON trust_reconciliation_matter_balances(reconciliationId);
+
   -- Firm-editable deadline rule library — there's no licensed court-rules
   -- database in this stack (that's what LawToolBox sells as its core
   -- product), so the firm defines its own reusable rules ("21 days after

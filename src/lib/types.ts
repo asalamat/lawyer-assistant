@@ -672,6 +672,13 @@ export interface TrustTransaction {
   createdAt: string;
 }
 
+export interface TrustReconciliationMatterBalance {
+  matterId: string;
+  matterTitle: string;
+  clientName: string;
+  balance: number;
+}
+
 export interface TrustReconciliation {
   id: string;
   trustAccountId: string;
@@ -681,4 +688,7 @@ export interface TrustReconciliation {
   variance: number;
   reconciledByUserId: string | null;
   createdAt: string;
+  // The three-way check: every matter's trust balance as of statementDate,
+  // snapshotted at reconciliation time (see trust_reconciliation_matter_balances).
+  matterBalances: TrustReconciliationMatterBalance[];
 }

@@ -295,14 +295,44 @@
     margin-top: 2rem;
     border: 1px solid var(--rule);
     padding: clamp(1.75rem, 4vw, 2.75rem);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 2rem;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+    gap: clamp(1.5rem, 4vw, 3rem);
     background: var(--paper-raised);
   }
-  .cta-box p { margin: 0; color: var(--ink-soft); max-width: 46ch; }
+  @media (max-width: 760px) { .cta-box { grid-template-columns: 1fr; } }
+  .cta-box p { margin: 0 0 1.5rem; color: var(--ink-soft); max-width: 46ch; }
+  .cta-box .btn-ghost { margin-top: 0.5rem; display: inline-block; }
+
+  .demo-form { display: flex; flex-direction: column; gap: 0.9rem; }
+  .demo-form label {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    display: block;
+    margin-bottom: 0.35rem;
+  }
+  .demo-form input, .demo-form textarea {
+    width: 100%;
+    font-family: var(--body-font);
+    font-size: 0.92rem;
+    color: var(--ink);
+    background: var(--paper-card);
+    border: 1px solid var(--rule);
+    padding: 0.65em 0.8em;
+  }
+  .demo-form textarea { resize: vertical; min-height: 4.5em; }
+  .demo-form input:focus, .demo-form textarea:focus {
+    outline: 2px solid var(--focus);
+    outline-offset: 1px;
+  }
+  .demo-form .btn-seal { border: 1px solid var(--seal); cursor: pointer; }
+  .demo-form .btn-seal:disabled { opacity: 0.6; cursor: default; }
+  .demo-status { font-size: 0.85rem; margin: 0; }
+  .demo-status.error { color: var(--seal); }
+  .demo-status.ok { color: var(--ink-soft); }
 
   footer {
     border-top: 1px solid var(--rule);
@@ -522,12 +552,38 @@
     <h2 class="section-title">Request a demo</h2>
   </div>
   <div class="cta-box">
-    <p>
-      Fifteen minutes on a real matter of yours — not a canned script. See what
-      the AI drafts, how the CanLII check reads a real citation, and what it
-      actually costs for your firm size.
-    </p>
-    <a class="btn-seal" href="mailto:info@unityworkscanada.ca?subject=Demo%20request%20-%20Lawyer%20Assistant&body=Hi%2C%20I%27d%20like%20to%20see%20a%20demo%20of%20Lawyer%20Assistant.%0A%0APractice%20area(s)%3A%20%0AFirm%20size%3A%20">Email info@unityworkscanada.ca</a>
+    <div>
+      <p>
+        Fifteen minutes on a real matter of yours — not a canned script. See what
+        the AI drafts, how the CanLII check reads a real citation, and what it
+        actually costs for your firm size.
+      </p>
+      <a class="btn-ghost" href="mailto:info@unityworkscanada.ca">Prefer email? info@unityworkscanada.ca ↗</a>
+    </div>
+    <form class="demo-form" id="demo-form">
+      <div>
+        <label for="df-name">Name</label>
+        <input id="df-name" name="name" type="text" required autocomplete="name" />
+      </div>
+      <div>
+        <label for="df-email">Work email</label>
+        <input id="df-email" name="email" type="email" required autocomplete="email" />
+      </div>
+      <div>
+        <label for="df-firm">Firm name</label>
+        <input id="df-firm" name="firmName" type="text" autocomplete="organization" />
+      </div>
+      <div>
+        <label for="df-areas">Practice area(s)</label>
+        <input id="df-areas" name="practiceAreas" type="text" placeholder="e.g. Family, Immigration" />
+      </div>
+      <div>
+        <label for="df-message">Anything specific you want to see?</label>
+        <textarea id="df-message" name="message"></textarea>
+      </div>
+      <button class="btn-seal" type="submit">Request a demo</button>
+      <p class="demo-status" id="demo-status" role="status" aria-live="polite"></p>
+    </form>
   </div>
 </section>
 
@@ -553,5 +609,42 @@
       });
     }, { threshold: 0.15 });
     exhibits.forEach(function (el) { io.observe(el); });
+  })();
+
+  (function () {
+    var form = document.getElementById("demo-form");
+    var status = document.getElementById("demo-status");
+    if (!form || !status) return;
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var submitBtn = form.querySelector("button[type=submit]");
+      submitBtn.disabled = true;
+      status.className = "demo-status";
+      status.textContent = "Sending…";
+
+      var data = Object.fromEntries(new FormData(form).entries());
+      fetch("/api/demo-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+        .then(function (res) {
+          return res.json().then(function (body) { return { ok: res.ok, body: body }; });
+        })
+        .then(function (result) {
+          if (!result.ok) throw new Error(result.body.error || "Something went wrong");
+          form.reset();
+          status.className = "demo-status ok";
+          status.textContent = "Thanks — we'll be in touch within one business day.";
+        })
+        .catch(function (err) {
+          status.className = "demo-status error";
+          status.textContent = err.message || "Something went wrong — try emailing us directly instead.";
+        })
+        .finally(function () {
+          submitBtn.disabled = false;
+        });
+    });
   })();
 </script>
