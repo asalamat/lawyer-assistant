@@ -28,6 +28,39 @@ async function getClient(): Promise<Anthropic> {
   return cachedClient;
 }
 
+// Always marks the system prompt cacheable (it's the same literal text on
+// every call to a given generator, so this is free insurance) and, when
+// cacheableContext is given, splits it out of the final message as its own
+// cache breakpoint too. cacheableContext is the large per-matter document
+// context — the real cost driver — and must be an exact prefix of that
+// message's content. A cache hit (same matter, same generator, retried or
+// regenerated within Anthropic's ~5 minute cache window — e.g. the
+// empty-response retry path in completeJSONAnthropic below) is billed at a
+// fraction of normal input-token cost instead of full price.
+function buildCacheableSystem(system: string) {
+  if (!system) return undefined;
+  return [{ type: "text" as const, text: system, cache_control: { type: "ephemeral" as const } }];
+}
+
+function buildCacheableMessages(
+  messages: { role: "user" | "assistant"; content: string }[],
+  cacheableContext?: string,
+) {
+  if (!cacheableContext) return messages;
+  const lastIndex = messages.length - 1;
+  return messages.map((m, i) => {
+    if (i !== lastIndex || !m.content.startsWith(cacheableContext)) return m;
+    const rest = m.content.slice(cacheableContext.length);
+    return {
+      role: m.role,
+      content: [
+        { type: "text" as const, text: cacheableContext, cache_control: { type: "ephemeral" as const } },
+        ...(rest ? [{ type: "text" as const, text: rest }] : []),
+      ],
+    };
+  });
+}
+
 // Exported for independentReview.ts, which needs a single-provider text
 // completion (not the fallback-chain complete() below) since independent
 // review picks its own provider order, separate from the primary chain.
@@ -36,13 +69,14 @@ export async function completeAnthropic(params: {
   messages: { role: "user" | "assistant"; content: string }[];
   maxTokens?: number;
   tier?: ModelTier;
+  cacheableContext?: string;
 }): Promise<string> {
   const client = await getClient();
   const response = await client.messages.create({
     model: MODEL_IDS.anthropic[params.tier ?? "capable"],
     max_tokens: params.maxTokens ?? 1024,
-    system: params.system,
-    messages: params.messages,
+    system: buildCacheableSystem(params.system),
+    messages: buildCacheableMessages(params.messages, params.cacheableContext),
   });
 
   const textBlock = response.content.find((block) => block.type === "text");
@@ -99,13 +133,14 @@ async function completeJSONAnthropic<T>(params: {
   schema: Record<string, unknown>;
   maxTokens?: number;
   tier?: ModelTier;
+  cacheableContext?: string;
 }): Promise<T> {
   const client = await getClient();
   const response = await client.messages.create({
     model: MODEL_IDS.anthropic[params.tier ?? "capable"],
     max_tokens: params.maxTokens ?? 1024,
-    system: params.system,
-    messages: params.messages,
+    system: buildCacheableSystem(params.system),
+    messages: buildCacheableMessages(params.messages, params.cacheableContext),
     output_config: { format: { type: "json_schema", schema: params.schema } },
   });
 
@@ -185,6 +220,7 @@ async function complete(params: {
   messages: { role: "user" | "assistant"; content: string }[];
   maxTokens?: number;
   tier?: ModelTier;
+  cacheableContext?: string;
 }): Promise<string> {
   return forEachConfiguredProvider((provider) => {
     if (provider === "anthropic") return completeAnthropic(params);
@@ -201,6 +237,7 @@ async function completeJSON<T>(params: {
   schemaName: string;
   maxTokens?: number;
   tier?: ModelTier;
+  cacheableContext?: string;
 }): Promise<T> {
   return forEachConfiguredProvider((provider) => {
     if (provider === "anthropic") return completeJSONAnthropic<T>(params);
@@ -287,6 +324,19 @@ function joinSections(sections: MatterDocumentSection[]): string {
   return sections.map((s) => `--- ${s.label} ---\n${s.text}`).join("\n\n");
 }
 
+// The literal prefix shared by every "Here are the matter documents:
+// ...\n\n<instruction>" generator below — must match that prefix exactly
+// (see buildCacheableMessages) for the cache breakpoint to apply.
+function matterDocsCacheableContext(context: string): string | undefined {
+  return context ? `Here are the matter documents:\n\n${context}` : undefined;
+}
+
+// Same idea as matterDocsCacheableContext, for the differently-worded
+// prefix buildDraftUserPrompt/generateEmailDraft use.
+function draftDocsCacheableContext(context: string): string | undefined {
+  return context ? `Matter documents:\n\n${context}` : undefined;
+}
+
 async function summarizeSectionForMatterContext(section: MatterDocumentSection): Promise<string> {
   try {
     const summary = await complete({
@@ -355,6 +405,7 @@ export async function generateMatterDigest(sections: MatterDocumentSection[]): P
     // this session), so it's bumped generously here rather than just
     // detecting the failure better.
     maxTokens: 4096,
+    cacheableContext: matterDocsCacheableContext(context),
   });
 }
 
@@ -412,6 +463,7 @@ export async function extractDeadlines(sections: MatterDocumentSection[]): Promi
     // reasoning — a lower-cost model with structured output is exactly
     // what the original architecture doc's routing table recommends here.
     tier: "fast",
+    cacheableContext: matterDocsCacheableContext(context),
   });
 
   return result.deadlines ?? [];
@@ -504,6 +556,7 @@ export async function generateDraft(
     system: buildDraftSystemPrompt(draftType),
     messages: [{ role: "user", content: buildDraftUserPrompt(draftType, context, instructions) }],
     maxTokens: 4096,
+    cacheableContext: draftDocsCacheableContext(context),
   });
 }
 
@@ -535,6 +588,7 @@ Subject: <subject line>
       },
     ],
     maxTokens: 2048,
+    cacheableContext: draftDocsCacheableContext(context),
   });
 
   const match = raw.match(/^Subject:\s*(.+?)\n+([\s\S]*)$/);
@@ -567,6 +621,7 @@ Use "Not stated in the provided documents" for anything you cannot support. Do n
       },
     ],
     maxTokens: 4096,
+    cacheableContext: matterDocsCacheableContext(context),
   });
 }
 
@@ -597,6 +652,7 @@ For each finding, quote or closely paraphrase both conflicting statements with t
       { role: "user", content: `Here are the matter documents:\n\n${context}\n\nFind contradictions and inconsistencies.` },
     ],
     maxTokens: 4096,
+    cacheableContext: matterDocsCacheableContext(context),
   });
 }
 
@@ -646,6 +702,7 @@ ${playbook}`;
       { role: "user", content: `Here are the matter documents:\n\n${context}\n\nRedline against the firm's clause playbook.` },
     ],
     maxTokens: 4096,
+    cacheableContext: matterDocsCacheableContext(context),
   });
 }
 
@@ -667,6 +724,7 @@ Only list items that are genuinely distinct pieces of evidence (a document, phot
     system,
     messages: [{ role: "user", content: `Here are the matter documents:\n\n${context}\n\nBuild the exhibit list.` }],
     maxTokens: 4096,
+    cacheableContext: matterDocsCacheableContext(context),
   });
 }
 
@@ -690,6 +748,7 @@ Never assume something is missing just because it would typically exist in a cas
       { role: "user", content: `Here are the matter documents:\n\n${context}\n\nProduce the disclosure-completeness checklist.` },
     ],
     maxTokens: 4096,
+    cacheableContext: matterDocsCacheableContext(context),
   });
 }
 
@@ -726,6 +785,7 @@ List two or three plausible Crown positions (e.g. proceed to trial on all counts
       { role: "user", content: `Here are the matter documents:\n\n${context}\n\nAnalyze the Crown's likely position.` },
     ],
     maxTokens: 4096,
+    cacheableContext: matterDocsCacheableContext(context),
   });
 }
 
@@ -768,6 +828,7 @@ Do not speculate about the witness's credibility, demeanor, or how they will act
       { role: "user", content: `Here are the matter documents:\n\n${context}\n\nPrepare examination questions for ${witnessName}.` },
     ],
     maxTokens: 4096,
+    cacheableContext: matterDocsCacheableContext(context),
   });
 }
 
@@ -1168,6 +1229,7 @@ export async function extractEvidenceConnections(
     schema: EVIDENCE_CONNECTIONS_SCHEMA,
     schemaName: "evidence_connections",
     maxTokens: 8192,
+    cacheableContext: context || undefined,
   });
 }
 
