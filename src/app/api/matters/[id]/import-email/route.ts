@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 import { importEmailAsDocument } from "@/lib/emailImport";
-import { checkForNewDeadlines, checkMatterClassification, getMatter } from "@/lib/matters";
+import { checkForNewDeadlines, checkMatterClassification, getMatter, listDocuments } from "@/lib/matters";
 import { EMAIL_PROVIDERS, type EmailProvider } from "@/lib/types";
+
+// Past this many existing documents, checkForNewDeadlines()/checkMatterClassification()
+// read the matter's full corpus and can take 20s to several minutes — the same
+// slowness import-email/bulk/route.ts already backgrounds this for. Below the
+// threshold (the common case — importing into a typical, lightly-populated
+// matter) this stays synchronous so the immediate "Found N new deadlines"
+// feedback the UI shows keeps working.
+const LARGE_MATTER_DOCUMENT_THRESHOLD = 20;
 
 export async function POST(
   request: Request,
@@ -36,17 +44,24 @@ export async function POST(
     return NextResponse.json({ error: message }, { status: clientError ? 400 : 502 });
   }
 
-  let newDeadlines = 0;
-  try {
-    newDeadlines = (await checkForNewDeadlines(id)).newCount;
-  } catch {
-    newDeadlines = 0;
-  }
+  const documentCount = (await listDocuments(id)).length;
+  let newDeadlines: number | null = 0;
   let classificationSuggestion = null;
-  try {
-    classificationSuggestion = await checkMatterClassification(id);
-  } catch {
-    classificationSuggestion = null;
+  if (documentCount > LARGE_MATTER_DOCUMENT_THRESHOLD) {
+    void checkForNewDeadlines(id).catch(() => {});
+    void checkMatterClassification(id).catch(() => {});
+    newDeadlines = null;
+  } else {
+    try {
+      newDeadlines = (await checkForNewDeadlines(id)).newCount;
+    } catch {
+      newDeadlines = 0;
+    }
+    try {
+      classificationSuggestion = await checkMatterClassification(id);
+    } catch {
+      classificationSuggestion = null;
+    }
   }
 
   return NextResponse.json({ ...document, newDeadlines, classificationSuggestion }, { status: 201 });
