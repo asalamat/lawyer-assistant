@@ -1,13 +1,19 @@
+import { isMalwareScanningAvailable } from "./malwareScan";
 import {
   getAnthropicApiKeyStatus,
   getCanliiApiKeyStatus,
+  getCloudBackupStatus,
   getDeepseekApiKeyStatus,
+  getDocuSignStatus,
   getGeminiApiKeyStatus,
   getIndependentReviewProviderOrder,
   getMoonshotApiKeyStatus,
   getOllamaConfig,
   getOpenaiApiKeyStatus,
+  getQuickBooksStatus,
   getSmtpStatus,
+  getStripeStatus,
+  getTwilioStatus,
   getWeatherLocation,
   type IndependentReviewProvider,
 } from "./settings";
@@ -34,19 +40,41 @@ export interface HealthStatus {
 }
 
 export async function getHealthStatus(): Promise<HealthStatus> {
-  const [anthropic, openai, gemini, deepseek, moonshot, ollama, canlii, smtp, location, independentReviewOrder] =
-    await Promise.all([
-      getAnthropicApiKeyStatus(),
-      getOpenaiApiKeyStatus(),
-      getGeminiApiKeyStatus(),
-      getDeepseekApiKeyStatus(),
-      getMoonshotApiKeyStatus(),
-      getOllamaConfig(),
-      getCanliiApiKeyStatus(),
-      getSmtpStatus(),
-      getWeatherLocation(),
-      getIndependentReviewProviderOrder(),
-    ]);
+  const [
+    anthropic,
+    openai,
+    gemini,
+    deepseek,
+    moonshot,
+    ollama,
+    canlii,
+    smtp,
+    location,
+    independentReviewOrder,
+    twilio,
+    stripe,
+    quickbooks,
+    docusign,
+    cloudBackup,
+    malwareScanAvailable,
+  ] = await Promise.all([
+    getAnthropicApiKeyStatus(),
+    getOpenaiApiKeyStatus(),
+    getGeminiApiKeyStatus(),
+    getDeepseekApiKeyStatus(),
+    getMoonshotApiKeyStatus(),
+    getOllamaConfig(),
+    getCanliiApiKeyStatus(),
+    getSmtpStatus(),
+    getWeatherLocation(),
+    getIndependentReviewProviderOrder(),
+    getTwilioStatus(),
+    getStripeStatus(),
+    getQuickBooksStatus(),
+    getDocuSignStatus(),
+    getCloudBackupStatus(),
+    isMalwareScanningAvailable(),
+  ]);
 
   const anyAiConfigured = anthropic.configured || openai.configured;
 
@@ -97,6 +125,78 @@ export async function getHealthStatus(): Promise<HealthStatus> {
       configured: smtp.configured,
       detail: smtp.configured ? "Configured" : "Not configured — optional",
       settingsHref: "/settings/email",
+    },
+    {
+      name: "Gemini AI",
+      configured: gemini.configured,
+      detail: gemini.configured ? "Configured" : "Not configured — optional",
+      settingsHref: "/settings/ai",
+    },
+    {
+      name: "Local AI (Ollama)",
+      configured: Boolean(ollama),
+      detail: ollama ? "Configured" : "Not configured — optional",
+      settingsHref: "/settings/ai",
+    },
+    {
+      name: "DeepSeek (review only)",
+      configured: deepseek.configured,
+      detail: deepseek.configured ? "Configured" : "Not configured — optional",
+      settingsHref: "/settings/ai",
+    },
+    {
+      name: "Moonshot AI (review only)",
+      configured: moonshot.configured,
+      detail: moonshot.configured ? "Configured" : "Not configured — optional",
+      settingsHref: "/settings/ai",
+    },
+    {
+      name: "SMS texting (Twilio)",
+      configured: twilio.configured,
+      detail: twilio.configured ? `Configured (${twilio.fromPhoneNumber})` : "Not configured — optional",
+      settingsHref: "/settings/sms",
+    },
+    {
+      name: "Online payments (Stripe)",
+      configured: stripe.configured,
+      detail: stripe.configured ? "Configured" : "Not configured — optional",
+      settingsHref: "/settings/payments",
+    },
+    {
+      name: "Accounting sync (QuickBooks)",
+      configured: quickbooks.connected,
+      detail: quickbooks.connected
+        ? `Connected to ${quickbooks.companyName ?? "a company file"}`
+        : quickbooks.appConfigured
+          ? "App configured, not connected — optional"
+          : "Not configured — optional",
+      settingsHref: "/settings/quickbooks",
+    },
+    {
+      name: "E-signature (DocuSign)",
+      configured: docusign.configured,
+      detail: docusign.configured
+        ? docusign.enabled
+          ? "Configured and enabled"
+          : "Configured but turned off — optional"
+        : "Not configured — optional (this app's own e-signature works with no setup)",
+      settingsHref: "/settings/docusign",
+    },
+    {
+      name: "Cloud backup",
+      configured: cloudBackup.configured,
+      detail: cloudBackup.configured
+        ? `Configured (${cloudBackup.provider ?? "unknown provider"})`
+        : "Not configured — optional, local backups still run",
+      settingsHref: "/settings/backup",
+    },
+    {
+      name: "Malware scanning (ClamAV)",
+      configured: malwareScanAvailable,
+      detail: malwareScanAvailable
+        ? "Available — every upload is scanned"
+        : "Not available — uploads are not scanned for malware",
+      settingsHref: "/settings/privacy",
     },
     {
       name: "Weather location",
