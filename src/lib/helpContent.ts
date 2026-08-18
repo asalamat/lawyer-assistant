@@ -99,7 +99,7 @@ export const HELP_SECTIONS: HelpSection[] = [
           "- An uploaded photo (.png/.jpg/.jpeg/.webp) also gets a real AI visual description — not just OCR — automatically at upload; a **\"photo analyzed\"** badge shows the description on hover, with **Analyze photo**/Retry if it hasn't run yet or failed. That description merges into the same text every chat/digest/evidence-matrix feature reads, so a photo participates the same way a text document does\n" +
           "- Every upload is scanned for malware first (local ClamAV, Settings > Privacy — no cloud account); a flagged file is quarantined instead of stored where AI features or chat can read it\n" +
           "- Documents are encrypted at rest and decrypted transparently when read\n" +
-          "- If the matter has a linked client, each document shows a **\"Share with client\"** toggle — turning it on makes that document visible in the client's portal login (see Client portal below); nothing is visible by default\n" +
+          "- If the matter has a linked client, each document shows a **\"Share with client\"** toggle — turning it on makes that document visible in the client's portal login (see Client portal below); nothing is visible by default. If the client already has portal access and an email on file, they're also emailed a notification with a link to log in and view it\n" +
           "- Click **\"Similar\"** next to a chat-readable document to find related content elsewhere in the matter, ranked by similarity",
       },
       {

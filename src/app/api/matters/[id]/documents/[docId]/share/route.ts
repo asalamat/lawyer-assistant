@@ -12,7 +12,7 @@ export async function POST(
   }
 
   try {
-    await setDocumentSharedWithClient(id, docId, body.shared);
+    await setDocumentSharedWithClient(id, docId, body.shared, new URL(request.url).origin);
     return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json(

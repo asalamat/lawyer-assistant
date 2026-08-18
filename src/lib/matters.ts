@@ -16,6 +16,8 @@ import { maskForAI } from "./piiMask";
 import { listAttachedReferenceDocuments } from "./referenceLibrary";
 import { findLimitationPeriod } from "./limitationPeriods";
 import { createSignableDocument, getSignableDocument, sendForSignature } from "./signableDocuments";
+import { getClientUserForClient } from "./clientAuth";
+import { isEmailConfigured, sendEmail } from "./email";
 import { createQuickBooksInvoice, getOrCreateQuickBooksCustomer, recordQuickBooksPayment } from "./quickbooks";
 import { sendSms } from "./sms";
 import { findTaskTemplate } from "./taskTemplates";
@@ -482,6 +484,60 @@ export async function listDocuments(matterId: string): Promise<Document[]> {
     .map((row) => toPlain<Document>(row));
 }
 
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Best-effort only — a missing SMTP config, a client with no email on
+// file, or a client who was never granted a portal account (see
+// grantOrResetPortalAccess in clientAuth.ts — it's an opt-in step, not
+// automatic) must never break the share toggle itself, so every early-out
+// below just skips the email rather than throwing. Without a portal
+// account there's nowhere for the link to send them anyway.
+async function notifyClientDocumentShared(
+  matter: Matter,
+  fileName: string,
+  baseUrl: string,
+): Promise<void> {
+  if (!(await isEmailConfigured())) return;
+  if (!matter.clientEmail || !matter.clientId) return;
+  const clientUser = await getClientUserForClient(matter.clientId);
+  if (!clientUser) return;
+
+  const portalUrl = `${baseUrl}/portal/matters/${matter.id}`;
+  const subject = `A new document has been shared with you — ${matter.title}`;
+  const text = `Hello ${matter.clientName},
+
+Your lawyer has shared a new document with you on the matter "${matter.title}" (File ${matter.fileNumber}):
+
+${fileName}
+
+View and download it by logging into your secure client portal:
+${portalUrl}
+
+If you weren't expecting this email, please contact your lawyer before logging in.`;
+  const html = `
+    <div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;max-width:640px;">
+      <h1 style="margin:0 0 4px;font-size:20px;">A new document is available</h1>
+      <p style="margin:0 0 20px;color:#555;">${escapeHtml(matter.title)} &middot; File ${escapeHtml(matter.fileNumber)}</p>
+      <p>Hello ${escapeHtml(matter.clientName)},</p>
+      <p>Your lawyer has shared a new document with you: <strong>${escapeHtml(fileName)}</strong>.</p>
+      <p>You can view and download it by logging into your secure client portal.</p>
+      <p style="margin:28px 0;">
+        <a href="${portalUrl}" style="background:#1a1a1a;color:#fff;padding:12px 22px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:bold;">View document in portal</a>
+      </p>
+      <p style="color:#666;font-size:13px;border-top:1px solid #eee;padding-top:12px;">If you weren't expecting this email, please contact your lawyer before logging in or clicking any links.</p>
+    </div>`;
+
+  try {
+    await sendEmail({ to: matter.clientEmail, subject, text, html });
+  } catch {
+    // Swallowed deliberately, same reasoning as emailSigningLink in
+    // signableDocuments.ts — a bad SMTP config shouldn't block the lawyer
+    // from sharing the document itself.
+  }
+}
+
 // Nothing is visible in the client portal (see clientPortal.ts) just
 // because a client has an account — a lawyer has to opt each document in
 // explicitly, one at a time, via this toggle.
@@ -489,6 +545,7 @@ export async function setDocumentSharedWithClient(
   matterId: string,
   documentId: string,
   shared: boolean,
+  baseUrl?: string,
 ): Promise<void> {
   const doc = db
     .prepare("SELECT fileName FROM documents WHERE id = ? AND matterId = ?")
@@ -501,6 +558,11 @@ export async function setDocumentSharedWithClient(
     matterId,
     `${shared ? "Shared" : "Unshared"} "${doc.fileName}" ${shared ? "with" : "from"} the client portal`,
   );
+
+  if (shared && baseUrl) {
+    const matter = await getMatter(matterId);
+    if (matter) await notifyClientDocumentShared(matter, doc.fileName, baseUrl);
+  }
 }
 
 // Every real filename an AI-generated answer/document could legitimately
