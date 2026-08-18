@@ -1,0 +1,557 @@
+<title>Lawyer Assistant — Practice Management for the Independent Bar</title>
+<style>
+  :root {
+    --ink: #14161c;
+    --ink-soft: #4a4d55;
+    --paper: #f7f8f6;
+    --paper-raised: #edeeea;
+    --paper-card: #ffffff;
+    --rule: #d6d5cc;
+    --seal: #7c2530;
+    --seal-ink: #ffffff;
+    --brass: #a9832e;
+    --focus: #2557a7;
+
+    --display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", "URW Palladio L", Georgia, serif;
+    --body-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "IBM Plex Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #ececE6;
+      --ink-soft: #a9ac9c;
+      --paper: #15161a;
+      --paper-raised: #1f2024;
+      --paper-card: #1a1b1f;
+      --rule: #3a3b3d;
+      --seal: #df8b96;
+      --seal-ink: #1a0d0f;
+      --brass: #d4b15a;
+      --focus: #7fb0ff;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #ececE6;
+    --ink-soft: #a9ac9c;
+    --paper: #15161a;
+    --paper-raised: #1f2024;
+    --paper-card: #1a1b1f;
+    --rule: #3a3b3d;
+    --seal: #df8b96;
+    --seal-ink: #1a0d0f;
+    --brass: #d4b15a;
+    --focus: #7fb0ff;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body-font);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--seal); color: var(--seal-ink); }
+  a { color: inherit; }
+  img, svg { max-width: 100%; }
+
+  h1, h2, h3 {
+    font-family: var(--display);
+    font-weight: 500;
+    margin: 0;
+    text-wrap: balance;
+    color: var(--ink);
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--seal);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6em;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 1.4em;
+    height: 1px;
+    background: var(--seal);
+    display: inline-block;
+  }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 clamp(1.25rem, 4vw, 3rem);
+  }
+
+  /* ---------- nav ---------- */
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem clamp(1.25rem, 4vw, 3rem);
+    border-bottom: 1px solid var(--rule);
+  }
+  .wordmark {
+    font-family: var(--display);
+    font-size: 1.15rem;
+    letter-spacing: 0.01em;
+  }
+  .wordmark b { color: var(--seal); font-weight: 500; }
+  .nav-cta {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+    border: 1px solid var(--ink);
+    color: var(--ink);
+    padding: 0.55em 1.1em;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .nav-cta:hover { background: var(--ink); color: var(--paper); }
+
+  /* ---------- docketed sections ---------- */
+  section {
+    position: relative;
+    padding: clamp(3rem, 7vw, 5.5rem) 0;
+  }
+  section + section { border-top: 1px solid var(--rule); }
+
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 1.25rem;
+    margin-bottom: 2.5rem;
+  }
+  .section-mark {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    white-space: nowrap;
+    padding-top: 0.35em;
+  }
+  .section-title { font-size: clamp(1.5rem, 2.6vw, 2.1rem); }
+
+  /* ---------- hero ---------- */
+  .hero { padding-top: clamp(3.5rem, 9vw, 6.5rem); }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 340px);
+    gap: clamp(2rem, 5vw, 4rem);
+    align-items: start;
+  }
+  @media (max-width: 860px) {
+    .hero-grid { grid-template-columns: 1fr; }
+  }
+  .hero h1 {
+    font-size: clamp(2.35rem, 4.6vw, 3.7rem);
+    line-height: 1.06;
+    margin-top: 0.9rem;
+  }
+  .hero p.lede {
+    font-size: 1.15rem;
+    color: var(--ink-soft);
+    max-width: 42ch;
+    margin-top: 1.4rem;
+  }
+  .hero-ctas { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 2.2rem; }
+
+  .btn-seal {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    letter-spacing: 0.03em;
+    text-decoration: none;
+    background: var(--seal);
+    color: var(--seal-ink);
+    border: 1px solid var(--seal);
+    padding: 0.85em 1.5em;
+    display: inline-block;
+    transform: translateY(0);
+    transition: transform 0.08s ease, box-shadow 0.15s ease;
+  }
+  .btn-seal:hover { box-shadow: 0 3px 0 0 var(--brass); }
+  .btn-seal:active { transform: translateY(2px); box-shadow: none; }
+
+  .btn-ghost {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    text-decoration: none;
+    color: var(--ink);
+    padding: 0.85em 0.2em;
+    border-bottom: 1px solid var(--ink);
+  }
+
+  .docket-card {
+    border: 1px solid var(--rule);
+    background: var(--paper-card);
+    padding: 1.5rem;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+  }
+  .docket-card dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem; }
+  .docket-card dt { color: var(--ink-soft); }
+  .docket-card dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+  .docket-card hr { border: none; border-top: 1px solid var(--rule); margin: 0.9rem 0; }
+
+  /* ---------- comparison table ---------- */
+  .record-frame {
+    border-top: 3px double var(--ink);
+    border-bottom: 1px solid var(--rule);
+  }
+  .table-scroll { overflow-x: auto; }
+  table.record {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    min-width: 640px;
+  }
+  table.record caption {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    padding: 0.9rem 0;
+  }
+  table.record th, table.record td {
+    text-align: left;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  table.record thead th {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 400;
+  }
+  table.record thead th.us {
+    color: var(--seal);
+  }
+  table.record td:first-child, table.record th:first-child { padding-left: 0; }
+  table.record tbody th {
+    font-family: var(--body-font);
+    font-weight: 600;
+    font-size: 0.92rem;
+  }
+  table.record td.us { font-weight: 600; }
+  .yes { color: var(--seal); font-family: var(--mono); }
+  .no { color: var(--ink-soft); font-family: var(--mono); }
+  .note { display: block; font-size: 0.78rem; color: var(--ink-soft); font-weight: 400; margin-top: 0.15rem; }
+  .record-foot {
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    padding-top: 1rem;
+    max-width: 62ch;
+  }
+
+  /* ---------- exhibits ---------- */
+  .exhibits { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  @media (max-width: 720px) { .exhibits { grid-template-columns: 1fr; } }
+  .exhibit {
+    background: var(--paper-card);
+    padding: 2rem;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  .exhibit.in-view { opacity: 1; transform: translateY(0); }
+  .exhibit .tag {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    color: var(--brass);
+    text-transform: uppercase;
+  }
+  .exhibit h3 { font-size: 1.3rem; margin-top: 0.5rem; }
+  .exhibit p { color: var(--ink-soft); margin-top: 0.7rem; font-size: 0.96rem; }
+
+  /* ---------- practice areas ---------- */
+  .areas { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1rem; }
+  .area {
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    border: 1px solid var(--rule);
+    padding: 0.5em 0.9em;
+    color: var(--ink-soft);
+  }
+  .who-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 3rem; align-items: start; }
+  @media (max-width: 780px) { .who-grid { grid-template-columns: 1fr; } }
+
+  /* ---------- final cta ---------- */
+  .cta-final { text-align: left; }
+  .cta-final .section-title { max-width: 22ch; }
+  .cta-box {
+    margin-top: 2rem;
+    border: 1px solid var(--rule);
+    padding: clamp(1.75rem, 4vw, 2.75rem);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+    background: var(--paper-raised);
+  }
+  .cta-box p { margin: 0; color: var(--ink-soft); max-width: 46ch; }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding: 2rem clamp(1.25rem, 4vw, 3rem) 3rem;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+  }
+
+  a:focus-visible, button:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .exhibit { transition: none; opacity: 1; transform: none; }
+    .btn-seal { transition: none; }
+  }
+</style>
+
+<nav class="nav">
+  <div class="wordmark">Lawyer <b>Assistant</b></div>
+  <a class="nav-cta" href="#request">Request a demo →</a>
+</nav>
+
+<section class="hero wrap">
+  <div class="hero-grid">
+    <div>
+      <span class="eyebrow">Lawyer Assistant, 2026 — Practice Management</span>
+      <h1>Built for the lawyer who still does the work themselves.</h1>
+      <p class="lede">
+        AI case analysis, CanLII-verified citations, trust accounting, and a client
+        portal with online payments — running on your own server, not a shared
+        cloud tenancy, and without an enterprise sales cycle to get there.
+      </p>
+      <div class="hero-ctas">
+        <a class="btn-seal" href="#request">Request a demo</a>
+        <a class="btn-ghost" href="#record">See the comparison ↓</a>
+      </div>
+    </div>
+    <div class="docket-card">
+      <dl>
+        <dt>Built for</dt><dd>Solo &amp; small-firm counsel</dd>
+        <dt>Jurisdiction</dt><dd>Ontario, Canada</dd>
+        <dt>Hosting</dt><dd>Self-hosted</dd>
+        <dt>Case law</dt><dd>CanLII-verified</dd>
+      </dl>
+      <hr />
+      <dl>
+        <dt>Status</dt><dd>Accepting new firms</dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="record">
+  <div class="section-head">
+    <span class="section-mark">§2</span>
+    <h2 class="section-title">The record, compared</h2>
+  </div>
+  <div class="record-frame">
+    <div class="table-scroll">
+      <table class="record">
+        <caption>Exhibit 1 — Comparative record, prepared August 2026</caption>
+        <thead>
+          <tr>
+            <th scope="col"></th>
+            <th scope="col" class="us">Lawyer Assistant</th>
+            <th scope="col">Clio</th>
+            <th scope="col">MyCase / PracticePanther</th>
+            <th scope="col">Filevine</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">AI case analysis</th>
+            <td class="us"><span class="yes">✓</span> digests, evidence matrices, contradictions
+              <span class="note">an independent model cross-checks each one before you see it</span>
+            </td>
+            <td>partial — bolt-on AI</td>
+            <td>limited</td>
+            <td><span class="yes">✓</span> deeper, deposition-focused</td>
+          </tr>
+          <tr>
+            <th scope="row">Evidence-connections graph</th>
+            <td class="us"><span class="yes">✓</span></td>
+            <td><span class="no">—</span></td>
+            <td><span class="no">—</span></td>
+            <td>partial — case timeline</td>
+          </tr>
+          <tr>
+            <th scope="row">Case-law citation check</th>
+            <td class="us"><span class="yes">✓</span> CanLII, free
+              <span class="note">verifies citations and flags possible appeals</span>
+            </td>
+            <td><span class="yes">✓</span> vLex, paid add-on</td>
+            <td><span class="no">—</span></td>
+            <td><span class="no">—</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Trust accounting &amp; AR aging</th>
+            <td class="us"><span class="yes">✓</span></td>
+            <td><span class="yes">✓</span></td>
+            <td><span class="yes">✓</span></td>
+            <td><span class="yes">✓</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Client portal &amp; online payments</th>
+            <td class="us"><span class="yes">✓</span> Stripe</td>
+            <td><span class="yes">✓</span></td>
+            <td><span class="yes">✓</span></td>
+            <td><span class="yes">✓</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Where your data lives</th>
+            <td class="us"><span class="yes">✓</span> your own server</td>
+            <td>Clio's cloud</td>
+            <td>vendor's cloud</td>
+            <td>vendor's cloud</td>
+          </tr>
+          <tr>
+            <th scope="row">Passwordless login</th>
+            <td class="us"><span class="yes">✓</span> passkey</td>
+            <td>mixed</td>
+            <td>mixed</td>
+            <td><span class="no">—</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Typical cost per lawyer, monthly</th>
+            <td class="us">Contact us</td>
+            <td>$49–$149</td>
+            <td>$39–$89</td>
+            <td>quote-based</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="record-foot">
+      Pricing figures for competitors are industry-reported ranges, not quotes obtained
+      directly. Full sourcing and reasoning behind every row is available on request.
+    </p>
+  </div>
+</section>
+
+<section class="wrap" id="exhibits">
+  <div class="section-head">
+    <span class="section-mark">§3</span>
+    <h2 class="section-title">What's actually in the file</h2>
+  </div>
+  <div class="exhibits">
+    <div class="exhibit"><span class="tag">Exhibit A</span>
+      <h3>Evidence-connections graph</h3>
+      <p>Every document, allegation, and evidentiary gap in a matter, mapped as a graph — not another page of summary text to re-read before a hearing.</p>
+    </div>
+    <div class="exhibit"><span class="tag">Exhibit B</span>
+      <h3>CanLII case-law health check</h3>
+      <p>Every citation in your documents gets checked against CanLII automatically — real decision, citing cases, and a flag on anything that reads like a possible appeal worth a second look.</p>
+    </div>
+    <div class="exhibit"><span class="tag">Exhibit C</span>
+      <h3>A second opinion, before you see the first</h3>
+      <p>An independent model reviews every AI-drafted analysis for gaps and unsupported claims before it reaches you — not a single model's answer taken on faith.</p>
+    </div>
+    <div class="exhibit"><span class="tag">Exhibit D</span>
+      <h3>Trust accounting that holds up to audit</h3>
+      <p>Reconciliations, retainer low-balance alerts, and AR aging built in from the start — not bolted onto a generic billing module.</p>
+    </div>
+    <div class="exhibit"><span class="tag">Exhibit E</span>
+      <h3>A client portal clients actually use</h3>
+      <p>Secure document sharing with automatic email notification, e-signatures, and online payment on invoices or trust deposits — kept strictly separate.</p>
+    </div>
+    <div class="exhibit"><span class="tag">Exhibit F</span>
+      <h3>Your server, your data</h3>
+      <p>Self-hosted by design. No client file ever sits on a shared multi-tenant cloud you don't control.</p>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="who">
+  <div class="section-head">
+    <span class="section-mark">§4</span>
+    <h2 class="section-title">Who this is built for</h2>
+  </div>
+  <div class="who-grid">
+    <div>
+      <p style="color:var(--ink-soft); max-width: 52ch;">
+        Solo and small-firm counsel who are still doing the intake, the drafting,
+        and the deadline-tracking themselves — not firms with a budget for an
+        enterprise contract and a dedicated legal-ops hire. Every practice-area
+        template, limitation-period calculation, and AI prompt in this app was
+        written against Ontario statutes specifically.
+      </p>
+    </div>
+    <div>
+      <div class="areas">
+        <span class="area">Criminal Defence</span>
+        <span class="area">Family</span>
+        <span class="area">Immigration</span>
+        <span class="area">Real Estate</span>
+        <span class="area">Personal Injury</span>
+        <span class="area">Employment</span>
+        <span class="area">Traffic / POA</span>
+        <span class="area">Wills &amp; Estates</span>
+        <span class="area">Corporate</span>
+        <span class="area">Civil Litigation</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap cta-final" id="request">
+  <div class="section-head">
+    <span class="section-mark">§5</span>
+    <h2 class="section-title">Request a demo</h2>
+  </div>
+  <div class="cta-box">
+    <p>
+      Fifteen minutes on a real matter of yours — not a canned script. See what
+      the AI drafts, how the CanLII check reads a real citation, and what it
+      actually costs for your firm size.
+    </p>
+    <a class="btn-seal" href="mailto:info@unityworkscanada.ca?subject=Demo%20request%20-%20Lawyer%20Assistant&body=Hi%2C%20I%27d%20like%20to%20see%20a%20demo%20of%20Lawyer%20Assistant.%0A%0APractice%20area(s)%3A%20%0AFirm%20size%3A%20">Email info@unityworkscanada.ca</a>
+  </div>
+</section>
+
+<footer class="wrap">
+  <span>Lawyer Assistant — self-hosted practice management</span>
+  <span>info@unityworkscanada.ca</span>
+</footer>
+
+<script>
+  (function () {
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var exhibits = document.querySelectorAll(".exhibit");
+    if (reduce || !("IntersectionObserver" in window)) {
+      exhibits.forEach(function (el) { el.classList.add("in-view"); });
+      return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("in-view");
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15 });
+    exhibits.forEach(function (el) { io.observe(el); });
+  })();
+</script>
